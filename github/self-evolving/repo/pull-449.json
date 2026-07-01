@@ -1,0 +1,88 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "agent/implement-issue-446/codex-28505159339",
+  "body": "## Summary\n- Update the answer prompt to suggest concrete follow-up slash commands only when useful.\n- Explain when Sepo stayed in answer mode because wording was planning-shaped rather than explicit change authorization.\n- Add envelope prompt coverage for the new guidance.\n\n## Verification\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nCloses #448\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABITypEQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #449 | 3 / 40 | Dispatched |\n\nReason: implementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1782897439529 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86Mjg1MDY3ODQwNTY6aW1wbGVtZW50OjQ0ODpyZXZpZXc6NDQ5OjM -->",
+      "createdAt": "2026-07-01T09:17:20Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/449#issuecomment-4852590865",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABITz8eA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 5 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | The answer prompt now asks for an explicit follow-up command before coding and says not to present slash commands as already-authorized work. No approval/dispatch plumbing was loosened. |\n| communication / generic | Write audience-first documentation | pass | 7/7 | The prompt keeps guidance user-task-oriented: one short sentence or bullet, copyable commands, and no boilerplate on every answer. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is limited to `.github/prompts/agent-answer.md` and focused prompt coverage in `.agent/src/__tests__/envelope.test.ts`, matching issue #448’s requested slice. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The change extends the existing answer route prompt and existing envelope prompt tests rather than adding router, metadata, or dispatch machinery. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | No public workflow contract or route syntax changed; existing docs already list free-form mentions and slash routes, while this PR updates the route prompt that governs answer wording. |\n\n## Notes\n\n- The strongest score drivers are scope control and authorization separation: the implementation improves answer-mode UX without treating suggested commands as permission to execute work.\n- Test coverage is appropriately narrow for a prompt-only slice: the new envelope test asserts the copied command examples, non-boilerplate constraint, planning-shaped explanation, and explicit-command handoff language.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** PR #449 satisfies the applicable selected rubrics. I did not find a rubric-specific blocker or warning.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-6`",
+      "createdAt": "2026-07-01T09:20:00Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/449#issuecomment-4852612216",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIT3p1g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 560fb2c77434a27fe1fd4ad3ed3e83e579b3d918 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #449 implements the answer-guidance slice of issue #448, under parent issue #443.\n- It updates the answer route prompt so Sepo can suggest concrete follow-up slash commands when answer mode is appropriate for planning, discussion, ambiguity, or unsupported requests.\n- The change preserves the authorization boundary by telling users to explicitly reply with a command before Sepo runs work.\n- It adds focused envelope prompt coverage for the new guidance and remains stacked on the dispatch-intent work from PR #447.\n\n## Review\nThe independent reviews agree this is a small, correctly scoped prompt/test change with no unresolved blocking or warning-level issues. The current PR state and inline review surfaces do not add any contrary evidence.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues | INFO | All reviewer artifacts converge on SHIP/PASS, and the current diff is limited to `.github/prompts/agent-answer.md` plus focused prompt assertions in `.agent/src/__tests__/envelope.test.ts`. |\n\n## Progress\n- Used all three available review artifacts: Codex, Claude, and rubrics review.\n- Checked the live PR conversation, linked issue #448, and parent issue #443 for current context.\n- Existing inline PR comments and review threads are empty, so no inline comments were posted, replied to, minimized, or resolved.\n- Reviewer-reported verification includes `npm --prefix .agent run build`, `node --test .agent/dist/__tests__/envelope.test.js`, and `git diff --check`.\n\n## Recommended Next Step\n`NO_AUTOMATED_ACTION`: no unresolved actionable branch-change work remains.\n\n## Final Verdict\n`SHIP`\n\n## Action Items\n- [ ] No required branch-change work remains.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-5`",
+      "createdAt": "2026-07-01T09:25:11Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/449#issuecomment-4852672982",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-07-01T09:16:51Z",
+  "files": [
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 14,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-answer.md",
+      "additions": 6,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-448/codex-28506784056",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 449,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "OPEN",
+  "title": "Teach answer route follow-up slash commands",
+  "updatedAt": "2026-07-01T09:25:12Z",
+  "url": "https://github.com/self-evolving/repo/pull/449"
+}

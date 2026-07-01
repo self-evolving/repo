@@ -1,0 +1,144 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "@sepo-agent /answer\n\nFollowing #439, I was wondering if the routing step can be improved with a better user experience:\n\n1. When just tag sepo it's the current answer route. \n- And it can infer whatever the users want and try to map to the existing route -- so in the response sepo can also prompt the users to respond concrete actions like implement the features or fix the pr. (And teach them the back slash command for the route). \n- need to think how to reconcile it with the current approval gating through. \n\n\nSo I think this just reduces one step and make the ux cleaner?",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABITawOg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, I think this is the right UX direction, with one important correction: a plain `@sepo-agent ...` already goes through dispatch triage today, not strictly the current `/answer` route. The routing split is:\n\n- Mention extraction finds explicit slash commands in [`extract-context.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/extract-context.ts).\n- If there is no explicit route, [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml) runs dispatch triage.\n- Dispatch rules live in [`agent-dispatch.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-dispatch.md).\n- Approval/access policy is enforced deterministically in [`triage.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/triage.ts), not trusted to the model.\n- Triaged implementation-like routes post an approval request via [`prepare-approval.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/cli/prepare-approval.ts); explicit `/implement` skips that approval step but still respects access policy.\n\nSo the clean version is:\n\n1. Keep bare mentions as “infer intent”.\n2. If intent is clear and safe:\n   - `review`, `fix-pr`, `orchestrate` can route as they do today when valid.\n   - `implement`, `create-action`, `add-rubrics` should still create the existing approval request, because the user did not explicitly authorize the write route.\n3. If intent is ambiguous, planning-shaped, or discussion-shaped, route to `answer`.\n4. In the answer response, Sepo should say what it inferred and give copyable next commands, for example:\n   - `@sepo-agent /implement ...` to start coding directly.\n   - `@sepo-agent /fix-pr ...` on a PR to address review feedback.\n   - `@sepo-agent /review` for another review pass.\n   - `@sepo-agent /orchestrate ...` for bounded multi-step work.\n5. The answer should also explain when Sepo intentionally stayed in answer mode because the wording was “think/check/plan” rather than “make the change”.\n\nImplementation plan I’d use:\n\n1. Tighten [`agent-dispatch.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-dispatch.md) so bare mentions still infer routes, but ambiguous “can we / should we / think about” requests reliably become `answer`.\n2. Update [`agent-answer.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-answer.md) to teach the user the concrete slash command only when useful, without adding boilerplate to every answer.\n3. Optionally pass portal dispatch metadata, like `summary`, `confidence`, and maybe inferred route, into the answer prompt for triaged-answer runs so the answer can be explicit about “I treated this as planning, not implementation.”\n4. Keep [`applyDispatchPolicy`](https://github.com/self-evolving/repo/blob/main/.agent/src/triage.ts) as the source of truth for approval gating: triaged write routes require approval; explicit slash routes are the approval.\n5. Add tests in [`triage.test.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/triage.test.ts) and workflow assertions to cover:\n   - bare mention with clear “change/add/fix” -> triaged `implement` with approval required;\n   - bare mention with “think/check/plan” -> `answer`;\n   - explicit `/implement` -> no approval gate but still access-policy checked;\n   - answer prompt includes route-command guidance for follow-up action.\n\nSo yes: this reduces one UX step, but we should frame it as “bare mention infers intent; write routes need confirmation unless the slash command was explicit.” That preserves the current approval safety model while making the first interaction feel much cleaner.\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — answer · 1m40s · 30 steps**\n\nLast message\n> Yes, I think this is the right UX direction, with one important correction: a plain `@sepo-agent ...` already goes through dispatch triage today, not strictly the current `/answer` route. The routing split is: - Mention extraction finds ex…\n\nActivity\n\n- ✏️ Edited `Search prepare-approval|needs_approval|sepo-agent-request|agent-approve|dispatch-agent|create-action|add-rubrics in wor…` (completed)\n- 📖 Read `Read prepare-approval.ts` (completed)\n- 📖 Read `Read agent-router.yml` (completed)\n- 📖 Read `Read triage.test.ts` (completed)\n- 📖 Read `Read triage.test.ts` (completed)\n- 💬 Message \"Yes, I think this is the right UX direction, with one important correction: a plain `@sepo-agent ...` already goes through dispatch triage today, not strictly the current `/answer` route. The routing split is: - Mention extraction finds ex…\"\n</details>\n\n<!-- sepo-progress:run-28504671762 -->\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-1`",
+      "createdAt": "2026-07-01T08:37:25Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/443#issuecomment-4852199482",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABITdOTw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate make several small PRs and stack on top of #444",
+      "createdAt": "2026-07-01T08:41:55Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/443#issuecomment-4852239951",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABITe0yw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is starting a focused child task for this orchestration.\n\n| Child task | Focus | Parent issue | Status |\n| --- | --- | --- | --- |\n| #446 | dispatch-intent | #443 | Running |\n\nI'll report back here when the child task finishes.\n\n<!-- sepo-sub-orchestrator-child parent:443 stage:dispatch-intent child:446 -->",
+      "createdAt": "2026-07-01T08:44:09Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/443#issuecomment-4852266187",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABITvpJA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Child task completed.\n\n| Child task | PR | Outcome | Parent round | Next step |\n| --- | --- | --- | --- | --- |\n| #446 | #447 | Ready to ship | 2 / 40 | Resuming parent orchestration |\n\nSummary: review verdict is SHIP\n\n<!-- sepo-sub-orchestrator-report child:446 resume:dispatched -->",
+      "createdAt": "2026-07-01T09:11:47Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/443#issuecomment-4852541732",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABITweNg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is starting a focused child task for this orchestration.\n\n| Child task | Focus | Parent issue | Status |\n| --- | --- | --- | --- |\n| #448 | answer-guidance | #443 | Running |\n\nI'll report back here when the child task finishes.\n\n<!-- sepo-sub-orchestrator-child parent:443 stage:answer-guidance child:448 -->",
+      "createdAt": "2026-07-01T09:13:23Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/443#issuecomment-4852555318",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIT3-5A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Child task completed.\n\n| Child task | PR | Outcome | Parent round | Next step |\n| --- | --- | --- | --- | --- |\n| #448 | #449 | Ready to ship | 3 / 40 | Resuming parent orchestration |\n\nSummary: review verdict is SHIP\n\n<!-- sepo-sub-orchestrator-report child:448 resume:dispatched -->",
+      "createdAt": "2026-07-01T09:25:34Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/443#issuecomment-4852678372",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIT5zFA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo orchestration stopped after `orchestrate` concluded `done`.\n\n- Source action: `orchestrate`\n- Source conclusion: `done`\n- Target: `issue #443`\n- Round: `3/40`\n- Reason: agent planner stop: Parent issue #443 now has the requested stacked small PRs: #447 covers bare-mention dispatch intent and approval gating on top of #444, and #449 covers answer-mode follow-up command guidance on top of #447. Both child PRs finished with SHIP, and remaining metadata plumbing would be optional rather than clearly warranted automatic work.\n- Source run ID: `28506990929`\n\nNo follow-up workflow was dispatched. Inspect the source action status comment and workflow logs before retrying or continuing manually.\n\n<!-- sepo-agent-orchestrate-stop -->",
+      "createdAt": "2026-07-01T09:27:45Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/443#issuecomment-4852708116",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-07-01T08:36:38Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 443,
+  "state": "OPEN",
+  "title": "Change answer logic",
+  "updatedAt": "2026-07-01T09:27:45Z",
+  "url": "https://github.com/self-evolving/repo/issues/443"
+}

@@ -163,6 +163,43 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/440#issuecomment-4831554707",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABITGerA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> For the narrow case “old comment had no Sepo mention, edit adds `@sepo-agent /fix-pr`”, yes, removing the `github.event.action != 'edited'` gate would probably work.\r\n> \r\n> But it is too broad/incomplete as the actual policy because we want: edited `/fix-pr` runs **only when that edit newly added `/fix-pr`**, and only once. That means the router needs to compare the current body to `changes.body.from`, not just allow every edited event through.\r\n> \r\n> In this PR, that is why the `fix-pr` job gate became:\r\n> \r\n> [`github.event.action != 'edited' || edited_comment_command_added == 'fix-pr'`](https://github.com/self-evolving/repo/blob/4518d44348a897319634c357c31952ccef923929/.github/workflows/agent-router.yml#L1184-L1192)\r\n> \r\n> The review finding is about a narrower bug in the new predicate: [`getNewlyAddedEditedCommentCommandRoute`](https://github.com/self-evolving/repo/blob/4518d44348a897319634c357c31952ccef923929/.agent/src/context.ts#L88-L110) uses `extractRequestedRouteDecision`, which returns the **first** explicit route. So this edit can be missed:\r\n> \r\n> ```\r\n> @sepo-agent /answer explain this\r\n> \r\n> Also @sepo-agent /fix-pr\r\n> ```\r\n> \r\n> because the current route still parses as `answer`, not `fix-pr`.\r\n> \r\n> So the fix is not just “remove the gate”; it is “allow the gate only when current body has explicit `/fix-pr` and previous body did not.” The PR already has `hasExplicitRequestedRoute` for that; it just needs to use it for the current body too.\r\n> \r\n> Sepo activity\r\n> **Sepo finished — answer · 1m37s · 25 steps**\r\n\r\n\r\n@sepo-agent /answer I think this is still too complicated... This is effectively an edge case that any edit action would have right?  ",
+      "createdAt": "2026-07-01T08:02:46Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/440#issuecomment-4851867308",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABITHFog",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, I agree with that framing.\n\nThis is not really a `/fix-pr`-specific edge case. It is the generic problem with **any command accepted from an edited comment**:\n\n- If we allow edited comments blindly, then every later typo fix/edit can re-trigger the command.\n- If we block edited comments blindly, then “I edited my comment to add `/fix-pr`” becomes a silent no-op.\n- So the useful generic rule is: on edited comments, only treat a command as actionable if that command was newly introduced by this edit.\n\nFor this PR, `/fix-pr` is just the first route where we decided edited-comment commands are worth supporting. `/review` is still blocked by policy.\n\nSo I think the simpler mental model is:\n\n```text\nnew comment: route normally\nedited comment: compute newly added explicit commands\nedited /fix-pr newly added: allow\nedited /review newly added: explain blocked\nalready-present command edited again: ignore\n```\n\nThe implementation can probably be made to read more like that. But I would not remove the edit gate unless we are explicitly okay with repeated command execution on ordinary comment edits.\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — answer · 50s · 6 steps**\n\nLast message\n> Yes, I agree with that framing. This is not really a `/fix-pr`-specific edge case. It is the generic problem with **any command accepted from an edited comment**: - If we allow edited comments blindly, then every later typo fix/edit can re…\n\nActivity\n\n- 💬 Message \"I’ll re-check the current PR state and discussion before answering, since the branch may have changed since the earlier explanation.\"\n- 📖 Read `gh pr view 440 --repo self-evolving/repo --json title,body,comments,files,state,url,headRefName` (failed)\n- ✏️ Edited `Search edited_comment_command_added|getNewlyAddedEditedCommentCommandRoute|hasExplicitRequestedRoute|github.event.actio…` (completed)\n- 🔧 Used tool `git status --short` (completed)\n- 📖 Read `gh pr view 440 --repo self-evolving/repo --json title,body,comments,files,state,url,headRefName` (completed)\n- 💬 Message \"Yes, I agree with that framing. This is not really a `/fix-pr`-specific edge case. It is the generic problem with **any command accepted from an edited comment**: - If we allow edited comments blindly, then every later typo fix/edit can re…\"\n</details>\n\n<!-- sepo-progress:run-28502837448 -->\n\n---\n`codex` | `gpt-5.5` | `high` | `Macmini-runner-6`",
+      "createdAt": "2026-07-01T08:03:42Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/440#issuecomment-4851877282",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-06-29T09:51:29Z",
@@ -243,6 +280,6 @@
   "reviews": [],
   "state": "OPEN",
   "title": "Allow newly added edited /fix-pr commands",
-  "updatedAt": "2026-06-29T10:42:02Z",
+  "updatedAt": "2026-07-01T08:04:41Z",
   "url": "https://github.com/self-evolving/repo/pull/440"
 }

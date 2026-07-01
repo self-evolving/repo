@@ -1,0 +1,555 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- Allow the `review` route on issue and pull request targets.\n- Make `agent-review.yml` target-aware, preserving PR diff review while adding focused default-branch issue review.\n- Thread `request_text` and trigger comment metadata into review/synthesis prompts, post issue review results back to the issue, and skip PR-only rubrics/head/orchestration behavior for issue targets.\n- Update docs and tests for issue-scoped review behavior.\n\n## Verification\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/triage.test.js .agent/dist/__tests__/envelope.test.js`\n- `npm --prefix .agent run check:workflow`\n- `node --test .agent/dist/__tests__/docs-validation.test.js`\n- `git diff --check`\n\nCloses #442\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABITcnaA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate ",
+      "createdAt": "2026-07-01T08:40:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/444#issuecomment-4852229992",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABITd-PQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | review | PR #444 | 2 / 40 | Dispatched |\n\nReason: agent planner selected review: PR #444 is an open draft PR produced by the agent for issue #442, and the user requested /orchestrate with no existing review synthesis. A review-first handoff is the appropriate PR-level next action.\n\n<!-- sepo-agent-handoff state:dispatched created:1782895379612 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86Mjg1MDQ5MDI0NjY6b3JjaGVzdHJhdGU6NDQ0OnJldmlldzo0NDQ6Mg -->",
+      "createdAt": "2026-07-01T08:43:00Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/444#issuecomment-4852252221",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIThYsw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 95 | PARTIAL | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Validate delegated route authorization | pass | 8/8 | `review` is still policy-gated to issue/PR targets in [`applyDispatchPolicy`](https://github.com/self-evolving/repo/blob/2ca60e5f43454e5a95a6966a8824df900298bccf/.agent/src/triage.ts#L495-L511), and router handoff preserves requester/source metadata in [`agent-router.yml`](https://github.com/self-evolving/repo/blob/2ca60e5f43454e5a95a6966a8824df900298bccf/.github/workflows/agent-router.yml#L1137-L1152). |\n| coding_workflow/generic | Prefer explicit structured inputs | partial | 4/7 | The PR adds structured `target_kind`, `target_number`, and request source fields in [`agent-review.yml`](https://github.com/self-evolving/repo/blob/2ca60e5f43454e5a95a6966a8824df900298bccf/.github/workflows/agent-review.yml#L6-L38), but leaves them optional with no clear validation for missing, invalid, or conflicting `pr_number`/`target_number` inputs. |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | The implementation extends existing triage, router, review workflow, prompt, post-comment, and test surfaces instead of creating a parallel issue-review route. |\n| coding_workflow/generic | Keep docs in sync | pass | 7/7 | Docs were updated to describe issue-scoped review in the workflow table and route behavior notes in [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/2ca60e5f43454e5a95a6966a8824df900298bccf/.agent/docs/usage/supported-workflows.md#L20-L20) and [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/2ca60e5f43454e5a95a6966a8824df900298bccf/.agent/docs/usage/supported-workflows.md#L255-L259). |\n| review_quality/generic | Ground review synthesis in current artifacts | pass | 8/8 | Synthesis now tells issue-targeted runs to fetch the current issue and ground findings in current review artifacts/target state in [`review-synthesize.md`](https://github.com/self-evolving/repo/blob/2ca60e5f43454e5a95a6966a8824df900298bccf/.github/prompts/review-synthesize.md#L10-L30). |\n| coding_workflow/generic | Skip no-op advisory automation | pass | 7/7 | Issue-targeted review skips the PR-only rubrics review lane via the `rubrics-review` condition in [`agent-review.yml`](https://github.com/self-evolving/repo/blob/2ca60e5f43454e5a95a6966a8824df900298bccf/.github/workflows/agent-review.yml#L297-L310). |\n| coding_workflow/generic | Make surgical changes | pass | 8/8 | Changes are limited to review route policy, review workflow plumbing, prompts, docs, and focused tests for the new target kind. |\n| coding_style/generic | Prefer simple implementations | pass | 7/7 | The PR keeps one review workflow with target-aware branches and preserves PR behavior, including PR-only head capture and orchestration guards in [`agent-review.yml`](https://github.com/self-evolving/repo/blob/2ca60e5f43454e5a95a6966a8824df900298bccf/.github/workflows/agent-review.yml#L154-L162) and [`agent-review.yml`](https://github.com/self-evolving/repo/blob/2ca60e5f43454e5a95a6966a8824df900298bccf/.github/workflows/agent-review.yml#L450-L474). |\n\n## Notes\n\n- The implementation matches the linked issue scope: issue `/review` uses the triggering request as focused scope, avoids whole-repo audit behavior, and preserves PR diff review behavior.\n- The main follow-up is to add a small validation step for `agent-review.yml` inputs so manual or reusable workflow calls fail clearly when target fields are missing, invalid, or contradictory.\n\n## Findings\n\n- **WARNING:** `agent-review.yml` makes both `pr_number` and `target_number` optional and uses fallback expressions like `inputs.target_number || inputs.pr_number`, but does not validate that one usable target number exists, that `target_kind` is only `issue` or `pull_request`, or that `pr_number` and `target_number` do not conflict. This partially misses the explicit structured inputs rubric because ambiguous workflow calls can proceed into later agent/runtime steps instead of failing at the contract boundary.\n\n## Final Rubric Verdict\n\nPARTIAL\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-2`",
+      "createdAt": "2026-07-01T08:47:33Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/444#issuecomment-4852308147",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABITmdJw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 2ca60e5f43454e5a95a6966a8824df900298bccf -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #444 expands the `review` route so it can run on both pull requests and issues. The goal from #442/#396 is to keep PR review as diff-based review, while issue review becomes a focused default-branch review scoped by the triggering request text. The PR updates routing, review workflow inputs, prompts, posting behavior, docs, and tests to thread issue targets and request metadata through the existing review path. The implementation mostly follows existing patterns and preserves the PR-only rubrics/head/orchestration behavior where appropriate.\n\n## Review\nThe implementation is close, but two unresolved warnings should be fixed before merge. One reviewer considered the PR shippable with INFO-only notes, while Codex and rubrics review both identified target validation as a real follow-up; synthesis agrees the warnings are concrete and current.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Issue synthesis prompt can still comment directly on issues | WARNING | The issue-target synthesis instructions block PR inline APIs, but they do not explicitly forbid direct issue/top-level comments even though synthesis has `issues: write` and `approve-all`. That can bypass the deterministic `post-comment.js` publisher and create duplicate or out-of-band issue comments. |\n| Review workflow lacks early target preflight | WARNING | `pr_number`, `target_number`, and `target_kind` are now optional/free-form in `agent-review.yml`, but the workflow does not normalize or reject invalid targets before provider/runtime setup. Generic envelope validation later mitigates this, but direct workflow calls can still fail late or run the review prompt with unsupported target kinds. |\n\n## Progress\n- The PR implements the core requested behavior: issue `/review` is allowed, receives `request_text` and trigger metadata, and posts issue-mode synthesis back to the issue.\n- Reviewer artifacts report build, focused tests, workflow checks, docs validation, and diff whitespace checks passed on head `2ca60e5f43454e5a95a6966a8824df900298bccf`.\n- No existing inline comments or review threads were present before synthesis.\n- Posted two new inline comments: one on `.github/prompts/review-synthesize.md` and one on `.github/workflows/agent-review.yml`.\n- No comments were minimized, no replies were added, and no threads were resolved.\n\n## Issue Details\n<details>\n<summary>Issue synthesis prompt can still comment directly on issues</summary>\n\n**Cause:** The issue branch in [`review-synthesize.md`](https://github.com/self-evolving/repo/blob/2ca60e5f43454e5a95a6966a8824df900298bccf/.github/prompts/review-synthesize.md#L19-L30) says not to use PR inline-comment APIs, but does not say “do not post issue/top-level comments directly.” The workflow’s [`Post review comment`](https://github.com/self-evolving/repo/blob/2ca60e5f43454e5a95a6966a8824df900298bccf/.github/workflows/agent-review.yml#L426-L440) step is meant to be the single publisher.\n\n**Candidate solutions:** Add an explicit issue-target instruction that synthesis must return markdown only and must not call `gh` to post issue comments or top-level comments. Add a prompt test if the project wants to lock that guardrail in.\n\n**Comments:** Inline feedback was posted at `review-synthesize.md` line 24.\n\n</details>\n\n<details>\n<summary>Review workflow lacks early target preflight</summary>\n\n**Cause:** The workflow now accepts optional `pr_number`, `target_kind`, and `target_number` inputs in [`agent-review.yml`](https://github.com/self-evolving/repo/blob/2ca60e5f43454e5a95a6966a8824df900298bccf/.github/workflows/agent-review.yml#L6-L17), then forwards fallback expressions into reviewer and synthesis runs. `run-agent-task` has generic envelope validation, but that happens after auth/runtime setup and allows target kinds outside the review prompt’s issue/PR branches.\n\n**Candidate solutions:** Add an early normalization/preflight step or job that outputs a canonical `target_kind` and `target_number`, only allows `issue` or `pull_request`, requires a positive `target_number || pr_number`, and fails fast on conflicting inputs. Update the workflow assertions in `envelope.test.ts` to cover invalid direct/manual calls.\n\n**Comments:** Router-dispatched review calls are already constrained to issue/PR targets, so this is not a blocking trust-boundary issue. Inline feedback was posted at `agent-review.yml` line 14.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The remaining work is concrete, low-risk branch cleanup suitable for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Add an explicit issue-target synthesis prompt guardrail forbidding direct issue/top-level comments and keeping `post-comment.js` as the sole publisher.\n- [ ] Add early `agent-review.yml` target validation/normalization, with tests, for supported target kind and required target number.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-1`",
+      "createdAt": "2026-07-01T08:56:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/444#issuecomment-4852391207",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABITm6RQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #444 | 3 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: The latest review synthesis reported minor issues with Recommended Next Step fix_pr, and the remaining items are concrete branch changes safe for automation.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Add an explicit issue-target synthesis prompt guardrail forbidding direct issue/top-level comments and keeping `post-comment.js` as the sole publisher.\n- Add early `agent-review.yml` target validation/normalization, with tests, for supported target kind and required target number.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1782896267714 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86Mjg1MDUwMTgzMDc6cmV2aWV3OjQ0NDpmaXhfcHI6NDQ0OjM -->",
+      "createdAt": "2026-07-01T08:57:48Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/444#issuecomment-4852398661",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABITr_hA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-442/codex-28504319921`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Added an issue-target synthesis guardrail forbidding direct issue/top-level comments and keeping `post-comment.js` as the sole publisher.\n- Added early `agent-review.yml` target preflight to normalize `issue`/`pull_request` targets and require a positive `target_number`/legacy `pr_number`.\n- Updated workflow tests to cover preflight wiring plus valid/invalid target cases.\n\n<details><summary>Verification</summary>\n\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/envelope.test.js`\n- `npm --prefix .agent run check:workflow`\n- `git diff --check`\n\n</details>\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-1`",
+      "createdAt": "2026-07-01T09:06:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/444#issuecomment-4852481924",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABITtJDQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #444 | 4 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded after addressing the latest review synthesis action items; one follow-up review is warranted to verify the current PR head before stopping or leaving final human action.\n\n<!-- sepo-agent-handoff state:dispatched created:1782896894891 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86Mjg1MDU4NTA5NDg6Zml4X3ByOjQ0NDpyZXZpZXc6NDQ0OjQ -->",
+      "createdAt": "2026-07-01T09:08:15Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/444#issuecomment-4852500749",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABITvtGw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Validate delegated route authorization | pass | 8/8 | `review` is policy-gated to issue/PR targets in [`triage.ts`](https://github.com/self-evolving/repo/blob/a52aa03dd82b5c68d0d32999c0ce8f8f99590983/.agent/src/triage.ts#L495-L511), and router dispatch preserves requester/source metadata in [`agent-router.yml`](https://github.com/self-evolving/repo/blob/a52aa03dd82b5c68d0d32999c0ce8f8f99590983/.github/workflows/agent-router.yml#L1134-L1152). |\n| coding_workflow/generic | Prefer explicit structured inputs | pass | 7/7 | `agent-review.yml` adds separate `target_kind`, `target_number`, and request source fields, then validates supported kinds, required positive numbers, and conflicting legacy `pr_number` values in preflight. |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | The PR extends the existing review route, router, review workflow, prompts, comment publisher, docs, and tests instead of creating a parallel issue-review path. |\n| coding_workflow/generic | Keep docs in sync | pass | 7/7 | README and workflow docs now describe issue-scoped `/review`, including focused default-branch behavior in [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/a52aa03dd82b5c68d0d32999c0ce8f8f99590983/.agent/docs/usage/supported-workflows.md#L255-L259). |\n| review_quality/generic | Ground review synthesis in current artifacts | pass | 8/8 | Synthesis requires current review artifacts/target state and issue conversation lookup before issue-target synthesis in [`review-synthesize.md`](https://github.com/self-evolving/repo/blob/a52aa03dd82b5c68d0d32999c0ce8f8f99590983/.github/prompts/review-synthesize.md#L10-L30). |\n| coding_workflow/generic | Skip no-op advisory automation | pass | 7/7 | Issue-targeted review skips the PR-only rubrics review lane via the preflight target condition in [`agent-review.yml`](https://github.com/self-evolving/repo/blob/a52aa03dd82b5c68d0d32999c0ce8f8f99590983/.github/workflows/agent-review.yml#L365-L370). |\n| coding_workflow/generic | Make surgical changes | pass | 8/8 | Diff is limited to review route policy, review workflow plumbing, prompts, docs, and focused regression tests for the new target mode. |\n| coding_style/generic | Prefer simple implementations | pass | 7/7 | A single target-aware preflight feeds the existing review jobs and publisher, with PR-only head capture/orchestration guarded by target kind. |\n| communication/generic | Write audience-first documentation | pass | 7/7 | README adds a direct issue-review example and keeps the entry explanation task-focused rather than expanding into internal mechanics. |\n\n## Notes\n\n- The current head includes fixes for the earlier rubric warning: `agent-review.yml` now fails early for missing, unsupported, or conflicting target inputs, and tests cover those cases.\n- The implementation matches #442/#396’s core requirement: issue `/review` uses the triggering message as focused scope and avoids silently auditing all of `main`.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings on the current PR head.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-1`",
+      "createdAt": "2026-07-01T09:11:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/444#issuecomment-4852542747",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIT1aiw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: a52aa03dd82b5c68d0d32999c0ce8f8f99590983 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #444 allows the `review` route to run on issues as well as pull requests.\n- The linked issue context from #442/#396 asks for issue reviews to be focused default-branch reviews, scoped by the triggering user message, not broad audits of `main`.\n- The PR updates route policy, router handoff metadata, review workflow target handling, prompts, docs, and regression tests.\n- PR review behavior remains diff-based, while issue review skips PR-only head capture, inline review mechanics, rubrics review, and follow-up orchestration.\n\n## Review\nThe current head addresses the prior synthesis action items: issue synthesis now returns markdown only, and `agent-review.yml` has early target validation. Reviewers mostly agree this is shippable; the remaining disagreement is whether one least-privilege workflow cleanup should block automation.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Preflight job inherits workflow write permissions | WARNING | The new `preflight` job has no checkout or API calls, but it lacks a job-level `permissions:` block and therefore inherits workflow-level write scopes. Add `permissions: {}` to keep it least-privilege. |\n| Architecture overview still says review is PR-only | INFO | `.agent/docs/architecture/overall-design.md` still labels review as “PR only,” which is stale after this PR. This is documentation polish, not required branch-change work. |\n\n## Progress\n- Prior inline findings for issue synthesis direct-comment prevention and early target preflight are fixed in current head `a52aa03dd82b5c68d0d32999c0ce8f8f99590983`.\n- Resolved two older same-agent inline threads: `.github/prompts/review-synthesize.md` line 24 and `.github/workflows/agent-review.yml` line 14.\n- Posted one new inline comment on `.github/workflows/agent-review.yml` line 125 for the preflight permissions warning.\n- No replies were added and no comments were minimized.\n- Rubrics review now passes with no rubric-specific follow-up.\n\n## Issue Details\n<details>\n<summary>Preflight job inherits workflow write permissions</summary>\n\n**Cause:** [`agent-review.yml`](https://github.com/self-evolving/repo/blob/a52aa03dd82b5c68d0d32999c0ce8f8f99590983/.github/workflows/agent-review.yml#L125) adds a `preflight` job under a workflow with write scopes, but the job does not override permissions. GitHub Actions jobs inherit workflow-level permissions unless scoped per job.\n\n**Candidate solutions:** Add `permissions: {}` to the `preflight` job. If YAML style prefers expanded blocks, use an empty permissions mapping equivalent.\n\n**Comments:** This is low-risk because the script is static and uses quoted env vars, but it is a concrete least-privilege regression from the workflow’s per-job permissions model.\n\n</details>\n\n<details>\n<summary>Architecture overview still says review is PR-only</summary>\n\n**Cause:** [`overall-design.md`](https://github.com/self-evolving/repo/blob/a52aa03dd82b5c68d0d32999c0ce8f8f99590983/.agent/docs/architecture/overall-design.md#L65) still says `review (PR only, not on edit)` in the route diagram.\n\n**Candidate solutions:** Update the diagram label to reflect PR and issue review targets.\n\n**Comments:** This is optional documentation cleanup; the main usage docs and runtime behavior are already updated.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The remaining warning is a small, concrete workflow change suitable for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Add `permissions: {}` to the `preflight` job in `.github/workflows/agent-review.yml`.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-5`",
+      "createdAt": "2026-07-01T09:22:22Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/444#issuecomment-4852636299",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIT2T_g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #444 | 5 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis for open PR #444 has MINOR_ISSUES with Recommended Next Step FIX_PR; the remaining required item is a concrete least-privilege workflow change suitable for automation.\n\nTask for fix-pr:\nAddress only the latest review synthesis action item: add `permissions: {}` to the `preflight` job in `.github/workflows/agent-review.yml`. Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by that action item.\n\n<!-- sepo-agent-handoff state:dispatched created:1782897809417 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86Mjg1MDY0NTQ2NzA6cmV2aWV3OjQ0NDpmaXhfcHI6NDQ0OjU -->",
+      "createdAt": "2026-07-01T09:23:30Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/444#issuecomment-4852651006",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIT4ffw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-442/codex-28504319921`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Added `permissions: {}` to the `agent-review.yml` `preflight` job so it does not inherit workflow-level write scopes.\n\n<details><summary>Verification</summary>\n\n- `npm --prefix .agent run build`\n- `npm --prefix .agent run check:workflow`\n- `git diff --check`\n\n</details>\n\n---\n`codex` | `gpt-5.5` | `xhigh` | `Macmini-runner-2`",
+      "createdAt": "2026-07-01T09:26:13Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/444#issuecomment-4852686719",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIT5tgA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #444 | 6 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded after applying the concrete workflow permissions fix; one follow-up review is warranted to verify the current PR head before stopping or leaving final action to humans.\n\n<!-- sepo-agent-handoff state:dispatched created:1782898059010 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86Mjg1MDczNTczNjg6Zml4X3ByOjQ0NDpyZXZpZXc6NDQ0OjY -->",
+      "createdAt": "2026-07-01T09:27:39Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/444#issuecomment-4852706688",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIUDySw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 05593fce173a54a88fa787309817b9d5d3f83313 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #444 allows the `review` route to run on issues as well as pull requests. The linked #442/#396 context asks for issue reviews to be focused default-branch reviews scoped by the triggering request text, not broad audits of `main`. The PR threads target kind, target number, request text, and source metadata through routing, review workflow, prompts, publishing, docs, and tests while preserving PR diff-review behavior. Current head `05593fce173a54a88fa787309817b9d5d3f83313` includes follow-up fixes for prior findings around issue publishing guardrails, target preflight, and preflight job permissions.\n\n## Review\nThe core implementation is sound, but one prompt contradiction remains in the current diff. Claude considered the head shippable with INFO-only notes; Codex flagged this dispatch-prompt issue, and synthesis treats it as a required WARNING because it can misroute free-form issue review asks.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Dispatch prompt can still steer explicit reviews to answer | WARNING | The dispatch prompt now says issue-scoped code review should use `review`, but a later answer fallback still says explicit review-agent requests can resolve to `answer`. This can undermine free-form issue review mentions, though slash `/review` and label paths still work. |\n| Some user-facing route references remain PR-only | INFO | The main usage docs describe issue review, but the architecture diagram, request lifecycle note, and generated `agent/review` label description still say or imply review is PR-only. This is documentation polish, not required automation work. |\n\n## Progress\n- Prior synthesis action items are fixed on the current head: issue synthesis is return-only, review target preflight validates target kind/number, and `preflight` now has `permissions: {}`.\n- Resolved the older same-agent `.github/workflows/agent-review.yml` line 125 thread after re-fetching threads and confirming the current fix.\n- Posted one new inline comment on `.github/prompts/agent-dispatch.md` line 38 for the remaining dispatch-prompt conflict.\n- No replies were added and no comments were minimized.\n- `git diff --check HEAD..origin/pr-444` is clean; synthesis did not rerun the full npm suite.\n\n## Issue Details\n<details>\n<summary>Dispatch prompt can still steer explicit reviews to answer</summary>\n\n**Cause:** [`agent-dispatch.md`](https://github.com/self-evolving/repo/blob/05593fce173a54a88fa787309817b9d5d3f83313/.github/prompts/agent-dispatch.md#L38-L45) now tells dispatch to use `review` for issue-scoped code review, but the answer rule below still says explicit review-agent requests should resolve to `answer`.\n\n**Candidate solutions:** Remove the stale fallback, or narrow it to ambiguous planning/diagnostic wording while keeping explicit code-review requests on the `review` route. Add a dispatch prompt fixture for a non-slash issue code-review request if there is a stable test hook.\n\n**Comments:** Impact is limited to model-triaged free-form mentions; explicit slash and label routes bypass this prompt. Inline feedback was posted at line 38.\n\n</details>\n\n<details>\n<summary>Some user-facing route references remain PR-only</summary>\n\n**Cause:** [`overall-design.md`](https://github.com/self-evolving/repo/blob/05593fce173a54a88fa787309817b9d5d3f83313/.agent/docs/architecture/overall-design.md#L65), [`request-lifecycle.md`](https://github.com/self-evolving/repo/blob/05593fce173a54a88fa787309817b9d5d3f83313/.agent/docs/architecture/request-lifecycle.md#L15), and [`trigger-labels.ts`](https://github.com/self-evolving/repo/blob/05593fce173a54a88fa787309817b9d5d3f83313/.agent/src/trigger-labels.ts#L30) still retain PR-only review wording.\n\n**Candidate solutions:** Update those references to say review supports issues and pull requests.\n\n**Comments:** Main user docs already explain focused issue review, so this is optional cleanup.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: One unresolved WARNING remains and it is a small prompt cleanup suitable for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Remove or narrow the stale `answer` fallback in `.github/prompts/agent-dispatch.md` so explicit free-form issue code-review requests route to `review`.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-2`",
+      "createdAt": "2026-07-01T09:40:24Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/444#issuecomment-4852871755",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIUEaDQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #444 | 7 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis for open PR #444 has MINOR_ISSUES with Recommended Next Step FIX_PR, and the remaining warning is a concrete prompt-routing cleanup suitable for automation.\n\nTask for fix-pr:\nAddress only the latest review synthesis action item:\n- Remove or narrow the stale `answer` fallback in `.github/prompts/agent-dispatch.md` so explicit free-form issue code-review requests route to `review`.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by that action item.\n\n<!-- sepo-agent-handoff state:dispatched created:1782898893636 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86Mjg1MDc1OTg3MDc6cmV2aWV3OjQ0NDpmaXhfcHI6NDQ0Ojc -->",
+      "createdAt": "2026-07-01T09:41:34Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/444#issuecomment-4852881933",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIUGEDg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-442/codex-28504319921`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Narrowed `.github/prompts/agent-dispatch.md` so ambiguous review-planning/mechanics requests can still route to `answer`, while explicit code-review requests route to `review`.\n- Added triage prompt assertions blocking the stale review-agent-to-`answer` fallback.\n\n<details><summary>Verification</summary>\n\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/triage.test.js`\n- `git diff --check`\n\n</details>\n\n---\n`codex` | `gpt-5.5` | `xhigh` | `Macmini-runner-4`",
+      "createdAt": "2026-07-01T09:44:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/444#issuecomment-4852909070",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIUGo9g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #444 | 8 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded after applying the latest concrete prompt-routing cleanup; one follow-up review is warranted to verify the current PR head before stopping or leaving final action to humans.\n\n<!-- sepo-agent-handoff state:dispatched created:1782899167131 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86Mjg1MDgzODEyNzU6Zml4X3ByOjQ0NDpyZXZpZXc6NDQ0Ojg -->",
+      "createdAt": "2026-07-01T09:46:07Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/444#issuecomment-4852918518",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIUIkmQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 97 | PARTIAL | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Validate delegated route authorization | pass | 8/8 | `review` remains policy-gated to `issue`/`pull_request` targets in [`triage.ts`](https://github.com/self-evolving/repo/blob/7c33f3c78622141bd668588d95283d464d63598e/.agent/src/triage.ts#L495-L511), and router dispatch only forwards those target kinds to `agent-review.yml` in [`agent-router.yml`](https://github.com/self-evolving/repo/blob/7c33f3c78622141bd668588d95283d464d63598e/.github/workflows/agent-router.yml#L1137-L1157). |\n| coding_workflow/generic | Prefer explicit structured inputs | pass | 7/7 | `agent-review.yml` adds separate `target_kind`, `target_number`, request source/comment fields, and early preflight validation for supported kind, positive number, and conflicting legacy `pr_number` in [`agent-review.yml`](https://github.com/self-evolving/repo/blob/7c33f3c78622141bd668588d95283d464d63598e/.github/workflows/agent-review.yml#L5-L17) and [`agent-review.yml`](https://github.com/self-evolving/repo/blob/7c33f3c78622141bd668588d95283d464d63598e/.github/workflows/agent-review.yml#L125-L191). |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | The PR extends the existing review route, router, `agent-review.yml`, prompts, comment publisher path, and tests rather than adding a parallel issue-review workflow. |\n| coding_workflow/generic | Keep docs in sync | partial | 5/7 | Primary docs were updated, including focused issue review in [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/7c33f3c78622141bd668588d95283d464d63598e/.agent/docs/usage/supported-workflows.md#L253-L259), but stale PR-only references remain in [`overall-design.md`](https://github.com/self-evolving/repo/blob/7c33f3c78622141bd668588d95283d464d63598e/.agent/docs/architecture/overall-design.md#L64-L65), [`request-lifecycle.md`](https://github.com/self-evolving/repo/blob/7c33f3c78622141bd668588d95283d464d63598e/.agent/docs/architecture/request-lifecycle.md#L13-L17), and [`trigger-labels.ts`](https://github.com/self-evolving/repo/blob/7c33f3c78622141bd668588d95283d464d63598e/.agent/src/trigger-labels.ts#L27-L31). |\n| review_quality/generic | Ground review synthesis in current artifacts | pass | 8/8 | Synthesis instructions require unresolved issues to be grounded in current review artifacts/target state and require issue-target runs to inspect current issue context in [`review-synthesize.md`](https://github.com/self-evolving/repo/blob/7c33f3c78622141bd668588d95283d464d63598e/.github/prompts/review-synthesize.md#L10-L30). |\n| coding_workflow/generic | Skip no-op advisory automation | pass | 7/7 | Issue-targeted review skips the PR-only rubrics review lane through the preflight target condition in [`agent-review.yml`](https://github.com/self-evolving/repo/blob/7c33f3c78622141bd668588d95283d464d63598e/.github/workflows/agent-review.yml#L366-L380). |\n| coding_workflow/generic | Make surgical changes | pass | 8/8 | The diff is scoped to route policy, review workflow plumbing, prompts, docs, and focused tests for issue review behavior. |\n| coding_style/generic | Prefer simple implementations | pass | 7/7 | A single target-aware preflight feeds the existing review jobs and publisher, while PR-only head capture and orchestration remain guarded by target kind in [`agent-review.yml`](https://github.com/self-evolving/repo/blob/7c33f3c78622141bd668588d95283d464d63598e/.github/workflows/agent-review.yml#L223-L231) and [`agent-review.yml`](https://github.com/self-evolving/repo/blob/7c33f3c78622141bd668588d95283d464d63598e/.github/workflows/agent-review.yml#L520-L544). |\n| communication/generic | Write audience-first documentation | pass | 7/7 | Entry docs and README describe the user task directly, including issue-scoped review examples and behavior, without front-loading internals. |\n\n## Notes\n\n- The current head addresses the earlier rubric concerns around structured target validation, synthesis publishing guardrails, and preflight job permissions.\n- The main rubric gap is documentation consistency: user-facing and architecture references should no longer imply `review` is PR-only.\n- Smallest useful follow-up: update the remaining PR-only review wording in architecture docs and the built-in `agent/review` label description.\n\n## Findings\n\n- **WARNING:** Under `keep-docs-in-sync`, the implementation updates the main usage docs but leaves stale PR-only review wording in the route diagram, request lifecycle summary, and generated trigger label description. That can mislead users/operators after issue review support lands.\n\n## Final Rubric Verdict\n\nPARTIAL\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-4`",
+      "createdAt": "2026-07-01T09:50:01Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/444#issuecomment-4852950169",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIUQyQw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 7c33f3c78622141bd668588d95283d464d63598e -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #444 expands the `review` route so Sepo can review both pull requests and issues. The linked #442/#396 context asks for issue reviews to be focused default-branch reviews scoped by the triggering request text, not broad audits of `main`. The PR threads target kind, target number, request text, and source metadata through routing, workflow inputs, prompts, publishing, docs, and tests while preserving PR diff-review behavior. Current head `7c33f3c78622141bd668588d95283d464d63598e` also includes follow-up fixes for prior review findings around issue publishing guardrails, target preflight, preflight permissions, and dispatch prompt routing.\n\n## Review\nThe core implementation is sound, and no blocking logic or permission issue remains in the current PR state. Codex and rubrics review classify the remaining stale docs/label wording as a WARNING; Claude treats it as INFO-only polish, but synthesis agrees it is concrete enough to fix because the built-in review label remains user-visible.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Stale PR-only review wording remains | WARNING | Secondary architecture docs and the built-in `agent/review` label still describe review as PR-only, which conflicts with the new issue-review behavior. |\n\n## Progress\n- Prior findings are fixed on the current head: issue synthesis is return-only, review target preflight validates issue/PR targets, preflight has `permissions: {}`, and the dispatch answer fallback no longer catches explicit code-review requests.\n- Reviewer artifacts report successful build, focused triage/envelope tests, workflow checks, docs validation, and diff whitespace checks on current head.\n- Resolved the superseded same-agent inline thread on `.github/prompts/agent-dispatch.md` line 38 after re-fetching threads and confirming authorship/resolution state.\n- No new inline comments were posted, no replies were added, and no comments were minimized.\n\n## Issue Details\n<details>\n<summary>Stale PR-only review wording remains</summary>\n\n**Cause:** [`overall-design.md`](https://github.com/self-evolving/repo/blob/7c33f3c78622141bd668588d95283d464d63598e/.agent/docs/architecture/overall-design.md#L65) still says `review (PR only, not on edit)`, [`request-lifecycle.md`](https://github.com/self-evolving/repo/blob/7c33f3c78622141bd668588d95283d464d63598e/.agent/docs/architecture/request-lifecycle.md#L15) still says review requests on pull requests are dispatched immediately, and [`trigger-labels.ts`](https://github.com/self-evolving/repo/blob/7c33f3c78622141bd668588d95283d464d63598e/.agent/src/trigger-labels.ts#L30) describes `agent/review` as reviewing a pull request.\n\n**Candidate solutions:** Update those three references to describe review as supporting pull requests and focused issue scopes. Keep the wording concise and aligned with the already-updated usage docs.\n\n**Comments:** This was not inline-commented because the affected lines are outside the current diff. The remaining issue is documentation/label consistency, not runtime behavior.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The remaining warning is a small, concrete docs/label metadata cleanup suitable for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Update stale PR-only review wording in `.agent/docs/architecture/overall-design.md`, `.agent/docs/architecture/request-lifecycle.md`, and `.agent/src/trigger-labels.ts` to reflect issue and pull request review support.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-4`",
+      "createdAt": "2026-07-01T09:59:48Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/444#issuecomment-4853084739",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIURiaA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #444 | 9 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: Latest review synthesis for open PR #444 reported MINOR_ISSUES with Recommended Next Step FIX_PR; the remaining action item is a bounded wording cleanup suitable for automation.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Update stale PR-only review wording in `.agent/docs/architecture/overall-design.md`, `.agent/docs/architecture/request-lifecycle.md`, and `.agent/src/trigger-labels.ts` to reflect issue and pull request review support.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1782900039864 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86Mjg1MDg2NDA0OTc6cmV2aWV3OjQ0NDpmaXhfcHI6NDQ0Ojk -->",
+      "createdAt": "2026-07-01T10:00:40Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/444#issuecomment-4853097064",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIUTwjA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-442/codex-28504319921`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Updated architecture docs so `review` is described as supporting issue and pull request targets, while `fix-pr` remains PR-only.\n- Updated the built-in `agent/review` label description to mention focused issue scopes.\n\n<details><summary>Verification</summary>\n\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/docs-validation.test.js`\n- `git diff --check`\n\n</details>\n\n---\n`codex` | `gpt-5.5` | `xhigh` | `Macmini-runner-2`",
+      "createdAt": "2026-07-01T10:03:17Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/444#issuecomment-4853133452",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIUU6lg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #444 | 10 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded after applying the dispatch prompt cleanup; one follow-up review is warranted to verify the current PR head before stopping or leaving final action to humans.\n\n<!-- sepo-agent-handoff state:dispatched created:1782900273949 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86Mjg1MDk0NjE5MDk6Zml4X3ByOjQ0NDpyZXZpZXc6NDQ0OjEw -->",
+      "createdAt": "2026-07-01T10:04:34Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/444#issuecomment-4853152406",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIUX5BQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Validate delegated route authorization | pass | 8/8 | `review` is policy-gated to `issue`/`pull_request` targets in [`triage.ts`](https://github.com/self-evolving/repo/blob/fba48ced120d0732b0ce48dd7af6eef9ced53f9e/.agent/src/triage.ts#L495-L511), and router dispatch forwards target/requester metadata into the downstream review workflow in [`agent-router.yml`](https://github.com/self-evolving/repo/blob/fba48ced120d0732b0ce48dd7af6eef9ced53f9e/.github/workflows/agent-router.yml#L1137-L1157). |\n| coding_workflow/generic | Prefer explicit structured inputs | pass | 7/7 | `agent-review.yml` uses explicit `target_kind`, `target_number`, and request source/comment fields, then preflights allowed target kinds, positive target numbers, and conflicting legacy `pr_number` values before runtime setup. |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | The PR extends the existing `review` route, `agent-review.yml`, prompts, `post-comment.js` publishing path, docs, and tests rather than adding a parallel issue-review route. |\n| coding_workflow/generic | Keep docs in sync | pass | 7/7 | README, supported workflow docs, architecture docs, and trigger-label metadata now describe issue-scoped review behavior, including the focused default-branch scope in [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/fba48ced120d0732b0ce48dd7af6eef9ced53f9e/.agent/docs/usage/supported-workflows.md#L255-L259). |\n| review_quality/generic | Ground review synthesis in current artifacts | pass | 8/8 | Synthesis must ground unresolved findings in current artifacts/target state and fetch current issue context for issue targets in [`review-synthesize.md`](https://github.com/self-evolving/repo/blob/fba48ced120d0732b0ce48dd7af6eef9ced53f9e/.github/prompts/review-synthesize.md#L10-L30). |\n| coding_workflow/generic | Skip no-op advisory automation | pass | 7/7 | Issue-targeted review skips the PR-only rubrics review lane via the preflight target condition in [`agent-review.yml`](https://github.com/self-evolving/repo/blob/fba48ced120d0732b0ce48dd7af6eef9ced53f9e/.github/workflows/agent-review.yml#L366-L380). |\n| coding_workflow/generic | Make surgical changes | pass | 8/8 | The diff is limited to review route policy, review workflow plumbing, prompts, docs, trigger-label wording, and focused regression tests. |\n| coding_style/generic | Prefer simple implementations | pass | 7/7 | A single target-aware preflight feeds the existing review jobs and publisher, while PR-only head capture and orchestration remain guarded by target kind in [`agent-review.yml`](https://github.com/self-evolving/repo/blob/fba48ced120d0732b0ce48dd7af6eef9ced53f9e/.github/workflows/agent-review.yml#L223-L231). |\n| communication/generic | Write audience-first documentation | pass | 7/7 | README leads with user tasks and includes a direct issue `/review` example without front-loading implementation details in [`README.md`](https://github.com/self-evolving/repo/blob/fba48ced120d0732b0ce48dd7af6eef9ced53f9e/README.md#L30-L43). |\n\n## Notes\n\n- The current head addresses the linked #442/#396 requirement: issue `/review` uses the triggering request text as focused scope and avoids broad default-branch audits when scope is unclear.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings on the current PR head.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-4`",
+      "createdAt": "2026-07-01T10:08:21Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/444#issuecomment-4853201157",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-07-01T08:39:23Z",
+  "files": [
+    {
+      "path": ".agent/docs/architecture/memory.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/overall-design.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/request-lifecycle.md",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/rubrics.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/index.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/overview/quick-start.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/overview/what-is-self-evolving-repo.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/key-concepts.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/agent-actions.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/supported-workflows.md",
+      "additions": 6,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 226,
+      "deletions": 10,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/triage.test.ts",
+      "additions": 24,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/triage.ts",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/trigger-labels.ts",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-dispatch.md",
+      "additions": 5,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/review-synthesize.md",
+      "additions": 30,
+      "deletions": 8,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/review.md",
+      "additions": 21,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-review.yml",
+      "additions": 145,
+      "deletions": 21,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 7,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": "README.md",
+      "additions": 5,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-442/codex-28504319921",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 444,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABEp5Byw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-07-01T08:55:50Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "2ca60e5f43454e5a95a6966a8824df900298bccf"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABEp5Exg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-07-01T08:55:58Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "2ca60e5f43454e5a95a6966a8824df900298bccf"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABEqElPQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-07-01T09:21:16Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "a52aa03dd82b5c68d0d32999c0ce8f8f99590983"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABEqNmLw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-07-01T09:38:48Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "05593fce173a54a88fa787309817b9d5d3f83313"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Allow review route on issues",
+  "updatedAt": "2026-07-01T10:08:21Z",
+  "url": "https://github.com/self-evolving/repo/pull/444"
+}

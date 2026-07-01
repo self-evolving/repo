@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "@sepo-agent /answer\n\nWhile our repo follows the similar source code in place style as the quartz library, but one major limitation is that we do not have a clean update cli. Right now the agent update route is just mostly agent work -- agent needs to figure out what's changed etc. but this is not robust enough and agent may miss things. Perhaps we should have a more robust cli as a starting point? Also maybe we can find some inspirations from quartz update.",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABITcryA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes. I’d make this a deterministic CLI first, then keep the agent route as the reviewer/PR summarizer around it.\n\nCurrent shape:\n\n- `.github/workflows/agent-update.yml` already has the right workflow shell: scheduled/manual dispatch, source ref inputs, optional `.skills` / `AGENT.md`, existing update PR adoption, and provider setup.\n- `.agent/scripts/resolve-update-source.sh` deterministically resolves manual refs or latest stable release.\n- `.agent/scripts/resolve-pending-update-pr.sh` deterministically finds an open `agent/update-agent-infra-*` PR.\n- `.github/prompts/agent-update.md` currently owns the risky part: auditing, copying, merge decisions, validation, commit/PR summary.\n- The repo’s better pattern is typed CLI + tests, e.g. `.agent/src/cli/install-fork-pr.ts`, `.agent/src/install-fork-pr.ts`, and `.agent/src/__tests__/install-fork-pr-cli.test.ts`.\n\nQuartz’s useful inspiration is not the exact merge strategy. Quartz docs describe `npx quartz upgrade` as a git-backed update from upstream, and its CLI source backs up user content, runs `git pull upstream v4`, restores content, then refreshes dependencies. See the Quartz upgrade docs and `handleUpdate` in `quartz/cli/handlers.js`: https://quartz.jzhao.xyz/getting-started/upgrading and https://github.com/jackyzha0/quartz/blob/v4/quartz/cli/handlers.js.\n\nFor Sepo, I’d avoid a blind `git pull` model because installed Sepo lives inside arbitrary repositories and shares `.github/` with repo-owned workflows. The CLI should instead be PR-oriented and auditable.\n\nProposed implementation:\n\n1. Add a source module, probably `.agent/src/update-agent.ts`, with pure/testable operations:\n   - resolve source and target paths\n   - detect installed Sepo version from `.agent/package.json`\n   - classify files as `add`, `replace-agent-owned`, `preserve-target-only`, `conflict`, `optional`, or `remove-candidate`\n   - compute excluded paths: `.agent/dist/`, `.agent/node_modules/`, `node_modules/`, `.git/`, worktrees\n   - merge required `.gitignore` entries\n   - generate a JSON/Markdown audit report\n\n2. Add CLI entrypoint `.agent/src/cli/update-agent.ts`:\n   - `plan`: no writes; outputs machine-readable audit JSON plus summary\n   - `apply`: copies deterministic safe changes only\n   - `validate`: runs diff-scope checks and optional `.agent` build/test\n   - `publish`: either reuses existing update PR info or creates/updates the update branch/PR\n\n3. Keep existing shell resolvers initially:\n   - Do not port `.agent/scripts/resolve-update-source.sh` and `.agent/scripts/resolve-pending-update-pr.sh` in the first cut unless needed.\n   - Wire their outputs into the new CLI so the workflow behavior stays stable.\n\n4. Update `.github/workflows/agent-update.yml`:\n   - Replace the open-ended “Run update agent” edit step with CLI-driven `plan/apply/validate/publish`.\n   - Keep the agent prompt only for interpreting conflicts or summarizing results when the CLI reports a blocked/conflict state.\n   - If the CLI reports no changes, skip PR creation.\n\n5. Narrow `.github/prompts/agent-update.md`:\n   - Change it from “perform the update manually” to “inspect CLI output, explain conflicts, and propose the next action.”\n   - This is the main robustness win: the agent stops discovering changed files ad hoc.\n\n6. Add tests:\n   - CLI parsing tests mirroring `.agent/src/__tests__/install-fork-pr-cli.test.ts`\n   - update plan tests with fixture source/target trees\n   - `.gitignore` merge tests\n   - conflict classification tests for customized `.github` files\n   - workflow validation test updates if the workflow invokes the new CLI\n\nSuggested first CLI contract:\n\n```bash\nnode .agent/dist/cli/update-agent.js plan \\\n  --source-path \"$SOURCE_WORKTREE\" \\\n  --target-path \"$UPDATE_TARGET_PATH\" \\\n  --source-repo \"$SOURCE_REPO\" \\\n  --source-ref \"$SOURCE_REF\" \\\n  --source-sha \"$SOURCE_SHA\" \\\n  --update-skills=false \\\n  --update-agent-md=false \\\n  --json \"$RUNNER_TEMP/sepo-update-plan.json\"\n\nnode .agent/dist/cli/update-agent.js apply \\\n  --plan \"$RUNNER_TEMP/sepo-update-plan.json\"\n\nnode .agent/dist/cli/update-agent.js validate \\\n  --target-path \"$UPDATE_TARGET_PATH\"\n\nnode .agent/dist/cli/update-agent.js publish \\\n  --target-path \"$UPDATE_TARGET_PATH\" \\\n  --existing-pr-number \"$EXISTING_PR_NUMBER\" \\\n  --branch \"agent/update-agent-infra-<yyyymmdd>\"\n```\n\nI’d start with `plan` + `apply` + tests, then wire the workflow in a follow-up once the file classification behavior is solid. Approval requested before coding: should I implement the first cut as an internal workflow CLI under `.agent/src/cli/update-agent.ts`, rather than trying to expose a public `npx sepo update` command immediately?\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — answer · 2m36s · 46 steps**\n\nLast message\n> Yes. I’d make this a deterministic CLI first, then keep the agent route as the reviewer/PR summarizer around it. Current shape: - `.github/workflows/agent-update.yml` already has the right workflow shell: scheduled/manual dispatch, source…\n\nActivity\n\n- 💬 Message \"There is already a good internal pattern for typed CLIs: parse env/flags in `.agent/src/cli/*`, keep GitHub/git mechanics in `.agent/src/*.ts`, and unit-test argument mapping and behavior. I’ll now check the remaining install/update helper…\"\n- 📖 Read `Read install-fork-pr.ts` (completed)\n- 📖 Read `Read create-pr.ts` (completed)\n- 📖 Read `Read git.ts` (completed)\n- 🔧 Used tool `gh api 'repos/jackyzha0/quartz/contents/quartz/cli/handlers.js?ref=v4' --jq '.content' | base64 --decode | sed -n '530,…` (completed)\n- 💬 Message \"Yes. I’d make this a deterministic CLI first, then keep the agent route as the reviewer/PR summarizer around it. Current shape: - `.github/workflows/agent-update.yml` already has the right workflow shell: scheduled/manual dispatch, source…\"\n</details>\n\n<!-- sepo-progress:run-28504861463 -->\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-2`",
+      "createdAt": "2026-07-01T08:40:59Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/445#issuecomment-4852231112",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-07-01T08:40:07Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 445,
+  "state": "OPEN",
+  "title": "Add sepo update cli",
+  "updatedAt": "2026-07-01T08:43:42Z",
+  "url": "https://github.com/self-evolving/repo/issues/445"
+}

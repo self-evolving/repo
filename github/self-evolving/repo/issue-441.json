@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "@sepo-agent /answer ",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABITFlnw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I’d implement this as an opt-in default change for **unmentioned follow-up intent parsing**.\n\nCurrent behavior is enabled by default in several places:\n\n- [`agent-entrypoint.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-entrypoint.yml#L53-L87) wakes the router for unmentioned comments on `agent`-labeled issues/PRs unless `AGENT_FOLLOWUP_INTENT_MODE` is `disabled`/`false`, and passes `agent-label` when unset.\n- [`agent-router.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L172-L220) uses the same unset default before resolving the answer provider and extracting context.\n- [`followup-intent.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/followup-intent.ts#L17-L27) parses an empty mode as `agent-label`.\n- Tests currently assert that unset mode enables implicit follow-ups, e.g. [`followup-intent.test.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/followup-intent.test.ts#L10-L16) and [`extract-context-cli.test.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/extract-context-cli.test.ts#L1218-L1248).\n\nProposed change:\n\n1. Make unset `AGENT_FOLLOWUP_INTENT_MODE` resolve to `disabled`.\n2. Require explicit `AGENT_FOLLOWUP_INTENT_MODE=agent-label` to enable unmentioned follow-up intent parsing.\n3. Update `agent-entrypoint.yml` and `agent-router.yml` so the broad wake-up and provider setup only happen when the mode is explicitly `agent-label`.\n4. Update `parseFollowupIntentMode(\"\")` to return `disabled`, while keeping `agent-label`, `disabled`, and `false` valid.\n5. Update docs in [`configuration-list.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/customization/configuration-list.md#L11), [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/usage/supported-workflows.md#L228), and [`request-lifecycle.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/request-lifecycle.md#L9).\n6. Update tests so default unmentioned comments are ignored, and add/keep an explicit `agent-label` test proving opt-in still works.\n\nValidation should run the focused `.agent` tests for follow-up context and workflow envelope behavior, then the normal `.agent` CI lane if time permits.\n\nOne clarification before coding: do you mean only **follow-up intent parsing** (`AGENT_FOLLOWUP_INTENT_MODE`), or do you also want model-backed **dispatch triage** for plain `@sepo-agent ...` mentions disabled by default?\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — answer · 2m10s · 33 steps**\n\nLast message\n> I’d implement this as an opt-in default change for **unmentioned follow-up intent parsing**. Current behavior is enabled by default in several places: - [`agent-entrypoint.yml`](https://github.com/self-evolving/repo/blob/main/.github/workf…\n\nActivity\n\n- 💬 Message \"I have enough context now. I’ll answer with the likely implementation path and call out the one ambiguity: whether “intention parsing” means unmentioned follow-up intent parsing or all model-backed route triage.\"\n- 📖 Read `Read agent-entrypoint.yml` (completed)\n- 📖 Read `Read followup-intent.ts` (completed)\n- 📖 Read `Read agent-router.yml` (completed)\n- 📖 Read `Read followup-intent.test.ts, Read extract-context-cli.test.ts` (completed)\n- 💬 Message \"I’d implement this as an opt-in default change for **unmentioned follow-up intent parsing**. Current behavior is enabled by default in several places: - [`agent-entrypoint.yml`](https://github.com/self-evolving/repo/blob/main/.github/workf…\"\n</details>\n\n<!-- sepo-progress:run-28502738950 -->\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-3`",
+      "createdAt": "2026-07-01T08:01:44Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/441#issuecomment-4851852703",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-07-01T08:00:51Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 441,
+  "state": "OPEN",
+  "title": "Disable intention parsing by default",
+  "updatedAt": "2026-07-01T08:04:07Z",
+  "url": "https://github.com/self-evolving/repo/issues/441"
+}

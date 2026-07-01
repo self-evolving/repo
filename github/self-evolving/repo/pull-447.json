@@ -1,0 +1,179 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "agent/implement-issue-442/codex-28504319921",
+  "body": "## Summary\n- Clarify dispatch prompt handling for bare mentions: clear add/fix/change asks can route to implementation, while can/should/think/check planning questions stay in answer mode.\n- Document that triaged write routes still set `needs_approval` for bare mentions.\n- Add a focused triage prompt regression test for the new action-vs-planning examples.\n\n## Verification\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/triage.test.js`\n- `git diff --check`\n\nCloses #446\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABITi6nw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #447 | 3 / 40 | Dispatched |\n\nReason: implementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1782895780763 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86Mjg1MDUxNTkzMzk6aW1wbGVtZW50OjQ0NjpyZXZpZXc6NDQ3OjM -->",
+      "createdAt": "2026-07-01T08:49:41Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/447#issuecomment-4852333215",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABITkzfw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Validate delegated route authorization | pass | 8/8 | Bare write-route decisions are told to set `needs_approval: true`, with deterministic policy still enforcing the gate in [`agent-dispatch.md`](https://github.com/self-evolving/repo/blob/e06aad70b39fa35546bcf1c8149ca056d9865469/.github/prompts/agent-dispatch.md#L62-L65) and existing policy coverage in [`triage.test.ts`](https://github.com/self-evolving/repo/blob/e06aad70b39fa35546bcf1c8149ca056d9865469/.agent/src/__tests__/triage.test.ts#L380-L385). |\n| coding_workflow/generic | Generate context-derived artifact metadata | pass | 7/7 | The prompt keeps the existing structured `issue_title`/`issue_body` contract for triaged write routes, including goal, acceptance criteria, and original-message context, instead of adding ad hoc parsing in [`agent-dispatch.md`](https://github.com/self-evolving/repo/blob/e06aad70b39fa35546bcf1c8149ca056d9865469/.github/prompts/agent-dispatch.md#L58-L61). |\n| coding_workflow/generic | Prefer permissive command route parsing | pass | 7/7 | Bare mentions can infer existing routes when clear, while question/planning forms stay `answer`; this avoids requiring slash commands for obvious work in [`agent-dispatch.md`](https://github.com/self-evolving/repo/blob/e06aad70b39fa35546bcf1c8149ca056d9865469/.github/prompts/agent-dispatch.md#L34-L49). |\n| coding_workflow/generic | Prefer agent-derived decisions | pass | 7/7 | The route-choice policy is encoded in the existing dispatch prompt and deterministic policy path, with no new repository setting or duplicate workflow knob. |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | The PR updates the existing dispatch prompt and existing triage tests only; no parallel router, parser, or approval mechanism was introduced. |\n| coding_workflow/generic | Make surgical changes | pass | 8/8 | The diff is limited to `.github/prompts/agent-dispatch.md` and `.agent/src/__tests__/triage.test.ts`, matching the child issue’s dispatch-intent-only scope. |\n| coding_workflow/generic | Read docs and linked context first | pass | 6/6 | PR #447 closes child issue #446, follows parent issue #443’s first slice, and is stacked on PR #444’s branch as requested. |\n| coding_style/generic | Prefer simple implementations | pass | 7/7 | The behavior is implemented through clear prompt rules plus focused regression assertions for add/fix versus can/should examples in [`triage.test.ts`](https://github.com/self-evolving/repo/blob/e06aad70b39fa35546bcf1c8149ca056d9865469/.agent/src/__tests__/triage.test.ts#L50-L70). |\n\n## Notes\n\n- The strongest score drivers are the narrow scope, reuse of the existing dispatch surface, and explicit preservation of approval gating for bare-mention write routes.\n- Current PR checks show `check` passing.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific blocking or warning findings.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-6`",
+      "createdAt": "2026-07-01T08:53:16Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/447#issuecomment-4852364159",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABITn18Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: e06aad70b39fa35546bcf1c8149ca056d9865469 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #447 is the first dispatch-intent slice from #446, under parent issue #443. It tightens bare `@sepo-agent` mention triage so clear add/fix/change requests can infer an implementation route, while planning or question-shaped requests stay in `answer`. It preserves the existing approval gate for triaged write routes and keeps explicit slash-command behavior unchanged. The PR is stacked on #444 and only changes the dispatch prompt plus focused triage prompt tests.\n\n## Review\nOverall, the PR is narrow and aligned with the requested UX change. The only unresolved issue is a small prompt consistency problem that slightly weakens the stated “clear add asks” behavior; it is not blocking, but it is concrete and easy to fix.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| `\"add\"` keyword narrowed to `\"please add\"` | WARNING | The prompt now lists `\"please add\"` while leaving `\"change\"` as a bare verb, even though both are disambiguated by the new question/planning rules. This can make plain imperatives like `@sepo-agent add error handling here` lean on the weaker general rule instead of the keyword list. |\n\n## Progress\n- Rubrics review passed with no rubric-specific blocking or warning findings.\n- Codex review reported SHIP; Claude review raised the single warning above.\n- Existing inline comments and review threads were empty before synthesis.\n- Posted one new inline comment on `.github/prompts/agent-dispatch.md` line 39: https://github.com/self-evolving/repo/pull/447#discussion_r3504553339\n- No comments were minimized, no replies were added, and no threads were resolved.\n\n## Issue Details\n\n<details>\n<summary>\"add\" keyword narrowed to \"please add\"</summary>\n\n**Cause:** The implement keyword examples changed from `\"add\"` to `\"please add\"`, while `\"change\"` remains a bare verb. The new prompt already covers `can we` / `should we` / question-shaped cases, including `can we add ...?`, so narrowing only `add` is inconsistent with the PR’s stated goal.\n\n**Candidate solutions:** Restore `\"add\"` in the keyword list, or list both `\"add\"` and `\"please add\"`. The existing `please add` test still covers the implement example, so no test change appears required.\n\n**Comments:** This is a reviewer disagreement: Claude flagged it as a warning, while Codex and rubrics review found no actionable issues. The failure mode is safe but slightly under-routes clear bare `add` imperatives.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The remaining issue is a concrete one-line prompt consistency fix that is safe for an automated fix-pr pass.\n\n## Final Verdict\nMINOR_ISSUES\n\n## Action Items\n- [ ] Restore `\"add\"` to the implement keyword list, or list both `\"add\"` and `\"please add\"` to keep clear bare add requests aligned with the dispatch-intent goal.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-5`",
+      "createdAt": "2026-07-01T08:59:41Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/447#issuecomment-4852413937",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIToCBQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #447 | 4 / 40 | Dispatched |\n\nReason: review verdict is minor_issues; dispatching fix-pr\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Restore `\"add\"` to the implement keyword list, or list both `\"add\"` and `\"please add\"` to keep clear bare add requests aligned with the dispatch-intent goal.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1782896405249 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86Mjg1MDUzOTAwMzM6cmV2aWV3OjQ0NzpmaXhfcHI6NDQ3OjQ -->",
+      "createdAt": "2026-07-01T09:00:05Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/447#issuecomment-4852417029",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABITpLUQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-446/codex-28505159339`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Restored bare `\"add\"` to the implement keyword examples in `.github/prompts/agent-dispatch.md`.\n- Verified with `npm --prefix .agent run build`, `node --test .agent/dist/__tests__/triage.test.js`, and `git diff --check`.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-4`",
+      "createdAt": "2026-07-01T09:02:27Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/447#issuecomment-4852435793",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABITpXQQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #447 | 5 / 40 | Dispatched |\n\nReason: PR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1782896566993 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86Mjg1MDU5ODE1OTY6Zml4X3ByOjQ0NzpyZXZpZXc6NDQ3OjU -->",
+      "createdAt": "2026-07-01T09:02:47Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/447#issuecomment-4852438849",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABITrGIw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "The docs search found that public docs already describe free-form route inference and triaged implementation approval, so I’m not treating docs-sync as a separate scored rubric for this narrow prompt/test slice. I have enough evidence now and am writing the rubric-only result.## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Validate delegated route authorization | pass | 8/8 | The diff adds prompt guidance that bare-mention `implement`, `create-action`, and `add-rubrics` decisions must set `needs_approval: true`; existing `applyDispatchPolicy` also enforces triaged implementation-like approvals deterministically. |\n| coding_workflow/generic | Generate context-derived artifact metadata | pass | 7/7 | The dispatch prompt keeps the existing structured `issue_title` / `issue_body` contract for write-route approval artifacts instead of deriving tracking metadata from the literal command tail or adding another parser. |\n| coding_workflow/generic | Prefer permissive command route parsing | pass | 7/7 | Bare mentions can infer existing routes for clear action requests such as add/fix/change, while question or planning forms such as “can we” and “should we” stay in `answer`. |\n| coding_workflow/generic | Prefer agent-derived decisions | pass | 7/7 | The behavior is encoded in the existing dispatch prompt and current policy path, with no new repo-level setting or duplicate knob. |\n| coding_workflow/generic | Reuse existing code | pass | 8/8 | The PR updates only `.github/prompts/agent-dispatch.md` and existing triage prompt tests in `.agent/src/__tests__/triage.test.ts`; no parallel router or approval mechanism is introduced. |\n| coding_workflow/generic | Make surgical changes | pass | 8/8 | The diff is limited to the requested first dispatch-intent slice: prompt guidance plus focused regression assertions. |\n| coding_workflow/generic | Read docs and linked context first | pass | 6/6 | PR #447 closes child issue #446, which references parent issue #443 and `base_pr: #444`; the live PR base branch is PR #444’s head branch. |\n| coding_style/generic | Prefer simple implementations | pass | 7/7 | The implementation is a straightforward prompt clarification with targeted tests for clear action asks versus planning questions; the current `check` run is successful. |\n\n## Notes\n\n- The main score drivers are the preserved approval gate, narrow scope, reuse of the existing dispatch surface, and current stacking on PR #444 as requested.\n- I did not score unrelated lifecycle/status/comment rubrics. I also did not score docs-sync separately because the public docs already describe free-form route inference and triaged implementation approval, and this PR only tightens prompt examples/tests.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific blocking or warning findings.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-2`",
+      "createdAt": "2026-07-01T09:05:27Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/447#issuecomment-4852467235",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABITvasw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 46aa03ffe4cb6cb8113ba2715fad6f7ea0092c2f -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #447 implements the dispatch-intent slice of #446 under parent issue #443. It clarifies bare `@sepo-agent` mention triage so clear add/fix/change asks can infer existing write routes, while planning or question-shaped requests stay in `answer`. It preserves approval gating for triaged write routes and keeps explicit slash command behavior unchanged. The code changes are limited to the dispatch prompt and focused prompt regression tests.\n\n## Review\nThe current PR head addresses the prior warning about `\"add\"` being narrowed to `\"please add\"`. Current reviewer artifacts agree there are no remaining blocking or warning findings.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | The earlier `\"add\"` keyword concern is fixed in the current head, and no required branch changes remain. |\n\n## Progress\n- The fix-pr pass restored bare `\"add\"` in `.github/prompts/agent-dispatch.md`.\n- Rubrics review passed with no rubric-specific follow-up.\n- Current `check` status is passing.\n- Resolved stale same-agent inline thread `PRRT_kwDOSOhEMM6Nhif9`.\n- No new inline comments were posted, no replies were added, and no comments were minimized.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: No unresolved actionable branch work remains.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-4`",
+      "createdAt": "2026-07-01T09:11:21Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/447#issuecomment-4852538035",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-07-01T08:49:15Z",
+  "files": [
+    {
+      "path": ".agent/src/__tests__/triage.test.ts",
+      "additions": 23,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-dispatch.md",
+      "additions": 23,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-446/codex-28505159339",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 447,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABEp6TZQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-07-01T08:59:02Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "e06aad70b39fa35546bcf1c8149ca056d9865469"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Tighten bare mention dispatch intent guidance",
+  "updatedAt": "2026-07-01T09:11:21Z",
+  "url": "https://github.com/self-evolving/repo/pull/447"
+}

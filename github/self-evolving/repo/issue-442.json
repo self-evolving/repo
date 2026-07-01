@@ -1,0 +1,84 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "@sepo-agent /answer check #396 and then distill useful context ",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABITGZQg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I have enough context. I’m going to answer this as a distillation, with one caveat up front: the old issue has a claimed implementation comment, but the current code path still needs the changes.I checked #396 and current `main`.\n\nKey context to keep:\n\n- #396 already identified the right shape: support `/review` on issues as a **focused default-branch review**, while preserving existing PR diff review behavior.\n- Important user requirement from #396: the triggering inline message must be passed through as `request_text` so the issue review has a clear goal/scope.\n- Caveat: #396 has a Sepo comment saying this was implemented, but current `main` still looks PR-only, so treat #396 as design context, not landed code.\n\nCurrent PR-only gates:\n\n- Dispatch prompt says `review` is only valid for PRs: https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-dispatch.md#L10-L15\n- `applyDispatchPolicy` rejects issue review: https://github.com/self-evolving/repo/blob/main/.agent/src/triage.ts#L495-L503\n- Router only dispatches review when `target_kind == 'pull_request'`: https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L1134-L1145\n- `agent-review.yml` still requires `pr_number` and hardcodes `target_kind: pull_request`: https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-review.yml#L3-L42 and https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-review.yml#L220-L227\n- Review prompt is still `gh pr diff` centered: https://github.com/self-evolving/repo/blob/main/.github/prompts/review.md#L3-L12\n\nRecommended implementation distilled from #396:\n\n1. Allow `review` for `issue` and `pull_request` in triage/policy; keep discussions unsupported.\n2. Update `agent-router.yml` to dispatch review for issues too, passing `target_kind`, `target_number`, `request_text`, and source comment metadata.\n3. Refactor `agent-review.yml` to be target-aware:\n   - PR mode: keep current PR diff/head/inline/synthesis behavior.\n   - Issue mode: review default branch, use the issue body/comments plus `request_text` as scope, skip PR-only head capture, PR inline comments, and PR-only rubric review behavior unless separately generalized.\n4. Split or branch review prompts:\n   - PR review uses `gh pr view` / `gh pr diff`.\n   - Issue review uses `gh issue view`, repo inspection, and explicitly refuses broad whole-repo audit when scope is missing.\n5. Post issue-mode synthesis back to the issue, not as a PR review/comment.\n6. Add tests for explicit `/review` on issue, `agent/review` label on issue, unchanged PR review routing, and issue-mode no PR-only operations.\n\nThe most important acceptance criterion: issue `/review` should never silently become “review all of main.” It should require or infer a focused goal from the issue/comment text.\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — answer · 2m26s · 37 steps**\n\nLast message\n> I have enough context. I’m going to answer this as a distillation, with one caveat up front: the old issue has a claimed implementation comment, but the current code path still needs the changes.I checked #396 and current `main`. Key conte…\n\nActivity\n\n- 🔧 Used tool `git branch -a --contains $(git rev-parse HEAD) | sed -n '1,120p' && git status --short` (completed)\n- 📖 Read `Read triage.ts` (completed)\n- 📖 Read `Read agent-dispatch.md` (completed)\n- 📖 Read `Read agent-router.yml` (completed)\n- 📖 Read `Read agent-review.yml` (completed)\n- 💬 Message \"I have enough context. I’m going to answer this as a distillation, with one caveat up front: the old issue has a claimed implementation comment, but the current code path still needs the changes.I checked #396 and current `main`. Key conte…\"\n</details>\n\n<!-- sepo-progress:run-28502788942 -->\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-5`",
+      "createdAt": "2026-07-01T08:02:39Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/442#issuecomment-4851865922",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABITWv8g",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /implement ",
+      "createdAt": "2026-07-01T08:29:30Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/442#issuecomment-4852133874",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABITXYxw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-442/codex-28504319921`\n- Pull request: https://github.com/self-evolving/repo/pull/444\n\nImplemented issue-scoped review routing: `/review` now passes policy on issues and PRs, the router forwards issue targets and trigger metadata into `agent-review.yml`, and the review workflow resolves target-aware inputs, skips PR-only head/rubrics/orchestration behavior for issue reviews, and posts synthesis back to issues. Updated review prompts, docs, and regression coverage; verified with build, focused tests, workflow/docs checks, and diff whitespace checks.\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — implement · 8m22s · 111 steps**\n\nLast message\n> {\"summary\":\"Implemented issue-scoped review routing: `/review` now passes policy on issues and PRs, the router forwards issue targets and trigger metadata into `agent-review.yml`, and the review workflow resolves target-aware inputs, skips…\n\nActivity\n\n- 💬 Message \"The relevant checks are clean. I’m doing a final working-tree/status review and a targeted source scan for hardcoded review target assumptions.\"\n- 📖 Read `Search Review requests are only supported|review.*only valid for 'pull_request'|needs\\.portal\\.outputs\\.route == \\'revi…` (completed)\n- 🔧 Used tool `git status --short` (completed)\n- 🔧 Used tool `git diff --stat` (completed)\n- 🔧 Used tool `git diff --name-only` (completed)\n- 💬 Message \"{\"summary\":\"Implemented issue-scoped review routing: `/review` now passes policy on issues and PRs, the router forwards issue targets and trigger metadata into `agent-review.yml`, and the review workflow resolves target-aware inputs, skips…\"\n</details>\n\n<!-- sepo-progress:run-28504319921 -->\n\n---\n`codex` | `gpt-5.5` | `xhigh` | `Macmini-runner-4`",
+      "createdAt": "2026-07-01T08:30:45Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/442#issuecomment-4852144327",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-07-01T08:01:49Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 442,
+  "state": "OPEN",
+  "title": "Allow review routes run on issues",
+  "updatedAt": "2026-07-01T08:39:28Z",
+  "url": "https://github.com/self-evolving/repo/issues/442"
+}
