@@ -179,6 +179,20 @@ test("answer prompt returns content for workflow posting instead of commenting d
   assert.match(answerPrompt, /workflow will post it on the original surface/i);
 });
 
+test("answer prompt gives concise follow-up slash command guidance", () => {
+  const answerPrompt = readRepoFile(".github/prompts/agent-answer.md");
+
+  assert.match(answerPrompt, /only when it naturally helps the user take the next step/);
+  assert.match(answerPrompt, /do not add boilerplate to every answer/);
+  assert.match(answerPrompt, /@sepo-agent \/implement \.\.\./);
+  assert.match(answerPrompt, /@sepo-agent \/fix-pr \.\.\./);
+  assert.match(answerPrompt, /@sepo-agent \/review/);
+  assert.match(answerPrompt, /@sepo-agent \/orchestrate \.\.\./);
+  assert.match(answerPrompt, /stayed in answer mode because the request asked for planning or discussion/);
+  assert.match(answerPrompt, /rather than explicitly authorizing changes/);
+  assert.match(answerPrompt, /reply with the command if they want Sepo to run it/);
+});
+
 test("answer review context renders only for pull request review triggers", () => {
   assert.equal(
     buildAnswerReviewContext({
