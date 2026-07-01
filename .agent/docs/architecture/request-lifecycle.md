@@ -12,7 +12,7 @@ Explicit mentions remain the primary trigger. When `AGENT_FOLLOWUP_INTENT_MODE` 
 
 - Inline answers are posted immediately.
 - Implicit follow-up answers are posted only after the intent gate returns `respond`; they never dispatch implementation, review, PR-fix, orchestration, install, skill, or create-action workflows.
-- Review and `fix-pr` requests on pull requests are dispatched immediately.
+- Review requests on issues or pull requests are dispatched immediately; `fix-pr` requests dispatch immediately only on pull requests.
 - Explicit `/orchestrate` (or `agent/orchestrate`) requests dispatch the orchestrator workflow, which chooses one follow-up action from current target state.
 - Edited PR events are blocked from re-triggering review and `fix-pr` routes.
 - Mention and label requests that fail route authorization are posted back as inline `unsupported` replies instead of being dropped silently; that path still runs `Setup agent runtime` before `post-response.js` so posting dependencies are available.
@@ -56,6 +56,6 @@ Current route-level `acpx` permission modes:
 | `implement` | `approve-all` | needs full file system access |
 | `add-rubrics` | `approve-all` | edits a separate rubrics worktree and opens a proposal PR against `agent/rubrics` |
 | `fix-pr` | `approve-all` | needs full file system access |
-| `review` | `approve-all` | reviewers and synthesis may gather PR and repo context |
+| `review` | `approve-all` | reviewers and synthesis may gather issue/PR target and repo context |
 
 Dedicated memory and rubric maintenance workflows use the same runtime but are documented with their storage systems rather than the user-request lifecycle. Workflow-level GitHub token scopes are set by each workflow or job and remain separate from route-level `acpx` modes. The self-approval workflow uses `approve-all` so the inspection agent can run required read-only `gh` and `git` investigation commands, but it still passes the read-scoped `github.token` to that agent; deterministic resolver code uses the resolved Sepo auth token for approval submission or for marker-upserted internal approval status when full self-governance mode is enabled. Self-merge has no model step; its deterministic resolver uses the resolved Sepo auth token only after current-head self-approval, checks, mergeability, and requested-change guards pass.
