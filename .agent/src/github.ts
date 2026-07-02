@@ -220,7 +220,7 @@ function authorLoginFromRecord(record: Record<string, unknown>): string {
   return extractLogin(record.author) || extractLogin(record.user);
 }
 
-function normalizeActorLogin(value: string): string {
+export function normalizeActorLogin(value: string): string {
   return String(value || "")
     .trim()
     .toLowerCase()

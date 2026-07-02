@@ -616,6 +616,7 @@ test("scheduled workflows evaluate skip gates before provider-dependent jobs", (
   const dailySummaryWorkflow = readRepoFile(".github/workflows/agent-daily-summary.yml");
   const memoryScanWorkflow = readRepoFile(".github/workflows/agent-memory-scan.yml");
   const memorySyncWorkflow = readRepoFile(".github/workflows/agent-memory-sync.yml");
+  const selfImprovementWorkflow = readRepoFile(".github/workflows/agent-self-improvement.yml");
   const updateWorkflow = readRepoFile(".github/workflows/agent-update.yml");
   const updatePrompt = readRepoFile(".github/prompts/agent-update.md");
   const gateAction = readRepoFile(".github/actions/scheduled-activity-gate/action.yml");
@@ -632,6 +633,12 @@ test("scheduled workflows evaluate skip gates before provider-dependent jobs", (
   assert.match(memorySyncWorkflow, /gate:\n[\s\S]*Resolve scheduled activity gate/);
   assert.match(memorySyncWorkflow, /sync:\n\s+needs: gate\n\s+if: vars\.AGENT_ENABLED != 'false' && needs\.gate\.outputs\.skip != 'true'/);
   assert.doesNotMatch(memorySyncWorkflow, /if: steps\.gate\.outputs\.skip != 'true'/);
+
+  assert.match(selfImprovementWorkflow, /gate:\n[\s\S]*Resolve scheduled activity gate/);
+  assert.match(selfImprovementWorkflow, /plan:\n\s+needs: gate\n\s+if: vars\.AGENT_ENABLED != 'false' && needs\.gate\.outputs\.skip != 'true'/);
+  assert.match(selfImprovementWorkflow, /rubrics_mode_override:\s*disabled/);
+  assert.match(selfImprovementWorkflow, /cron: "23 \*\/6 \* \* \*"/);
+  assert.match(selfImprovementWorkflow, /workflow schedule: every 6 hours at minute 23 UTC/);
 
   assert.match(updateWorkflow, /gate:\n[\s\S]*Resolve scheduled activity gate/);
   assert.match(updateWorkflow, /vars\.AGENT_AUTO_UPDATE == 'false'/);
