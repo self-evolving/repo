@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "@sepo-agent /answer \n\nhow to support installing them properly and configure it properly ? ",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIcHMxg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Short answer: Sepo does **not** currently have first-class MCP setup. The right implementation is to add MCP as a runtime configuration layer, not as prompt text.\n\nCurrent relevant architecture:\n\n- Runtime setup only installs Node, Sepo deps, and optionally Codex/Claude CLIs: [`.github/actions/setup-agent-runtime/action.yml`](https://github.com/self-evolving/repo/blob/main/.github/actions/setup-agent-runtime/action.yml#L1-L28), [install steps](https://github.com/self-evolving/repo/blob/main/.github/actions/setup-agent-runtime/action.yml#L104-L140).\n- Agent execution passes fixed GitHub/provider credentials into `.agent/dist/run.js`: [`.github/actions/run-agent-task/action.yml`](https://github.com/self-evolving/repo/blob/main/.github/actions/run-agent-task/action.yml#L442-L456).\n- Runtime env mapping only covers GitHub, OpenAI, Claude, and Anthropic credentials today: [`.agent/src/runtime-env.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/runtime-env.ts#L29-L61).\n- ACPX invocation/session setup only configures model, reasoning, and permission mode: [`.agent/src/acpx-adapter.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/acpx-adapter.ts#L345-L458), [run path](https://github.com/self-evolving/repo/blob/main/.agent/src/acpx-adapter.ts#L789-L915).\n- The public configuration list has no MCP variable/secret yet: [`.agent/docs/customization/configuration-list.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/customization/configuration-list.md#L5-L41).\n\nRecommended approach:\n\n1. Add `AGENT_MCP_POLICY` as a repository variable for non-secret config: enabled routes, provider targets, server definitions, and allowed commands.\n2. Add one explicit repository secret, `AGENT_MCP_ENV`, as JSON for MCP credentials. Do not try to reference arbitrary GitHub secret names from JSON; Actions cannot safely/dynamically expose them.\n3. Add a typed `.agent/src/mcp-config.ts` plus CLI, for example `.agent/src/cli/setup-mcp.ts`, that validates policy, merges secret env, and writes provider-specific MCP configuration.\n4. Wire `setup-agent-runtime` / `run-agent-task` so MCP setup happens after Codex/Claude CLI installation and before `.agent/dist/run.js`.\n5. Configure providers using their CLIs where possible:\n   - Codex has `codex mcp add` for stdio and HTTP MCP servers.\n   - Claude has `claude mcp add` / `claude mcp add-json`.\n6. Keep default `AGENT_MCP_POLICY` disabled. Enable per route/server, for example `answer` can use read-only docs/search servers, while `implement` can opt into stronger tools only when explicitly configured.\n7. Document this in `configuration-list.md`, `setup-guide.md`, and self-hosted runner docs, including version pinning and security notes.\n\nExample target config shape:\n\n```json\n{\n  \"enabled\": true,\n  \"route_overrides\": {\n    \"answer\": [\"docs\"],\n    \"implement\": [\"docs\", \"repo-tools\"]\n  },\n  \"servers\": {\n    \"docs\": {\n      \"transport\": \"stdio\",\n      \"command\": \"npx\",\n      \"args\": [\"-y\", \"@example/mcp-docs-server@1.2.3\"],\n      \"env\": {\n        \"DOCS_API_KEY\": { \"from_secret_json\": \"DOCS_API_KEY\" }\n      }\n    }\n  }\n}\n```\n\nExecution plan before coding:\n\n1. Confirm which providers must be supported first: Codex only, Claude only, or both.\n2. Confirm whether MCP servers should be configured globally for all routes or only per-route.\n3. Implement the typed policy parser and tests.\n4. Add the MCP setup CLI and workflow/action inputs.\n5. Add docs and one smoke-testable example.\n6. Run `.agent` CI checks.\n\nPlease approve this direction before implementation.\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — answer · 2m37s · 48 steps**\n\nLast message\n> Short answer: Sepo does **not** currently have first-class MCP setup. The right implementation is to add MCP as a runtime configuration layer, not as prompt text. Current relevant architecture: - Runtime setup only installs Node, Sepo deps…\n\nActivity\n\n- 🔧 Used tool `test -x .agent/node_modules/.bin/codex-acp && .agent/node_modules/.bin/codex-acp --help | sed -n '1,220p' || true` (completed)\n- 🔧 Used tool `test -x .agent/node_modules/.bin/acpx && .agent/node_modules/.bin/acpx --help | sed -n '1,220p' || true` (completed)\n- 🔧 Used tool `codex mcp --help | sed -n '1,240p'` (completed)\n- 🔧 Used tool `codex mcp add --help | sed -n '1,240p'` (completed)\n- 🔧 Used tool `claude mcp add-json --help | sed -n '1,220p'` (completed)\n- 💬 Message \"Short answer: Sepo does **not** currently have first-class MCP setup. The right implementation is to add MCP as a runtime configuration layer, not as prompt text. Current relevant architecture: - Runtime setup only installs Node, Sepo deps…\"\n</details>\n\n<!-- sepo-progress:run-28558399234 -->\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-1`",
+      "createdAt": "2026-07-02T01:11:57Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/450#issuecomment-4861316294",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-07-02T01:11:07Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 450,
+  "state": "OPEN",
+  "title": "How to support MCP servers for the agents",
+  "updatedAt": "2026-07-02T01:14:41Z",
+  "url": "https://github.com/self-evolving/repo/issues/450"
+}

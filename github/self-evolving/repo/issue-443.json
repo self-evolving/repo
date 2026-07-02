@@ -125,6 +125,43 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/443#issuecomment-4852708116",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIcmshg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer in this two implementations, I am actually kinda confused -- did you actually change the routing structure such that it can speed up? ",
+      "createdAt": "2026-07-02T03:10:42Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/443#issuecomment-4861832326",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIcm_yQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "No. The two child PRs for #443 do **not** materially speed up the router.\n\nWhat they changed:\n\n- #447 changes dispatch guidance/tests so a bare `@sepo-agent ...` can better distinguish:\n  - “please add/fix/change X” -> infer `implement` with approval gating\n  - “can we/should we/think about X” -> stay in `answer`\n- #449 changes the answer prompt so, when Sepo stays in answer mode, it can suggest copyable next commands like `@sepo-agent /implement ...` or `@sepo-agent /fix-pr ...`.\n\nWhat they did **not** change:\n\n- They do not remove the portal job.\n- They do not skip `setup-agent-runtime`.\n- They do not run explicit `/answer` in the same job as routing.\n- They do not cache/skip `.agent` build.\n- They do not move progress startup earlier.\n\nSo these PRs improve **routing UX and intent clarity**, not actual startup latency.\n\nThe speed-up work from #439 would still need separate structural changes in `.github/workflows/agent-router.yml` and `.github/actions/setup-agent-runtime/action.yml`, especially:\n1. prebuilt/plain-JS context extraction before runtime setup,\n2. same-job fast path for explicit `/answer`,\n3. runtime install/build caching,\n4. lazy memory/rubrics/session setup for answer.\n\nAlso, #444 changes routing structure in a different sense: it lets `/review` work on issues as well as PRs. That is route capability expansion, not answer-speed optimization.\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — answer · 1m26s · 22 steps**\n\nLast message\n> No. The two child PRs for #443 do **not** materially speed up the router. What they changed: - #447 changes dispatch guidance/tests so a bare `@sepo-agent ...` can better distinguish: - “please add/fix/change X” -> infer `implement` with a…\n\nActivity\n\n- 💬 Message \"The diffs confirm #447 changes the dispatch prompt and tests; #449 changes the answer prompt and tests. Neither touches `agent-router.yml` or `setup-agent-runtime`, which are the parts that would materially reduce startup latency.\"\n- 📖 Read `Read agent-router.yml` (completed)\n- 📖 Read `Read agent-router.yml` (completed)\n- 📖 Read `Read action.yml` (completed)\n- 🔧 Used tool `gh pr diff 444 --repo self-evolving/repo` (completed)\n- 💬 Message \"No. The two child PRs for #443 do **not** materially speed up the router. What they changed: - #447 changes dispatch guidance/tests so a bare `@sepo-agent ...` can better distinguish: - “please add/fix/change X” -> infer `implement` with a…\"\n</details>\n\n<!-- sepo-progress:run-28562619290 -->\n\n---\n`codex` | `gpt-5.5` | `high` | `Macmini-runner-3`",
+      "createdAt": "2026-07-02T03:11:32Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/443#issuecomment-4861837257",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-07-01T08:36:38Z",
@@ -139,6 +176,6 @@
   "number": 443,
   "state": "OPEN",
   "title": "Change answer logic",
-  "updatedAt": "2026-07-01T09:27:45Z",
+  "updatedAt": "2026-07-02T03:13:06Z",
   "url": "https://github.com/self-evolving/repo/issues/443"
 }
