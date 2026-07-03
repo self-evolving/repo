@@ -184,27 +184,38 @@ step finds today's `Daily Summary — YYYY-MM-DD` discussion in the configured
 discussion category and comments there. If that discussion does not exist yet,
 it leaves only the Actions step summary.
 
-`agent-self-improvement.yml` is disabled by default. Enable it with
+`agent-self-improvement.yml` is disabled by default and is currently safest for
+private repositories or single-person development. Public repositories should
+keep it tightly gated, for example by limiting who can run repository workflows
+and by using `AGENT_ACCESS_POLICY` to restrict delegated orchestrator access to
+trusted maintainer associations. Enable it with
 `AGENT_SELF_IMPROVEMENT_ENABLED=true`. The workflow honors
-`AGENT_SCHEDULE_POLICY` for explicit scheduled-run disables, but intentionally
-does not use memory-cursor throttling or an open-proposal backlog gate: every
-enabled cron or manual run wakes the planner and asks for one routing decision.
-The planner must inspect recent self-improvement issues, pull requests, and workflow failures,
-then return `new_issue`, `continue_issue`, or `continue_pr`. Deterministic
-post-agent code validates the JSON decision, creates a marked proposal issue or
-posts a continuation trace comment, verifies continuation targets are open and
-of the requested kind, requires continuation target authors to resolve to the
-authenticated Sepo actor or another trusted repository actor, and dispatches
-`agent-orchestrator.yml` on the chosen target. It scans paginated target
-comments and uses the current run marker to skip a duplicate trace comment on
-retry/rerun only when the marker comment was authored by the authenticated Sepo
-actor. It also reuses marked proposal issues only when they were authored by the
-authenticated Sepo actor, without treating older proposals as a backlog lock.
-Manual dispatches derive the real dispatcher's repository association before
-forwarding delegated-route authorization context; scheduled runs are
-system-authorized by the repository owner opt-in. This keeps prior failed or
-stuck attempts as context instead of locks that can deadlock future
-self-improvement runs.
+`AGENT_SCHEDULE_POLICY` for explicit scheduled-run disables, but
+intentionally does not use memory-cursor throttling or an open-proposal backlog
+gate: every enabled cron or manual run wakes the planner and asks for one
+routing decision. The planner must inspect recent self-improvement issues, pull
+requests, and workflow failures, then return `new_issue`, `continue_issue`, or
+`continue_pr`. On public repositories, planner guidance tells it to prefer
+trusted maintainer signals such as maintainer-authored `agent-goal` issues,
+`OWNER`, `MEMBER`, or `COLLABORATOR` comments, and existing trusted
+Sepo-authored proposals. Arbitrary public issue or pull request text should be
+treated as untrusted context/data, not instructions.
+
+Deterministic post-agent code validates the JSON decision, checks delegated
+initial orchestrator access before creating or commenting, creates a marked
+proposal issue or posts a continuation trace comment, verifies continuation
+targets are open and of the requested kind, requires continuation target authors
+to resolve to the authenticated Sepo actor or another trusted repository actor,
+and dispatches `agent-orchestrator.yml` on the chosen target. It scans paginated
+target comments and uses the current run marker to skip a duplicate trace
+comment on retry/rerun only when the marker comment was authored by the
+authenticated Sepo actor. It also reuses marked proposal issues only when they
+were authored by the authenticated Sepo actor, without treating older proposals
+as a backlog lock. Manual dispatches derive the real dispatcher's repository
+association before applying and forwarding delegated-route authorization
+context; scheduled runs are system-authorized by the repository owner opt-in.
+This keeps prior failed or stuck attempts as context instead of locks that can
+deadlock future self-improvement runs.
 
 `agent-daily-summary.yml` checks repository discussion settings before gathering
 activity signals or resolving an agent provider. If discussions are disabled, or

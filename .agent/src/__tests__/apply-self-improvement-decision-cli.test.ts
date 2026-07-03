@@ -183,6 +183,11 @@ function assertNoCommentOrDispatch(paths: DecisionFixturePaths): void {
   assert.equal(existsSync(paths.dispatchPayload), false, "orchestrator should not be dispatched");
 }
 
+function assertNoCreateCommentOrDispatch(paths: DecisionFixturePaths): void {
+  assert.equal(existsSync(paths.issueBody), false, "issue should not be created");
+  assertNoCommentOrDispatch(paths);
+}
+
 test("apply self-improvement decision creates new issue and dispatches orchestrator", () => {
   const { result, paths } = runDecisionFixture({
     decision: "new_issue",
@@ -211,6 +216,43 @@ test("apply self-improvement decision creates new issue and dispatches orchestra
     assert.equal(outputs.get("target_number"), "88");
   } finally {
     cleanup(paths);
+  }
+});
+
+test("apply self-improvement decision rejects denied manual requester before side effects", () => {
+  const deniedManualEnv = {
+    ACCESS_POLICY: JSON.stringify({ allowed_associations: ["OWNER"] }),
+    AUTHOR_ASSOCIATION: "CONTRIBUTOR",
+    GITHUB_EVENT_NAME: "workflow_dispatch",
+    REPOSITORY_PRIVATE: "false",
+    REQUESTED_BY: "octocat",
+  };
+  const deniedNewIssue = runDecisionFixture({
+    decision: "new_issue",
+    reason: "A fresh proposal would be useful.",
+    issue_title: "code-quality: Add self-improvement tests",
+    issue_body: "## Proposal\n\nAdd tests for the route.",
+  }, deniedManualEnv);
+  try {
+    assert.equal(deniedNewIssue.result.status, 1);
+    assert.match(deniedNewIssue.result.stderr, /orchestrate requests require implement access/);
+    assertNoCreateCommentOrDispatch(deniedNewIssue.paths);
+  } finally {
+    cleanup(deniedNewIssue.paths);
+  }
+
+  const deniedContinuation = runDecisionFixture({
+    decision: "continue_issue",
+    target_number: 18,
+    reason: "An existing issue would be useful.",
+    comment: "Continue this issue.",
+  }, deniedManualEnv);
+  try {
+    assert.equal(deniedContinuation.result.status, 1);
+    assert.match(deniedContinuation.result.stderr, /orchestrate requests require implement access/);
+    assertNoCreateCommentOrDispatch(deniedContinuation.paths);
+  } finally {
+    cleanup(deniedContinuation.paths);
   }
 });
 

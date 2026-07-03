@@ -12,6 +12,8 @@
 //   AUTHOR_ASSOCIATION             authorization context for initial orchestrate
 //   ACCESS_POLICY                  AGENT_ACCESS_POLICY JSON
 //   REPOSITORY_PRIVATE             true/false
+//   AGENT_ALLOW_SELF_APPROVE       true/false
+//   AGENT_ALLOW_SELF_MERGE         true/false
 //   AUTOMATION_MODE                agent/heuristics/disabled
 //   AUTOMATION_MAX_ROUNDS          max orchestrator rounds
 //   SESSION_BUNDLE_MODE            session bundle mode
@@ -32,6 +34,7 @@ import {
   postIssueComment,
   postPrComment,
 } from "../github.js";
+import { initialOrchestrateCapabilityStopReason } from "../orchestrator-capabilities.js";
 import { setOutput } from "../output.js";
 import {
   SELF_IMPROVEMENT_DECISION_MARKER,
@@ -55,6 +58,24 @@ function requiredEnv(name: string): string {
 function optionalEnv(name: string, fallback = ""): string {
   const value = String(process.env[name] || "").trim();
   return value || fallback;
+}
+
+function envFlagEnabled(name: string): boolean {
+  return ["true", "1", "yes", "on"].includes(optionalEnv(name).toLowerCase());
+}
+
+function validateInitialOrchestrateCapability(): void {
+  const reason = initialOrchestrateCapabilityStopReason({
+    sourceAction: "orchestrate",
+    sourceConclusion: "requested",
+    currentRound: 1,
+    allowSelfApprove: envFlagEnabled("AGENT_ALLOW_SELF_APPROVE"),
+    allowSelfMerge: envFlagEnabled("AGENT_ALLOW_SELF_MERGE"),
+    authorAssociation: requiredEnv("AUTHOR_ASSOCIATION"),
+    accessPolicy: optionalEnv("ACCESS_POLICY"),
+    isPublicRepo: optionalEnv("REPOSITORY_PRIVATE").toLowerCase() === "false",
+  });
+  if (reason) throw new Error(reason);
 }
 
 function sourceRunUrl(repo: string, runId: string): string {
@@ -307,6 +328,7 @@ export function runApplySelfImprovementDecision(): number {
     const ref = requiredEnv("DEFAULT_BRANCH");
     const runId = optionalEnv("GITHUB_RUN_ID");
     const decision = parseSelfImprovementDecision(readFileSync(responseFile, "utf8"));
+    validateInitialOrchestrateCapability();
     const context: SelfImprovementRunContext = {
       repo,
       runId,
