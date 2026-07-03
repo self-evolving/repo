@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "@sepo-agent /answer\n\nExample: \nhttps://github.com/self-evolving/repo/pull/444#issuecomment-4859662005\n\n1. Add a finalized comment to summarize what's done in the orchestration \n2. In that finalized comment if the orchestration is started by a human user then tag them \n3. We should opt to update the pr note",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIl_KqA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes. The right place is `orchestrate-handoff.ts`, not the planner prompt.\n\nCurrent shape:\n- `agent-router.yml` forwards the original requester into `/orchestrate`: https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-router.yml#L1114-L1132\n- `agent-orchestrator.yml` carries `requested_by`, planner output, model display, and progress metadata through the orchestrator run: https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-orchestrator.yml#L154-L232\n- Terminal orchestration comments already live in `orchestrate-handoff.ts`: https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts#L1057-L1184\n- Existing final-response/progress-note merging is already implemented in `progress-final-comment.ts`: https://github.com/self-evolving/repo/blob/main/.agent/src/progress-final-comment.ts#L19-L64\n- PR marker upsert support already exists via `upsertPrCommentByMarker`: https://github.com/self-evolving/repo/blob/main/.agent/src/github.ts#L410-L432\n\nImplementation plan:\n1. Add an orchestrator final marker, e.g. `<!-- sepo-agent-orchestrate-final -->`, separate from dispatch handoff markers.\n2. Replace the generic terminal stop wording with a final summary formatter that includes:\n   - what the orchestration did, using source action/conclusion, target, round, reason, and any planner `user_message`\n   - whether no further workflow was dispatched\n   - the source run id when available\n   - `Requested by @login` only when `requested_by` is a real human-looking requester and not the Sepo app/agent handle/bot\n3. For PR targets, update a single existing PR note by marker instead of creating duplicate final comments. If a live progress comment id exists, prefer merging into that note using the existing progress-final-comment helper; otherwise upsert by the new orchestrator final marker.\n4. For issue targets, keep the current dedupe behavior but move it to marker-based upsert/update where practical, so reruns revise the final note rather than posting near-duplicates.\n5. Update tests that currently assert PR terminal stops stay silent; that test is now the requested behavior gap: https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/orchestrate-handoff-cli.test.ts#L1504-L1524\n6. Update orchestrator docs where they currently say ordinary terminal PR stops remain silent: https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/agent-orchestrator.md#L145-L152\n\nI’d cover this with focused tests for human requester tagging, bot requester suppression, PR final-note upsert, progress-comment merge fallback, and rerun dedupe. Since this was routed as `/answer`, I’m stopping at the plan and waiting for approval before coding.\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — answer · 2m06s · 38 steps**\n\nLast message\n> Yes. The right place is `orchestrate-handoff.ts`, not the planner prompt. Current shape: - `agent-router.yml` forwards the original requester into `/orchestrate`: https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-rout…\n\nActivity\n\n- 🔍 Searched `Search progress_comment|PROGRESS_COMMENT|AGENT_PROGRESS_COMMENT|response_file|outputs in actions` (completed)\n- 🔧 Used tool `List /Users/shannon/projects/2604_sepo/repo/.agent/tools/local-runner/runner-3/_work/repo/repo/actions` (completed)\n- 📖 Read `Read action.yml` (completed)\n- 📖 Read `Read agent-router.yml` (completed)\n- 📖 Read `Read action.yml` (completed)\n- 💬 Message \"Yes. The right place is `orchestrate-handoff.ts`, not the planner prompt. Current shape: - `agent-router.yml` forwards the original requester into `/orchestrate`: https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-rout…\"\n</details>\n\n<!-- sepo-progress:run-28631325320 -->\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-3`",
+      "createdAt": "2026-07-03T00:58:36Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/452#issuecomment-4871670440",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-07-03T00:57:51Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 452,
+  "state": "OPEN",
+  "title": "Consider adding a finalized comment at the end of orchestrator",
+  "updatedAt": "2026-07-03T01:00:49Z",
+  "url": "https://github.com/self-evolving/repo/issues/452"
+}

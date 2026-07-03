@@ -46,8 +46,8 @@
       "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 96 | PASS | 13 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Manual runs resolve the real actor association before dispatch, while scheduled runs use explicit owner opt-in context; forwarded `AUTHOR_ASSOCIATION` is used by the orchestrator dispatch. See [`self-improvement-requester.ts`](https://github.com/self-evolving/repo/blob/764b77ac7b784a191a594e7b5e6a03edd90cf3a1/.agent/src/self-improvement-requester.ts#L38-L67) and [`agent-self-improvement.yml`](https://github.com/self-evolving/repo/blob/764b77ac7b784a191a594e7b5e6a03edd90cf3a1/.github/workflows/agent-self-improvement.yml#L204-L219). |\n| coding_workflow / generic | Keep privileged workflows on trusted runtime code | pass | 8/8 | The new privileged workflow checks out the repository default branch for gate, plan, and apply jobs rather than running workflow code from an untrusted target branch. See [`agent-self-improvement.yml`](https://github.com/self-evolving/repo/blob/764b77ac7b784a191a594e7b5e6a03edd90cf3a1/.github/workflows/agent-self-improvement.yml#L33-L38). |\n| coding_workflow / generic | Keep privileged lifecycle routes out of rubric steering | pass | 8/8 | The self-improvement planner explicitly disables rubric injection with `rubrics_mode_override: disabled`. See [`agent-self-improvement.yml`](https://github.com/self-evolving/repo/blob/764b77ac7b784a191a594e7b5e6a03edd90cf3a1/.github/workflows/agent-self-improvement.yml#L104-L115). |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | The model only produces a decision artifact; deterministic code validates targets, authorship, markers, and then performs create/comment/dispatch. See [`apply-self-improvement-decision.ts`](https://github.com/self-evolving/repo/blob/764b77ac7b784a191a594e7b5e6a03edd90cf3a1/.agent/src/cli/apply-self-improvement-decision.ts#L180-L224). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Planner output is a JSON object with typed `decision`, `target_number`, `issue_title`, `issue_body`, and `comment` fields, with clear validation failures. See [`self-improvement.ts`](https://github.com/self-evolving/repo/blob/764b77ac7b784a191a594e7b5e6a03edd90cf3a1/.agent/src/self-improvement.ts#L90-L128). |\n| coding_workflow / generic | Generate context-derived artifact metadata | pass | 7/7 | New proposal issues require generated title/body fields and the prompt asks the planner to derive them from repo goals and current context, not from a literal slash-command tail. See [`agent-self-improvement.md`](https://github.com/self-evolving/repo/blob/764b77ac7b784a191a594e7b5e6a03edd90cf3a1/.github/prompts/agent-self-improvement.md#L32-L58). |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Same-run proposal reuse and continuation comment dedupe require the current run marker and authenticated Sepo authorship, with forged-marker tests. See [`apply-self-improvement-decision.ts`](https://github.com/self-evolving/repo/blob/764b77ac7b784a191a594e7b5e6a03edd90cf3a1/.agent/src/cli/apply-self-improvement-decision.ts#L118-L157). |\n| coding_workflow / generic | Separate context from execution dependencies | pass | 7/7 | Continuation targets are validated as open, of the requested kind, and authored by Sepo or a trusted actor before any comment or dispatch side effect. See [`apply-self-improvement-decision.ts`](https://github.com/self-evolving/repo/blob/764b77ac7b784a191a594e7b5e6a03edd90cf3a1/.agent/src/cli/apply-self-improvement-decision.ts#L180-L224). |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Missing decision artifacts fail the workflow, malformed planner JSON throws explicit errors, and tests cover invalid/missing target paths before side effects. See [`agent-self-improvement.yml`](https://github.com/self-evolving/repo/blob/764b77ac7b784a191a594e7b5e6a03edd90cf3a1/.github/workflows/agent-self-improvement.yml#L190-L202). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The PR updates both the workflow reference and configuration list for the new route and enablement variable. See [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/764b77ac7b784a191a594e7b5e6a03edd90cf3a1/.agent/docs/usage/supported-workflows.md#L187-L207). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The workflow reuses existing scheduled gate, provider/runtime setup, `run-agent-task`, GitHub helpers, dispatch helper, and actor-association helpers instead of embedding large ad hoc shell logic. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | The route adds one opt-in variable, uses existing schedule policy and workflow dispatch input, and leaves advanced behavior in native workflow/config surfaces. |\n| communication / generic | Audience-first documentation | partial | 5/7 | The docs are present and accurate, but the single configuration-list row for `AGENT_SELF_IMPROVEMENT_ENABLED` is dense and mixes setup guidance with implementation caveats. See [`configuration-list.md`](https://github.com/self-evolving/repo/blob/764b77ac7b784a191a594e7b5e6a03edd90cf3a1/.agent/docs/customization/configuration-list.md#L30-L31). |\n\n## Notes\n\n- Strongest score drivers: delegated authorization is preserved, privileged runtime code stays on the default branch, model judgment is separated from deterministic write authorization, and target validation is covered by focused tests.\n- Verified locally on the PR head: `npm --prefix .agent run build` passed, and `node --test .agent/dist/__tests__/self-improvement.test.js .agent/dist/__tests__/self-improvement-requester.test.js .agent/dist/__tests__/apply-self-improvement-decision-cli.test.js` passed 24 tests.\n- Smallest useful follow-up: shorten the configuration-list entry and move operational edge-case detail to the supported-workflows or technical docs section.\n\n## Findings\n\n- **WARNING:** The `AGENT_SELF_IMPROVEMENT_ENABLED` configuration row is too dense for first-pass setup docs. This is rubric-relevant under audience-first documentation, but not blocking because the behavior is documented clearly elsewhere.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-1`",
       "createdAt": "2026-07-02T09:32:17Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/451#issuecomment-4864264572",
       "viewerDidAuthor": true
@@ -61,10 +61,150 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 764b77ac7b784a191a594e7b5e6a03edd90cf3a1 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nThis PR adds an opt-in `agent-self-improvement` workflow that lets Sepo periodically or manually plan a self-improvement step. The design separates a read-only planner decision from a deterministic apply job that creates or comments on a target and dispatches `agent-orchestrator.yml`. It also adds requester resolution, decision parsing/application logic, docs, and focused tests. The main goal is to make self-improvement liveness possible while keeping writes in reviewed CLI code.\n\n## Review\nThe overall design is strong, but one authorization sequencing issue remains blocking: the apply step can create a Sepo-authored issue or comment before validating that the requester may use the delegated initial orchestrate capability set. Reviewer outputs disagreed on severity, but the current PR code supports treating this as blocking.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Apply writes before delegated access validation | BLOCKING | `.agent/src/cli/apply-self-improvement-decision.ts` creates a proposal issue or posts a continuation comment before the initial orchestrate access-policy check runs. Downstream preflight can stop orchestration, but only after the side effect exists. |\n| Shared orchestration helpers are duplicated | WARNING | The apply CLI rebuilds the orchestrator dispatch envelope, and requester resolution duplicates association precedence already handled by existing helpers. This is a drift risk rather than an immediate behavior break. |\n| Self-improvement proposal prompt should harden untrusted context handling | WARNING | The planner inspects issues, PRs, and repo context, then writes `new_issue` title/body content into a Sepo-authored issue. The prompt/docs should explicitly frame external issue/PR text as data, not instructions. |\n| Configuration row is dense | INFO | The `AGENT_SELF_IMPROVEMENT_ENABLED` configuration-list entry is accurate but packs setup guidance and implementation caveats into one table cell. This is already documented more fully elsewhere. |\n\n## Progress\n- Existing inline comments and review threads were fetched before mutation; none existed.\n- Posted one inline comment on `.agent/src/cli/apply-self-improvement-decision.ts:323` for the blocking side-effect-before-access-check issue.\n- No inline comments were minimized, replied to, or resolved.\n- Rubrics review already noted the dense configuration row as non-blocking and reported focused build/tests passing.\n\n## Issue Details\n\n<details>\n<summary>Apply writes before delegated access validation</summary>\n\n**Cause:** The apply CLI calls `createNewProposalIssue()` for `new_issue` and `postContinuationComment()` for continuations before `dispatchOrchestrator()` forwards `AUTHOR_ASSOCIATION` and `ACCESS_POLICY` to the orchestrator. The actual initial-orchestrate delegated capability check currently lives downstream in `initialOrchestrateCapabilityStopReason()` via orchestrator preflight.\n\n**Candidate solutions:** Run the same initial orchestrate capability validation inside the apply CLI before any create/comment side effect, reusing `initialOrchestrateCapabilityStopReason()` or extracting a shared helper. Add a regression test where a denied requester plus restrictive `AGENT_ACCESS_POLICY` exits before issue creation, comments, or dispatch.\n\n**Comments:** Codex flagged this as blocking; the rubrics and Claude reviews considered delegated authorization preserved because the downstream orchestrator rechecks it. The current code confirms the downstream check is too late to prevent the Sepo-authored issue/comment side effect.\n\n</details>\n\n<details>\n<summary>Shared orchestration helpers are duplicated</summary>\n\n**Cause:** `dispatchOrchestrator()` reconstructs the `agent-orchestrator.yml` input envelope already built by `dispatch-agent-orchestrator.ts`, and `resolveSelfImprovementRequester()` reimplements association precedence instead of delegating to `resolveGithubActorAssociation()`.\n\n**Candidate solutions:** Extract a shared orchestrator dispatch input builder and reuse the canonical actor association resolver for the manual-dispatch branch, keeping only the self-improvement-specific schedule handling and output labels local.\n\n**Comments:** This is useful cleanup but not required to unblock the PR if the authorization sequencing fix stays focused.\n\n</details>\n\n<details>\n<summary>Self-improvement proposal prompt should harden untrusted context handling</summary>\n\n**Cause:** The planner can inspect untrusted issue/PR text and then place derived content into a Sepo-authored proposal issue that the orchestrator later processes with elevated requester context.\n\n**Candidate solutions:** Update the planner prompt to explicitly treat external issue/PR text as untrusted data rather than instructions, and add a short operator-facing note in the self-improvement docs about this trust boundary.\n\n**Comments:** This is bounded by the normal PR review/merge gates, so it is not the blocking item.\n\n</details>\n\n<details>\n<summary>Configuration row is dense</summary>\n\n**Cause:** The `AGENT_SELF_IMPROVEMENT_ENABLED` row includes operational behavior, marker/dedupe details, and authorship caveats in one compact configuration table entry.\n\n**Candidate solutions:** Keep the table row to the enablement summary and move deeper runtime caveats to the supported-workflows documentation.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The blocking issue is a concrete branch change that can be fixed deterministically by validating delegated route access before any apply-step issue/comment side effects.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Validate initial orchestrate delegated-route access in the self-improvement apply CLI before creating proposal issues, posting continuation comments, or dispatching the orchestrator.\n- [ ] Add a regression test proving a denied requester plus restrictive `AGENT_ACCESS_POLICY` produces no issue, comment, or dispatch side effects.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-5`",
       "createdAt": "2026-07-02T09:40:26Z",
       "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/451#issuecomment-4864329809",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIl-OJw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer\n\n\nOk for the four comments:\n\n1. Explain \n2. Sure we should clean up? Or does it meaningfully reduce the code? \n3. Yes but also we should consider these two approaches: in doc, suggest to only allow self improve for private / single person dev for now. Also if public, in the prompt we should suggest agent to check from trusted developers of the repo \n4. Explain ",
+      "createdAt": "2026-07-03T00:54:44Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/451#issuecomment-4871654951",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIl-aqQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I’d treat these as:\n\n1. **Blocking auth sequencing.** The issue is not that orchestrator auth is missing; it is too late. The apply CLI creates the issue/comment first, then dispatches with `AUTHOR_ASSOCIATION`/`ACCESS_POLICY`. A denied manual requester could still cause a Sepo-authored issue/comment before orchestrator preflight stops. Fix: run `initialOrchestrateCapabilityStopReason` before `createNewProposalIssue` / `postContinuationComment`, and test denied requester produces no create/comment/dispatch side effect.  \n   Ref: https://github.com/self-evolving/repo/blob/764b77ac7b784a191a594e7b5e6a03edd90cf3a1/.agent/src/cli/apply-self-improvement-decision.ts#L322-L342\n\n2. **Cleanup is optional.** It probably does not meaningfully reduce code right now. The value is drift reduction: reuse the canonical actor association resolver and possibly share the orchestrator dispatch envelope. I would not block the PR on this unless we are already touching the apply CLI for #1.\n\n3. **Agree, and I’d do both.** Docs should say self-improvement is currently safest for private repos / single-person development, and public repos should keep it tightly gated. The prompt should also tell the planner that, on public repos, it should prefer trusted maintainer signals: maintainer-authored `agent-goal` issues, owner/member/collaborator comments, existing trusted Sepo-authored proposals, etc., and treat arbitrary public issue/PR text as untrusted context.\n\n4. **Docs density only.** The config table row is accurate but too packed for setup docs. It mixes enablement, schedule behavior, dedupe, target validation, authorship, and authorization caveats in one table cell. I’d shorten the row to “enables disabled-by-default self-improvement workflow” and move operational details to `supported-workflows.md`. Not correctness-blocking.\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — answer · 5m29s · 26 steps**\n\nLast message\n> I’d treat these as: 1. **Blocking auth sequencing.** The issue is not that orchestrator auth is missing; it is too late. The apply CLI creates the issue/comment first, then dispatches with `AUTHOR_ASSOCIATION`/`ACCESS_POLICY`. A denied man…\n\nActivity\n\n- 💬 Message \"The code confirms the blocking part is sequencing, not missing downstream auth: `apply-self-improvement-decision.ts` writes at lines 323/328 and only forwards auth into the orchestrator dispatch at lines 280-300.\"\n- 📖 Read `Read orchestrator-capabilities.ts` (completed)\n- 📖 Read `Read dispatch-agent-orchestrator.ts` (completed)\n- 📖 Read `Read orchestrator-preflight.ts` (completed)\n- 📖 Read `Read actor-association.ts` (completed)\n- 💬 Message \"I’d treat these as: 1. **Blocking auth sequencing.** The issue is not that orchestrator auth is missing; it is too late. The apply CLI creates the issue/comment first, then dispatches with `AUTHOR_ASSOCIATION`/`ACCESS_POLICY`. A denied man…\"\n</details>\n\n<!-- sepo-progress:run-28631218515 -->\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-6`",
+      "createdAt": "2026-07-03T00:55:31Z",
+      "includesCreatedEdit": true,
       "isMinimized": false,
       "minimizedReason": "",
       "reactionGroups": [],
-      "url": "https://github.com/self-evolving/repo/pull/451#issuecomment-4864329809",
+      "url": "https://github.com/self-evolving/repo/pull/451#issuecomment-4871658153",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABImAQZA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> I’d treat these as:\n> \n> 1. **Blocking auth sequencing.** The issue is not that orchestrator auth is missing; it is too late. The apply CLI creates the issue/comment first, then dispatches with `AUTHOR_ASSOCIATION`/`ACCESS_POLICY`. A denied manual requester could still cause a Sepo-authored issue/comment before orchestrator preflight stops. Fix: run `initialOrchestrateCapabilityStopReason` before `createNewProposalIssue` / `postContinuationComment`, and test denied requester produces no create/comment/dispatch side effect.  \n>    Ref: https://github.com/self-evolving/repo/blob/764b77ac7b784a191a594e7b5e6a03edd90cf3a1/.agent/src/cli/apply-self-improvement-decision.ts#L322-L342\n> \n> 2. **Cleanup is optional.** It probably does not meaningfully reduce code right now. The value is drift reduction: reuse the canonical actor association resolver and possibly share the orchestrator dispatch envelope. I would not block the PR on this unless we are already touching the apply CLI for #1.\n> \n> 3. **Agree, and I’d do both.** Docs should say self-improvement is currently safest for private repos / single-person development, and public repos should keep it tightly gated. The prompt should also tell the planner that, on public repos, it should prefer trusted maintainer signals: maintainer-authored `agent-goal` issues, owner/member/collaborator comments, existing trusted Sepo-authored proposals, etc., and treat arbitrary public issue/PR text as untrusted context.\n> \n> 4. **Docs density only.** The config table row is accurate but too packed for setup docs. It mixes enablement, schedule behavior, dedupe, target validation, authorship, and authorization caveats in one table cell. I’d shorten the row to “enables disabled-by-default self-improvement workflow” and move operational details to `supported-workflows.md`. Not correctness-blocking.\n> \n> ---\n> \n> <details>\n> <summary>Sepo activity</summary>\n> \n> **Sepo finished — answer · 5m29s · 26 steps**\n> \n> Last message\n> > I’d treat these as: 1. **Blocking auth sequencing.** The issue is not that orchestrator auth is missing; it is too late. The apply CLI creates the issue/comment first, then dispatches with `AUTHOR_ASSOCIATION`/`ACCESS_POLICY`. A denied man…\n> \n> Activity\n> \n> - 💬 Message \"The code confirms the blocking part is sequencing, not missing downstream auth: `apply-self-improvement-decision.ts` writes at lines 323/328 and only forwards auth into the orchestrator dispatch at lines 280-300.\"\n> - 📖 Read `Read orchestrator-capabilities.ts` (completed)\n> - 📖 Read `Read dispatch-agent-orchestrator.ts` (completed)\n> - 📖 Read `Read orchestrator-preflight.ts` (completed)\n> - 📖 Read `Read actor-association.ts` (completed)\n> - 💬 Message \"I’d treat these as: 1. **Blocking auth sequencing.** The issue is not that orchestrator auth is missing; it is too late. The apply CLI creates the issue/comment first, then dispatches with `AUTHOR_ASSOCIATION`/`ACCESS_POLICY`. A denied man…\"\n> </details>\n> \n> <!-- sepo-progress:run-28631218515 -->\n> \n> ---\n> `codex` | `gpt-5.5/xhigh` | `Macmini-runner-6`\n\n@sepo-agent /orchestrate fix 1 3 4 ",
+      "createdAt": "2026-07-03T01:02:20Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/451#issuecomment-4871688292",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABImA16A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | fix-pr | PR #451 | 2 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: PR #451 is open, the latest review synthesis recommends FIX_PR, and the requester explicitly asked to fix items 1, 3, and 4.\n\nTask for fix-pr:\nFix PR #451 on its head branch, scoped to requested items 1, 3, and 4. 1: In `.agent/src/cli/apply-self-improvement-decision.ts`, validate initial orchestrate delegated-route access before any apply-step side effects: no `createNewProposalIssue`, `postContinuationComment`, or orchestrator dispatch should happen when `initialOrchestrateCapabilityStopReason` denies the requester under the resolved `AUTHOR_ASSOCIATION` and `ACCESS_POLICY`. Add a regression test in `.agent/src/__tests__/apply-self-improvement-decision-cli.test.ts` proving a denied manual requester plus restrictive `AGENT_ACCESS_POLICY` produces no issue creation, no continuation comment, and no dispatch. 3: Harden self-improvement trust guidance in `.github/prompts/agent-self-improvement.md` and relevant docs: say self-improvement is currently safest for private repos or single-person development, public repos should keep it tightly gated, and public-repo planning should prefer trusted maintainer signals such as maintainer-authored `agent-goal` issues, owner/member/collaborator comments, and existing trusted Sepo-authored proposals while treating arbitrary public issue/PR text as untrusted context/data, not instructions. 4: Reduce `.agent/docs/customization/configuration-list.md` density by shortening the `AGENT_SELF_IMPROVEMENT_ENABLED` row to a concise enablement summary, moving operational details and caveats to `.agent/docs/usage/supported-workflows.md`. Do not spend time on optional cleanup item 2 unless it is directly necessary for the auth sequencing fix. Run focused build/tests for the touched `.agent` code and docs checks if available.\n\n<!-- sepo-agent-handoff state:dispatched created:1783040657831 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86Mjg2MzE0OTE2MDc6b3JjaGVzdHJhdGU6NDUxOmZpeF9wcjo0NTE6Mg -->",
+      "createdAt": "2026-07-03T01:04:18Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/451#issuecomment-4871697896",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABImC2Cg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `sync/internal-dev-self-improvement-20260702`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Moved self-improvement apply authorization ahead of issue/comment/dispatch side effects using `initialOrchestrateCapabilityStopReason`.\n- Added regression coverage for denied manual requesters proving no proposal issue, continuation comment, or orchestrator dispatch is produced.\n- Hardened public-repo self-improvement guidance in the planner prompt and docs, and shortened the dense config-table row.\n- Verified with `npm --prefix .agent run build` and focused `node --test` coverage for apply CLI, orchestrator preflight, docs, and workflow envelope tests.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-5`",
+      "createdAt": "2026-07-03T01:11:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/451#issuecomment-4871730698",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABImDL6A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #451 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on open PR #451 after applying the requested fixes for items 1, 3, and 4; one review pass is warranted to validate the new head before stopping.\n\n<!-- sepo-agent-handoff state:dispatched created:1783041176232 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86Mjg2MzE1NjQxNjQ6Zml4X3ByOjQ1MTpyZXZpZXc6NDUxOjM -->",
+      "createdAt": "2026-07-03T01:12:56Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/451#issuecomment-4871736296",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABImEP6g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 99 | PASS | 19 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | The apply CLI now calls `initialOrchestrateCapabilityStopReason` before issue/comment/dispatch side effects, and forwards the requester auth envelope into orchestrator dispatch. Evidence: [`apply-self-improvement-decision.ts`](https://github.com/self-evolving/repo/blob/4ee144b7dd3afe76803f4534a90691fc2281741f/.agent/src/cli/apply-self-improvement-decision.ts#L67-L79), [`runApplySelfImprovementDecision`](https://github.com/self-evolving/repo/blob/4ee144b7dd3afe76803f4534a90691fc2281741f/.agent/src/cli/apply-self-improvement-decision.ts#L324-L364). |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | The planner only returns structured JSON; deterministic code parses, validates, gates, writes, and dispatches. Evidence: [`agent-self-improvement.md`](https://github.com/self-evolving/repo/blob/4ee144b7dd3afe76803f4534a90691fc2281741f/.github/prompts/agent-self-improvement.md#L5-L8), [`parseSelfImprovementDecision`](https://github.com/self-evolving/repo/blob/4ee144b7dd3afe76803f4534a90691fc2281741f/.agent/src/self-improvement.ts#L90-L128). |\n| coding_workflow / generic | Keep privileged workflows on trusted runtime code | pass | 8/8 | Gate, plan, and apply jobs all checkout the repository default branch, keeping privileged workflow code off untrusted PR heads. Evidence: [`agent-self-improvement.yml`](https://github.com/self-evolving/repo/blob/4ee144b7dd3afe76803f4534a90691fc2281741f/.github/workflows/agent-self-improvement.yml#L33-L38), [`plan checkout`](https://github.com/self-evolving/repo/blob/4ee144b7dd3afe76803f4534a90691fc2281741f/.github/workflows/agent-self-improvement.yml#L60-L65), [`apply checkout`](https://github.com/self-evolving/repo/blob/4ee144b7dd3afe76803f4534a90691fc2281741f/.github/workflows/agent-self-improvement.yml#L154-L159). |\n| coding_workflow / generic | Keep privileged lifecycle routes out of rubric steering | pass | 8/8 | The planner disables rubric injection with `rubrics_mode_override: disabled`. Evidence: [`agent-self-improvement.yml`](https://github.com/self-evolving/repo/blob/4ee144b7dd3afe76803f4534a90691fc2281741f/.github/workflows/agent-self-improvement.yml#L104-L115). |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Same-run proposal/comment dedupe uses fixed markers and authenticated Sepo authorship checks; tests cover reuse and forged markers. Evidence: [`findExistingRunProposalIssue`](https://github.com/self-evolving/repo/blob/4ee144b7dd3afe76803f4534a90691fc2281741f/.agent/src/cli/apply-self-improvement-decision.ts#L139-L179), [`hasExistingRunContinuationComment`](https://github.com/self-evolving/repo/blob/4ee144b7dd3afe76803f4534a90691fc2281741f/.agent/src/cli/apply-self-improvement-decision.ts#L247-L263), tests around [`L259-L270`](https://github.com/self-evolving/repo/blob/4ee144b7dd3afe76803f4534a90691fc2281741f/.agent/src/__tests__/apply-self-improvement-decision-cli.test.ts#L259-L270). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Planner decisions are typed JSON fields, and parser validation fails clearly for missing decision, reason, title/body, or target. Evidence: [`agent-self-improvement.md`](https://github.com/self-evolving/repo/blob/4ee144b7dd3afe76803f4534a90691fc2281741f/.github/prompts/agent-self-improvement.md#L74-L146), [`self-improvement.ts`](https://github.com/self-evolving/repo/blob/4ee144b7dd3afe76803f4534a90691fc2281741f/.agent/src/self-improvement.ts#L90-L128). |\n| coding_workflow / generic | Generate context-derived artifact metadata | pass | 7/7 | New proposal title/body are planner-derived structured fields, not copied command tails or placeholders. Evidence: [`New Issue Proposal Guidance`](https://github.com/self-evolving/repo/blob/4ee144b7dd3afe76803f4534a90691fc2281741f/.github/prompts/agent-self-improvement.md#L85-L104). |\n| coding_workflow / generic | Separate context from execution dependencies | pass | 7/7 | Continuation targets must exist, be open, match issue/PR kind, and be authored by Sepo or trusted repo actors before comments/dispatch. Evidence: [`validateContinuationTarget`](https://github.com/self-evolving/repo/blob/4ee144b7dd3afe76803f4534a90691fc2281741f/.agent/src/cli/apply-self-improvement-decision.ts#L201-L245). |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Missing/malformed decisions and invalid targets return explicit errors instead of clean no-ops; focused tests cover denied and invalid target paths. Evidence: [`self-improvement.ts`](https://github.com/self-evolving/repo/blob/4ee144b7dd3afe76803f4534a90691fc2281741f/.agent/src/self-improvement.ts#L75-L103), [`denied requester test`](https://github.com/self-evolving/repo/blob/4ee144b7dd3afe76803f4534a90691fc2281741f/.agent/src/__tests__/apply-self-improvement-decision-cli.test.ts#L222-L257). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The new workflow is documented in the workflow table and operational section, and the config variable is listed. Evidence: [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/4ee144b7dd3afe76803f4534a90691fc2281741f/.agent/docs/usage/supported-workflows.md#L25-L25), [`configuration-list.md`](https://github.com/self-evolving/repo/blob/4ee144b7dd3afe76803f4534a90691fc2281741f/.agent/docs/customization/configuration-list.md#L30-L30). |\n| communication / generic | Audience-first documentation | pass | 7/7 | The config row is now short, and operational/trust details moved to supported-workflows. Evidence: [`configuration-list.md`](https://github.com/self-evolving/repo/blob/4ee144b7dd3afe76803f4534a90691fc2281741f/.agent/docs/customization/configuration-list.md#L30-L30), [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/4ee144b7dd3afe76803f4534a90691fc2281741f/.agent/docs/usage/supported-workflows.md#L187-L218). |\n| communication / generic | Actionable setup guidance | pass | 7/7 | Docs say how to enable the workflow and warn public repos to gate workflow access plus `AGENT_ACCESS_POLICY`. Evidence: [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/4ee144b7dd3afe76803f4534a90691fc2281741f/.agent/docs/usage/supported-workflows.md#L187-L193). |\n| coding_workflow / generic | Reuse existing code | partial | 7/8 | The fix reuses canonical orchestrator capability preflight and actor association resolution for continuation authors, but some self-improvement-specific requester/dispatch glue remains local. Evidence: [`apply-self-improvement-decision.ts`](https://github.com/self-evolving/repo/blob/4ee144b7dd3afe76803f4534a90691fc2281741f/.agent/src/cli/apply-self-improvement-decision.ts#L67-L79), [`resolveSelfImprovementRequester`](https://github.com/self-evolving/repo/blob/4ee144b7dd3afe76803f4534a90691fc2281741f/.agent/src/self-improvement-requester.ts#L28-L68). |\n| coding_workflow / generic | Surgical changes | pass | 8/8 | The follow-up changes are scoped to requested items 1, 3, and 4: auth sequencing/test, public trust guidance, and docs density. Evidence: PR files and latest fix status comment. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The auth fix is a single pre-side-effect gate in the apply CLI, not a new policy surface. Evidence: [`runApplySelfImprovementDecision`](https://github.com/self-evolving/repo/blob/4ee144b7dd3afe76803f4534a90691fc2281741f/.agent/src/cli/apply-self-improvement-decision.ts#L324-L350). |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | The route is disabled by default and enabled through one capability variable while reusing existing schedule/access/provider policies. Evidence: [`agent-self-improvement.yml`](https://github.com/self-evolving/repo/blob/4ee144b7dd3afe76803f4534a90691fc2281741f/.github/workflows/agent-self-improvement.yml#L25-L27), [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/4ee144b7dd3afe76803f4534a90691fc2281741f/.agent/docs/usage/supported-workflows.md#L187-L193). |\n| coding_workflow / generic | Name config by capability | pass | 6/6 | `AGENT_SELF_IMPROVEMENT_ENABLED` names the exposed capability directly. Evidence: [`configuration-list.md`](https://github.com/self-evolving/repo/blob/4ee144b7dd3afe76803f4534a90691fc2281741f/.agent/docs/customization/configuration-list.md#L30-L30). |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | The planner decides among `new_issue`, `continue_issue`, and `continue_pr` from current context instead of adding more repository knobs. Evidence: [`agent-self-improvement.md`](https://github.com/self-evolving/repo/blob/4ee144b7dd3afe76803f4534a90691fc2281741f/.github/prompts/agent-self-improvement.md#L14-L20), [`Decision Options`](https://github.com/self-evolving/repo/blob/4ee144b7dd3afe76803f4534a90691fc2281741f/.github/prompts/agent-self-improvement.md#L74-L83). |\n| communication / generic | Keep status comments compact | pass | 6/6 | Continuation comments are compact trace comments with decision/reason/source markers, not log dumps. Evidence: [`buildSelfImprovementContinuationComment` tests](https://github.com/self-evolving/repo/blob/4ee144b7dd3afe76803f4534a90691fc2281741f/.agent/src/__tests__/self-improvement.test.ts#L101-L118). |\n\n## Notes\n\n- The blocking authorization sequencing concern is addressed: denied manual requesters fail before proposal issue creation, continuation comments, or orchestrator dispatch.\n- Public-repo trust guidance is now present in both the planner prompt and user-facing workflow docs.\n- The dense setup-table row was reduced to a concise enablement summary, with operational details moved to supported-workflows.\n\n## Findings\n\n- **INFO:** Optional cleanup remains under the reuse rubric: the route still has local requester/dispatch glue. This is not blocking for the requested fix because the security-sensitive preflight now reuses the canonical orchestrator capability check.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-6`",
+      "createdAt": "2026-07-03T01:17:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/451#issuecomment-4871753706",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABImGMUg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 4ee144b7dd3afe76803f4534a90691fc2281741f -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #451 adds an opt-in `agent-self-improvement` route for Sepo. It introduces a planning-only workflow, a deterministic apply CLI, requester resolution, self-improvement markers/comments, orchestrator dispatch wiring, docs, and tests. The earlier blocking concern was that the apply step could create a Sepo-authored issue/comment before delegated orchestrate authorization ran. The latest head `4ee144b7dd3afe76803f4534a90691fc2281741f` moves that validation before write/dispatch side effects and adds regression coverage.\n\n## Review\nThe current reviewer artifacts support shipping this PR. The only remaining note is optional helper consolidation; reviewers differ only on whether to call it a WARNING or INFO, and all current artifacts treat it as non-blocking and intentionally deferred.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues | INFO | The prior blocking auth sequencing issue is fixed at the current head, with denied-requester regression coverage. Optional requester/helper consolidation remains a possible follow-up, not required PR work. |\n\n## Progress\n- Verified current PR conversation, inline comments, and review threads before synthesis.\n- Added one same-agent inline reply on `.agent/src/cli/apply-self-improvement-decision.ts:345` noting the prior blocking thread is resolved on `4ee144b7`.\n- Did not resolve the thread because GraphQL reports `viewerCanResolve=false`.\n- Did not minimize comments or resolve threads.\n- Reviewer verification reported passing build, focused unit tests, workflow checks, and docs checks.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: No unresolved required branch-change work remains for automation.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change work remains.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-3`",
+      "createdAt": "2026-07-03T01:24:45Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/451#issuecomment-4871785554",
       "viewerDidAuthor": true
     }
   ],
@@ -78,13 +218,13 @@
     },
     {
       "path": ".agent/docs/usage/supported-workflows.md",
-      "additions": 23,
+      "additions": 34,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/__tests__/apply-self-improvement-decision-cli.test.ts",
-      "additions": 497,
+      "additions": 539,
       "deletions": 0,
       "changeType": "ADDED"
     },
@@ -108,7 +248,7 @@
     },
     {
       "path": ".agent/src/cli/apply-self-improvement-decision.ts",
-      "additions": 359,
+      "additions": 381,
       "deletions": 0,
       "changeType": "ADDED"
     },
@@ -138,13 +278,13 @@
     },
     {
       "path": ".github/prompts/agent-self-improvement.md",
-      "additions": 132,
+      "additions": 146,
       "deletions": 0,
       "changeType": "ADDED"
     },
     {
       "path": ".github/workflows/agent-self-improvement.yml",
-      "additions": 232,
+      "additions": 234,
       "deletions": 0,
       "changeType": "ADDED"
     }
@@ -176,10 +316,25 @@
       "commit": {
         "oid": "764b77ac7b784a191a594e7b5e6a03edd90cf3a1"
       }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABE39mtQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-07-03T01:23:21Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "4ee144b7dd3afe76803f4534a90691fc2281741f"
+      }
     }
   ],
   "state": "OPEN",
   "title": "Add agent self-improvement route",
-  "updatedAt": "2026-07-02T09:40:26Z",
+  "updatedAt": "2026-07-03T01:24:46Z",
   "url": "https://github.com/self-evolving/repo/pull/451"
 }
