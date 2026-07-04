@@ -7,7 +7,9 @@
 //          target_number, target_url, reaction_subject_id, response_kind,
 //          source_comment_id, source_comment_url, review_comment_id,
 //          discussion_node_id, reply_to_id, requested_by, requested_route,
-//          requested_skill, implicit_followup
+//          requested_skill, implicit_followup, edited_comment_command_added,
+//          edited_comment_pr_command_blocked,
+//          edited_comment_command_block_message
 
 import { readFileSync } from "node:fs";
 import { isKnownAuthorAssociation } from "../access-policy.js";
@@ -21,6 +23,7 @@ import {
   DEFAULT_MENTION,
   extractEventContext,
   getAuthorAssociation,
+  getNewlyAddedEditedCommentCommandRoute,
   getRequestedBy,
   shouldSkipSender,
   shouldRespondToMention,
@@ -46,6 +49,8 @@ const ASSOCIATIONS_TRUSTED_WITHOUT_REFRESH = new Set([
   "MEMBER",
   "COLLABORATOR",
 ]);
+const EDITED_REVIEW_COMMENT_BLOCK_MESSAGE =
+  "I noticed this `/review` command on an edited comment, but PR review actions only run from new comments. Please post a new comment with the command.";
 const WEAK_ASSOCIATIONS_FOR_COLLABORATOR_FALLBACK = new Set([
   "CONTRIBUTOR",
   "FIRST_TIME_CONTRIBUTOR",
@@ -200,8 +205,16 @@ if (!eventPath || !eventName) {
           const requestedMention = triggerKind === "label" || implicitFollowup
             ? { route: "", skill: "" }
             : extractRequestedRouteDecision(ctx.body, mention);
-          const requestedRoute = requestedLabel?.route || requestedMention.route;
-          const requestedSkill = requestedLabel?.skill || requestedMention.skill;
+          const editedCommentCommandAdded =
+            triggerKind === "label" || implicitFollowup
+              ? ""
+              : getNewlyAddedEditedCommentCommandRoute(eventName, payload, mention);
+          const requestedRoute =
+            requestedLabel?.route || editedCommentCommandAdded || requestedMention.route;
+          const requestedSkill =
+            requestedLabel?.skill || (editedCommentCommandAdded ? "" : requestedMention.skill);
+          const editedCommentPrCommandBlocked =
+            ctx.targetKind === "pull_request" && editedCommentCommandAdded === "review";
 
           if (triggerKind === "label" && !requestedLabel) {
             setOutput("should_respond", "false");
@@ -225,6 +238,12 @@ if (!eventPath || !eventName) {
             setOutput("requested_route", requestedRoute);
             setOutput("requested_skill", requestedSkill);
             setOutput("implicit_followup", implicitFollowup ? "true" : "false");
+            setOutput("edited_comment_command_added", editedCommentCommandAdded);
+            setOutput("edited_comment_pr_command_blocked", editedCommentPrCommandBlocked ? "true" : "false");
+            setOutput(
+              "edited_comment_command_block_message",
+              editedCommentPrCommandBlocked ? EDITED_REVIEW_COMMENT_BLOCK_MESSAGE : "",
+            );
           }
         }
       }

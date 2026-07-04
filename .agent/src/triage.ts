@@ -183,6 +183,31 @@ export function extractRequestedRouteDecision(body: string, mention: string): Re
   };
 }
 
+export function hasExplicitRequestedRoute(
+  body: string,
+  mention: string,
+  route: string,
+): boolean {
+  const sanitized = stripNonLiveMentions(String(body || ""));
+  const trimmedMention = String(mention || "").trim();
+  const normalizedRoute = String(route || "").trim().toLowerCase();
+  if (
+    !sanitized.trim() ||
+    !trimmedMention ||
+    !EXPLICIT_ROUTE_COMMANDS.includes(
+      normalizedRoute as (typeof EXPLICIT_ROUTE_COMMANDS)[number],
+    )
+  ) {
+    return false;
+  }
+
+  const explicitRegex = new RegExp(
+    `(?:^|[\\s(])${escapeRegex(trimmedMention)}\\s+/${escapeRegex(normalizedRoute)}(?=$|[\\s.,;:!?)\\]}])`,
+    "im",
+  );
+  return explicitRegex.test(sanitized);
+}
+
 /**
  * Builds a deterministic routing decision for explicit slash commands so the
  * portal can skip the dispatch agent when the user already picked the route.

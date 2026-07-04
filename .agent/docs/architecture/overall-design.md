@@ -61,7 +61,7 @@ flowchart LR
     route -- "implement" --> is_issue
     is_issue -- yes --> post_approval_issue --> approve --> dispatch_impl
     is_issue -- no --> post_proposal --> approve --> create_issue --> dispatch_impl
-    route -- "fix-pr (PR only, not on edit)" --> dispatch_fix --> react_thumbs
+    route -- "fix-pr (PR only, edited comment allowed when newly added)" --> dispatch_fix --> react_thumbs
     route -- "review (PR only, not on edit)" --> dispatch_review --> react_thumbs
 ```
 

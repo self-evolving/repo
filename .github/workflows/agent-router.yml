@@ -134,6 +134,9 @@ jobs:
       requested_route: ${{ steps.context.outputs.requested_route }}
       requested_skill: ${{ steps.context.outputs.requested_skill }}
       implicit_followup: ${{ steps.context.outputs.implicit_followup }}
+      edited_comment_command_added: ${{ steps.context.outputs.edited_comment_command_added }}
+      edited_comment_pr_command_blocked: ${{ steps.context.outputs.edited_comment_pr_command_blocked }}
+      edited_comment_command_block_message: ${{ steps.context.outputs.edited_comment_command_block_message }}
       route: ${{ steps.dispatch.outputs.route }}
       needs_approval: ${{ steps.dispatch.outputs.needs_approval }}
       confidence: ${{ steps.dispatch.outputs.confidence }}
@@ -223,7 +226,8 @@ jobs:
       - name: React with eyes
         if: >-
           steps.context.outputs.should_respond == 'true' &&
-          steps.context.outputs.implicit_followup != 'true'
+          steps.context.outputs.implicit_followup != 'true' &&
+          steps.context.outputs.edited_comment_pr_command_blocked != 'true'
         env:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           REACTION_SUBJECT_ID: ${{ steps.context.outputs.reaction_subject_id }}
@@ -446,6 +450,25 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: node .agent/dist/cli/resolve-dispatch.js
 
+      - name: Post edited review command block
+        if: >-
+          steps.context.outputs.should_respond == 'true' &&
+          steps.context.outputs.edited_comment_pr_command_blocked == 'true' &&
+          steps.dispatch.outputs.route == 'review'
+        env:
+          BODY_FILE: ${{ runner.temp }}/edited-review-command-blocked.md
+          DISCUSSION_ID: ${{ steps.context.outputs.discussion_node_id }}
+          EDITED_COMMAND_BLOCK_MESSAGE: ${{ steps.context.outputs.edited_comment_command_block_message }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          REPLY_TO_ID: ${{ steps.context.outputs.reply_to_id }}
+          RESPONSE_KIND: ${{ steps.context.outputs.response_kind }}
+          REVIEW_COMMENT_ID: ${{ steps.context.outputs.review_comment_id }}
+          TARGET_NUMBER: ${{ steps.context.outputs.target_number }}
+        run: |
+          printf '%s\n' "${EDITED_COMMAND_BLOCK_MESSAGE}" > "${BODY_FILE}"
+          node .agent/dist/cli/post-response.js
+
       - name: React with eyes (implicit answer)
         if: >-
           steps.context.outputs.should_respond == 'true' &&
@@ -463,6 +486,7 @@ jobs:
           vars.AGENT_STATUS_LABEL_ENABLED == 'true' &&
           steps.dispatch.outputs.route != '' &&
           steps.dispatch.outputs.route != 'unsupported' &&
+          steps.context.outputs.edited_comment_pr_command_blocked != 'true' &&
           (steps.context.outputs.target_kind == 'issue' || steps.context.outputs.target_kind == 'pull_request')
         continue-on-error: true
         env:
@@ -477,7 +501,10 @@ jobs:
         if: >-
           steps.context.outputs.should_respond == 'true' &&
           (steps.dispatch.outputs.route == 'review' || steps.dispatch.outputs.route == 'fix-pr' || steps.dispatch.outputs.route == 'orchestrate') &&
-          github.event.action != 'edited'
+          (
+            github.event.action != 'edited' ||
+            steps.context.outputs.edited_comment_command_added == 'fix-pr'
+          )
         env:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           REACTION_SUBJECT_ID: ${{ steps.context.outputs.reaction_subject_id }}
@@ -1159,7 +1186,10 @@ jobs:
       needs.portal.outputs.should_respond == 'true' &&
       needs.portal.outputs.route == 'fix-pr' &&
       needs.portal.outputs.target_kind == 'pull_request' &&
-      github.event.action != 'edited'
+      (
+        github.event.action != 'edited' ||
+        needs.portal.outputs.edited_comment_command_added == 'fix-pr'
+      )
     uses: ./.github/workflows/agent-fix-pr.yml
     with:
       runs_on: ${{ inputs.runs_on }}

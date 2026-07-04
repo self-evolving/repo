@@ -9,6 +9,7 @@ import {
   applyDispatchPolicy,
   extractRequestedRoute,
   extractRequestedRouteDecision,
+  hasExplicitRequestedRoute,
   buildRequestedRouteDecision,
   normalizeImplementIssueMetadata,
   resolveRequestedLabel,
@@ -213,6 +214,17 @@ test("extractRequestedRoute ignores non-route slash commands and commands withou
     extractRequestedRouteDecision("@sepo-agent /skill ../../oops", "@sepo-agent"),
     { route: "", skill: "" },
   );
+});
+
+test("hasExplicitRequestedRoute finds a route beyond the first command", () => {
+  const body = [
+    "@sepo-agent /answer please explain this first",
+    "",
+    "Also @sepo-agent /fix-pr once you have enough context.",
+  ].join("\n");
+
+  assert.equal(hasExplicitRequestedRoute(body, "@sepo-agent", "fix-pr"), true);
+  assert.equal(hasExplicitRequestedRoute(body, "@sepo-agent", "review"), false);
 });
 
 test("buildRequestedRouteDecision builds deterministic implement metadata without approval gate", () => {
