@@ -8,9 +8,177 @@
   "baseRefName": "main",
   "body": "The local-runner scripts only targeted macOS (osx-* runner packages, launchd cleanup, shasum). Make them work on Linux hosts too:\r\n\r\n- setup-runners.sh: detect linux-x64/linux-arm64, derive OS/arch labels (self-hosted,Linux,X64 instead of hardcoded macOS), and verify the download with sha256sum or shasum.\r\n- check-requirements.sh: accept either SHA-256 tool, add Debian/Ubuntu and RHEL/Rocky install hints, and warn when libicu (needed by the .NET-based runner) is missing.\r\n- bootstrap.sh: install the 6-hourly cleanup via cron on Linux (launchd is macOS-only); degrade gracefully when per-user crontab is unavailable.\r\n- Add LOCAL_RUNNER_ROOT so runner working dirs can live off a size- or inode-constrained filesystem (e.g. an HPC home with a per-user file quota); honored by setup/start/stop/cleanup.\r\n- README: document Linux setup, cron cleanup, and LOCAL_RUNNER_ROOT.",
   "closedAt": null,
-  "comments": [],
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIt5MdA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review ",
+      "createdAt": "2026-07-04T00:13:09Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/453#issuecomment-4879961204",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIt50Aw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 90 | PARTIAL | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Keep docs in sync | partial | 4/7 | README documents `LOCAL_RUNNER_ROOT` as the runner/log root, but macOS launchd cleanup does not receive it: [`bootstrap.sh#L97-L100`](https://github.com/self-evolving/repo/blob/a5eff3943f764a3b491168c91efec8dd3a1f8911/.agent/tools/local-runner/bootstrap.sh#L97-L100), [`com.local-runner.cleanup.plist.template#L17-L21`](https://github.com/self-evolving/repo/blob/a5eff3943f764a3b491168c91efec8dd3a1f8911/.agent/tools/local-runner/com.local-runner.cleanup.plist.template#L17-L21), [`README.md#L127-L138`](https://github.com/self-evolving/repo/blob/a5eff3943f764a3b491168c91efec8dd3a1f8911/.agent/tools/local-runner/README.md#L127-L138). |\n| communication / generic | Make setup guidance actionable | pass | 7/7 | The README gives direct setup, Linux dependency, cron, cleanup, and `LOCAL_RUNNER_ROOT` commands: [`README.md#L95-L107`](https://github.com/self-evolving/repo/blob/a5eff3943f764a3b491168c91efec8dd3a1f8911/.agent/tools/local-runner/README.md#L95-L107), [`README.md#L130-L151`](https://github.com/self-evolving/repo/blob/a5eff3943f764a3b491168c91efec8dd3a1f8911/.agent/tools/local-runner/README.md#L130-L151), [`README.md#L203-L225`](https://github.com/self-evolving/repo/blob/a5eff3943f764a3b491168c91efec8dd3a1f8911/.agent/tools/local-runner/README.md#L203-L225). |\n| communication / generic | Write audience-first documentation | pass | 7/7 | The README starts with what the tool does and how to use it, then moves configuration and cleanup details later. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The change extends the existing local-runner scripts, checksum lookup, launchd template, and cleanup flow instead of adding separate runner tooling. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is limited to `.agent/tools/local-runner` scripts and README, matching the PR scope. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | `LOCAL_RUNNER_ROOT` is a single environment-variable escape hatch, while platform-specific scheduling stays native: launchd on macOS and cron on Linux. |\n| coding_workflow / generic | Name config by capability | pass | 6/6 | `LOCAL_RUNNER_ROOT` names the broad capability, not a narrow HPC or Linux-only use case. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Linux cron setup uses a stable marker and replaces this checkout’s prior entry before appending the refreshed line: [`bootstrap.sh#L108-L121`](https://github.com/self-evolving/repo/blob/a5eff3943f764a3b491168c91efec8dd3a1f8911/.agent/tools/local-runner/bootstrap.sh#L108-L121). |\n\n## Notes\n\n- The implementation mostly satisfies the applicable rubrics: it keeps the change scoped, reuses the existing local-runner structure, documents the new Linux and storage-root workflows, and uses native host mechanisms.\n- The main follow-up is to make macOS scheduled cleanup honor `LOCAL_RUNNER_ROOT` too, likely by adding a plist environment variable placeholder and rendering it from `bootstrap.sh`.\n\n## Findings\n\n- **WARNING:** `LOCAL_RUNNER_ROOT` is not passed to the macOS launchd cleanup job. Linux cron includes `LOCAL_RUNNER_ROOT=\"$RUNNER_ROOT\"` in the scheduled command, but the macOS branch only renders `__PROJECT_DIR__` and `__LOCAL_RUNNER_DOCKER_PRUNE__`, and the plist template only sets `LOCAL_RUNNER_DOCKER_PRUNE`. A macOS user who runs `LOCAL_RUNNER_ROOT=/path ./bootstrap.sh ...` will configure/start runners under the alternate root, but scheduled cleanup will default back to the checkout. This weakens the docs-sync and setup-guidance rubrics.\n\n## Final Rubric Verdict\n\nPARTIAL\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-2`",
+      "createdAt": "2026-07-04T00:17:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/453#issuecomment-4879971331",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIt7Fkg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: a5eff3943f764a3b491168c91efec8dd3a1f8911 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #453 extends `.agent/tools/local-runner` from macOS-only runner setup to macOS and Linux.\n- It adds Linux runner platform detection, Linux-oriented dependency guidance, SHA-256 verification through either `sha256sum` or `shasum`, and cron-based cleanup scheduling.\n- It also introduces `LOCAL_RUNNER_ROOT` so runner state can live outside a constrained checkout filesystem.\n- The implementation is mostly scoped correctly, but a few documented invariants are not yet true at the PR head `a5eff3943f764a3b491168c91efec8dd3a1f8911`.\n\n## Review\nThe Linux support path and cron logic look broadly sound, and reviewers agreed the change reuses the existing local-runner scripts instead of adding parallel tooling. The remaining issues are concrete branch fixes, led by a macOS scheduled-cleanup path that still ignores the new runner root.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| macOS launchd cleanup ignores `LOCAL_RUNNER_ROOT` | BLOCKING | `bootstrap.sh` computes `RUNNER_ROOT`, but the Darwin branch only renders `__PROJECT_DIR__` and `__LOCAL_RUNNER_DOCKER_PRUNE__`; the plist template never receives `LOCAL_RUNNER_ROOT`. Scheduled macOS cleanup therefore falls back to the checkout instead of the configured runner root. |\n| Setup docs still describe local-runner as macOS-only | WARNING | The higher-level setup page still says `.agent/tools/local-runner` is for “local macOS self-hosted runners” and mentions only the launchd template, while this PR makes the maintained tooling Linux/cron-capable. |\n| README cleanup-log command expands to the wrong default path | WARNING | The README says `tail -f \"$LOCAL_RUNNER_ROOT/cleanup.log\"` defaults to `./cleanup.log`, but when `LOCAL_RUNNER_ROOT` is unset it expands to `/cleanup.log`. |\n\n## Progress\n- Existing PR discussion already contains the rubrics review noting the macOS `LOCAL_RUNNER_ROOT` launchd gap, so I did not duplicate that as another inline thread.\n- No inline comments or review threads existed before synthesis; one new inline comment was posted on `.agent/tools/local-runner/README.md:207` for the cleanup-log command.\n- No comments were minimized, no replies were added, and no review threads were resolved.\n- `git diff --check` passed for `main...a5eff394`; `bash -n` passed for all changed local-runner shell scripts read from the PR head.\n\n## Issue Details\n\n<details>\n<summary>macOS launchd cleanup ignores <code>LOCAL_RUNNER_ROOT</code></summary>\n\n**Cause:** [`bootstrap.sh`](https://github.com/self-evolving/repo/blob/a5eff3943f764a3b491168c91efec8dd3a1f8911/.agent/tools/local-runner/bootstrap.sh#L20) computes `RUNNER_ROOT`, and Linux cron uses it at [`bootstrap.sh#L111`](https://github.com/self-evolving/repo/blob/a5eff3943f764a3b491168c91efec8dd3a1f8911/.agent/tools/local-runner/bootstrap.sh#L111). The macOS render path at [`bootstrap.sh#L96-L99`](https://github.com/self-evolving/repo/blob/a5eff3943f764a3b491168c91efec8dd3a1f8911/.agent/tools/local-runner/bootstrap.sh#L96) does not render `LOCAL_RUNNER_ROOT`, and the plist only sets `LOCAL_RUNNER_DOCKER_PRUNE`.\n\n**Candidate solutions:** Add `LOCAL_RUNNER_ROOT` to `com.local-runner.cleanup.plist.template` under `EnvironmentVariables`, then render an XML-escaped/sed-escaped `RUNNER_ROOT` value in the Darwin branch.\n\n**Comments:** Reviewers agreed on the defect but differed on severity. Synthesis treats it as blocking because the PR’s documented `LOCAL_RUNNER_ROOT` invariant includes cleanup behavior.\n\n</details>\n\n<details>\n<summary>Setup docs still describe local-runner as macOS-only</summary>\n\n**Cause:** [`self-hosted-github-action-runner.md#L16`](https://github.com/self-evolving/repo/blob/a5eff3943f764a3b491168c91efec8dd3a1f8911/.agent/docs/setup/self-hosted-github-action-runner.md#L16) still describes the maintained setup folder as macOS-only and references only launchd-era files.\n\n**Candidate solutions:** Update that sentence to describe local macOS/Linux self-hosted runners and mention cleanup scheduling generically or as launchd/cron.\n\n</details>\n\n<details>\n<summary>README cleanup-log command expands to the wrong default path</summary>\n\n**Cause:** [`README.md#L207`](https://github.com/self-evolving/repo/blob/a5eff3943f764a3b491168c91efec8dd3a1f8911/.agent/tools/local-runner/README.md#L207) uses `\"$LOCAL_RUNNER_ROOT/cleanup.log\"` while claiming the unset default is `./cleanup.log`.\n\n**Candidate solutions:** Use `\"${LOCAL_RUNNER_ROOT:-.}/cleanup.log\"` or show separate commands for the checkout default and external-root cases.\n\n**Comments:** Inline comment posted: https://github.com/self-evolving/repo/pull/453#discussion_r3522280703\n\n</details>\n\n## Recommended Next Step\nFIX_PR: the remaining issues are concrete, localized branch changes that an automated fix-pr pass can safely make.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Propagate `LOCAL_RUNNER_ROOT` into the macOS launchd cleanup plist and render it from `bootstrap.sh`.\n- [ ] Update `.agent/docs/setup/self-hosted-github-action-runner.md` so the local-runner setup entry point no longer describes the tooling as macOS-only.\n- [ ] Fix the README cleanup-log command so the unset `LOCAL_RUNNER_ROOT` case points at `./cleanup.log`, not `/cleanup.log`.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-6`",
+      "createdAt": "2026-07-04T00:24:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/453#issuecomment-4879992210",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIt-qzg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate",
+      "createdAt": "2026-07-04T00:46:43Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/453#issuecomment-4880050894",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIt-99g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | fix-pr | PR #453 | 2 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: PR #453 is open and the latest review synthesis recommends FIX_PR for concrete localized branch changes.\n\nTask for fix-pr:\nAddress the review synthesis findings on PR #453 only. Fix macOS launchd cleanup so LOCAL_RUNNER_ROOT is passed through the plist template and rendered from bootstrap.sh; preserve proper escaping for plist/XML and sed replacement. Update .agent/docs/setup/self-hosted-github-action-runner.md so local-runner is no longer described as macOS-only and mentions macOS/Linux cleanup scheduling appropriately. Fix the .agent/tools/local-runner/README.md cleanup-log command so an unset LOCAL_RUNNER_ROOT tails ./cleanup.log rather than /cleanup.log, for example via ${LOCAL_RUNNER_ROOT:-.}/cleanup.log. Keep the scope limited to these local-runner/docs fixes and avoid unrelated refactors.\n\n<!-- sepo-agent-handoff state:dispatched created:1783126111689 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86Mjg2ODk3MzE4NTg6b3JjaGVzdHJhdGU6NDUzOmZpeF9wcjo0NTM6Mg -->",
+      "createdAt": "2026-07-04T00:48:32Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/453#issuecomment-4880055798",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIt_eAw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `local-runner-linux-support`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Rendered `LOCAL_RUNNER_ROOT` into the macOS launchd cleanup plist using the existing XML and sed replacement escaping path.\n- Updated setup docs so `local-runner` is described for macOS/Linux and notes launchd vs cron cleanup scheduling.\n- Fixed the README cleanup-log command to tail `${LOCAL_RUNNER_ROOT:-.}/cleanup.log` when the variable is unset.\n- Checks passed: `git diff --check`, `bash -n` on local-runner scripts, and rendered plist lint with XML-sensitive path characters.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-2`",
+      "createdAt": "2026-07-04T00:51:37Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/453#issuecomment-4880064003",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIt_qNw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #453 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded on open PR #453 after addressing the prior NEEDS_REWORK findings, so one follow-up review is warranted to verify the current branch.\n\n<!-- sepo-agent-handoff state:dispatched created:1783126366822 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86Mjg2ODk3NzMzNDk6Zml4X3ByOjQ1MzpyZXZpZXc6NDUzOjM -->",
+      "createdAt": "2026-07-04T00:52:47Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/453#issuecomment-4880067127",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIuADwQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The local-runner README now documents Linux support, cron cleanup, `LOCAL_RUNNER_ROOT`, and the fixed cleanup log path; the setup docs also describe macOS/Linux runner setup and launchd/cron scheduling. |\n| communication / generic | Make setup guidance actionable | pass | 7/7 | The README gives concrete commands for bootstrap, Linux dependencies, manual cleanup, schedule checks, disabling cron/launchd cleanup, and `LOCAL_RUNNER_ROOT` usage. |\n| communication / generic | Write audience-first documentation | pass | 7/7 | The docs lead with what the local runner does and how to run it, with platform details and storage-root guidance placed in task-focused sections. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The PR extends the existing `.agent/tools/local-runner` scripts, checksum flow, cleanup script, and launchd template rather than adding parallel runner tooling. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is limited to local-runner scripts plus the directly related self-hosted runner setup doc. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | Linux support is added with straightforward platform detection, checksum helper selection, and a cron branch in the existing bootstrap script. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | `LOCAL_RUNNER_ROOT` is a single environment-variable escape hatch, while scheduling uses native host mechanisms: launchd on macOS and cron on Linux. |\n| coding_workflow / generic | Name config by capability | pass | 6/6 | `LOCAL_RUNNER_ROOT` names the broader capability of relocating runner state, not a narrow Linux or HPC-specific case. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Linux cron setup uses a stable `# local-runner-cleanup ($BASE_DIR)` marker, removes this checkout’s prior line, and appends the refreshed schedule instead of duplicating entries. |\n\n## Notes\n\n- The current PR head `af931ecdb3fb7deb37e7b4338bc4cfc03722fa52` addresses the earlier rubric-specific gaps: macOS launchd now receives `LOCAL_RUNNER_ROOT`, setup docs no longer describe local-runner as macOS-only, and the README tails `\"${LOCAL_RUNNER_ROOT:-.}/cleanup.log\"`.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings. The implementation satisfies the applicable selected rubrics for scoped local-runner changes, documentation sync, actionable setup guidance, and idempotent scheduled cleanup behavior.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-5`",
+      "createdAt": "2026-07-04T00:55:18Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/453#issuecomment-4880073665",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIuBh4Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: af931ecdb3fb7deb37e7b4338bc4cfc03722fa52 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n- PR #453 extends `.agent/tools/local-runner` from macOS-only support to macOS and Linux.\n- It adds Linux runner platform detection, SHA-256 fallback tooling, cron-based cleanup scheduling, and Linux dependency guidance.\n- It introduces `LOCAL_RUNNER_ROOT` so runner state can live outside a constrained checkout filesystem.\n- This is a re-review after fix-pr automation addressed the earlier launchd, setup-doc, and README cleanup-log findings.\n\n## Review\nThe current review artifacts agree the prior BLOCKING/WARNING issues are fixed at head `af931ecdb3fb7deb37e7b4338bc4cfc03722fa52`. There is no material reviewer disagreement: rubrics found no issues, while Claude and Codex noted only optional INFO-level robustness/observability nits.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No required issues remain | INFO | Current reviewers found no blocking or warning-level branch-change work. Optional notes remain around rare cron path escaping, cleanup disk reporting/log placement, and crontab whitespace handling, but none should gate merge or trigger automation. |\n\n## Progress\n- Previous macOS launchd `LOCAL_RUNNER_ROOT` gap is fixed: `bootstrap.sh` renders `__LOCAL_RUNNER_ROOT__`, and the plist template carries the env var.\n- Previous setup-doc and README cleanup-log findings are fixed; README now tails `\"${LOCAL_RUNNER_ROOT:-.}/cleanup.log\"`.\n- Existing inline README comment `discussion_r3522280703` is superseded by the current head; the thread line is outdated/null and `viewerCanResolve` is false, so no cleanup mutation was performed.\n- No new inline comments were posted, no replies were added, no comments were minimized, and no threads were resolved.\n- `bash -n` passed for all six changed local-runner shell scripts read from the current PR head.\n\n## Recommended Next Step\nNO_AUTOMATED_ACTION: no required branch-change work remains, and the remaining INFO notes are optional maintainer follow-up rather than automation tasks.\n\n## Final Verdict\nSHIP\n\n## Action Items\n- [ ] No required branch-change action items.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-3`",
+      "createdAt": "2026-07-04T01:04:25Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/453#issuecomment-4880097761",
+      "viewerDidAuthor": true
+    }
+  ],
   "createdAt": "2026-07-03T02:15:11Z",
   "files": [
+    {
+      "path": ".agent/docs/setup/self-hosted-github-action-runner.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
     {
       "path": ".agent/tools/local-runner/README.md",
       "additions": 68,
@@ -19,8 +187,8 @@
     },
     {
       "path": ".agent/tools/local-runner/bootstrap.sh",
-      "additions": 31,
-      "deletions": 1,
+      "additions": 35,
+      "deletions": 3,
       "changeType": "MODIFIED"
     },
     {
@@ -33,6 +201,12 @@
       "path": ".agent/tools/local-runner/cleanup-runner.sh",
       "additions": 5,
       "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/tools/local-runner/com.local-runner.cleanup.plist.template",
+      "additions": 2,
+      "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
@@ -55,13 +229,36 @@
     }
   ],
   "headRefName": "local-runner-linux-support",
-  "labels": [],
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
   "mergedAt": null,
   "number": 453,
   "reviewDecision": "",
-  "reviews": [],
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABE-IK4A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-07-04T00:23:46Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "a5eff3943f764a3b491168c91efec8dd3a1f8911"
+      }
+    }
+  ],
   "state": "OPEN",
   "title": "Add Linux support to local-runner tooling",
-  "updatedAt": "2026-07-03T02:15:11Z",
+  "updatedAt": "2026-07-04T01:04:25Z",
   "url": "https://github.com/self-evolving/repo/pull/453"
 }

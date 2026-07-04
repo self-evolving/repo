@@ -1,0 +1,39 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "body": "## Goal\nAdd a minimum implementation that makes edited-comment command handling read as the generic routing model discussed on PR #440, rather than as a `/fix-pr`-specific edge case.\n\n## Context\nPR #440 currently allows edited PR comments to dispatch `/fix-pr` only when the edit newly adds that explicit command, suppresses repeated edited `/fix-pr`, and keeps edited `/review` blocked with a visible explanation. In the latest discussion, @lolipopshock agreed with the broader framing that this is a generic edited-comment command problem and requested: `@sepo-agent /implement add a minimum implementation`.\n\nThe intended mental model from the discussion is:\n\n```text\nnew comment: route normally\nedited comment: compute newly added explicit commands\nedited /fix-pr newly added: allow\nedited /review newly added: explain blocked\nalready-present command edited again: ignore\n```\n\nDo not remove the edited-event gate unless repeated command execution on ordinary comment edits is explicitly accepted. `/fix-pr` is the first route where edited-comment commands are supported; `/review` remains blocked by policy.\n\nReference: https://github.com/self-evolving/repo/pull/440\n\n## Acceptance Criteria\n- Edited-comment handling is expressed as generic newly-added explicit command detection, with `/fix-pr` and `/review` treated as route policy outcomes.\n- New comments continue to route normally.\n- Edited comments only make a command actionable when that explicit command was newly introduced by the edit.\n- Newly added edited `/fix-pr` on PR comments is allowed.\n- Newly added edited `/review` on PR comments is blocked with the existing visible explanation.\n- Already-present commands edited again are ignored and do not re-trigger automation.\n- Keep the implementation minimal and focused on readability/policy shape, with tests updated or added only where needed to cover the generic behavior.\n\n---\n\nRequested via issue_comment at https://github.com/self-evolving/repo/pull/440\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIt6IJw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-455/codex-28689046300`\n- Pull request: https://github.com/self-evolving/repo/pull/456\n\nImplemented generic newly-added edited-comment command detection, routed edited `/fix-pr` through that predicate, kept edited `/review` visibly blocked, updated docs, and added focused context/CLI/workflow tests. Verified with `.agent` build, focused node tests, and `git diff --check`.\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — implement · 5m31s · 73 steps**\n\nLast message\n> {\"summary\":\"Implemented generic newly-added edited-comment command detection, routed edited `/fix-pr` through that predicate, kept edited `/review` visibly blocked, updated docs, and added focused context/CLI/workflow tests. Verified with…\n\nActivity\n\n- 💬 Message \"Focused tests passed. I’m doing a final diff and whitespace check before preparing the workflow JSON response.\"\n- 🔧 Used tool `git diff --check` (completed)\n- 🔧 Used tool `git status --short` (completed)\n- 🔧 Used tool `git diff -- .agent/src/context.ts .agent/src/cli/extract-context.ts .agent/src/triage.ts .github/workflows/agent-router…` (completed)\n- 🔧 Used tool `git diff -- .agent/src/__tests__/context.test.ts .agent/src/__tests__/extract-context-cli.test.ts .agent/src/__tests__/…` (completed)\n- 💬 Message \"{\"summary\":\"Implemented generic newly-added edited-comment command detection, routed edited `/fix-pr` through that predicate, kept edited `/review` visibly blocked, updated docs, and added focused context/CLI/workflow tests. Verified with…\"\n</details>\n\n<!-- sepo-progress:run-28689046300 -->\n\n---\n`codex` | `gpt-5.5` | `xhigh` | `Macmini-runner-1`",
+      "createdAt": "2026-07-04T00:19:07Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/455#issuecomment-4879976487",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-07-04T00:18:37Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 455,
+  "state": "OPEN",
+  "title": "Simplify edited-comment command routing",
+  "updatedAt": "2026-07-04T00:24:58Z",
+  "url": "https://github.com/self-evolving/repo/issues/455"
+}

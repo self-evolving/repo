@@ -5,7 +5,7 @@
   },
   "baseRefName": "main",
   "body": "## Summary\n- Allow edited PR comments to dispatch `/fix-pr` when the edit newly adds that command.\n- Suppress repeated edited `/fix-pr` commands by checking the previous edited body for the same route.\n- Keep edited `/review` PR comments blocked with a visible explanation and no misleading reaction/label signals.\n- Update docs and focused tests for the new route behavior.\n\n## Tests\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/context.test.js .agent/dist/__tests__/triage.test.js .agent/dist/__tests__/extract-context-cli.test.js .agent/dist/__tests__/envelope.test.js .agent/dist/__tests__/docs-validation.test.js .agent/dist/__tests__/workflow-action-validation.test.js`\n\nCloses #437\n",
-  "closedAt": null,
+  "closedAt": "2026-07-04T00:47:08Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABH_W7_w",
@@ -200,6 +200,49 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/440#issuecomment-4851877282",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIt54Pg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "> Yes, I agree with that framing.\r\n> \r\n> This is not really a `/fix-pr`-specific edge case. It is the generic problem with **any command accepted from an edited comment**:\r\n> \r\n> * If we allow edited comments blindly, then every later typo fix/edit can re-trigger the command.\r\n> * If we block edited comments blindly, then “I edited my comment to add `/fix-pr`” becomes a silent no-op.\r\n> * So the useful generic rule is: on edited comments, only treat a command as actionable if that command was newly introduced by this edit.\r\n> \r\n> For this PR, `/fix-pr` is just the first route where we decided edited-comment commands are worth supporting. `/review` is still blocked by policy.\r\n> \r\n> So I think the simpler mental model is:\r\n> \r\n> ```\r\n> new comment: route normally\r\n> edited comment: compute newly added explicit commands\r\n> edited /fix-pr newly added: allow\r\n> edited /review newly added: explain blocked\r\n> already-present command edited again: ignore\r\n> ```\r\n> \r\n> The implementation can probably be made to read more like that. But I would not remove the edit gate unless we are explicitly okay with repeated command execution on ordinary comment edits.\r\n> \r\n> Sepo activity\r\n> `codex` | `gpt-5.5` | `high` | `Macmini-runner-6`\r\n\r\n@sepo-agent /implement add a minimum implementation ",
+      "createdAt": "2026-07-04T00:17:30Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/440#issuecomment-4879972414",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIt6DhQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Implementing this request — tracking in https://github.com/self-evolving/repo/issues/455.\n",
+      "createdAt": "2026-07-04T00:18:39Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/440#issuecomment-4879975301",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-06-29T09:51:29Z",
@@ -278,8 +321,8 @@
   "number": 440,
   "reviewDecision": "",
   "reviews": [],
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Allow newly added edited /fix-pr commands",
-  "updatedAt": "2026-07-01T08:04:41Z",
+  "updatedAt": "2026-07-04T00:47:08Z",
   "url": "https://github.com/self-evolving/repo/pull/440"
 }
