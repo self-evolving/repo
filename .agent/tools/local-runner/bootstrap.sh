@@ -91,11 +91,13 @@ if [ "$(uname -s)" = "Darwin" ]; then
     rm -f "$PLIST_PATH"
   fi
 
-  # Render the template with this checkout's absolute path. Escape first for XML,
-  # then for sed replacement syntax so XML-sensitive path characters remain valid.
+  # Render path placeholders after escaping first for XML, then for sed
+  # replacement syntax so XML-sensitive path characters remain valid.
   ESCAPED_BASE_DIR=$(sed_replacement_escape "$(xml_escape "$BASE_DIR")")
+  ESCAPED_RUNNER_ROOT=$(sed_replacement_escape "$(xml_escape "$RUNNER_ROOT")")
   sed \
     -e "s|__PROJECT_DIR__|$ESCAPED_BASE_DIR|g" \
+    -e "s|__LOCAL_RUNNER_ROOT__|$ESCAPED_RUNNER_ROOT|g" \
     -e "s|__LOCAL_RUNNER_DOCKER_PRUNE__|$LOCAL_RUNNER_DOCKER_PRUNE|g" \
     "$PLIST_TEMPLATE" > "$PLIST_PATH"
 

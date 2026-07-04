@@ -204,7 +204,7 @@ Run cleanup manually (any OS):
 
 ```bash
 bash cleanup-runner.sh
-tail -f "$LOCAL_RUNNER_ROOT/cleanup.log"   # defaults to ./cleanup.log
+tail -f "${LOCAL_RUNNER_ROOT:-.}/cleanup.log"
 ```
 
 Check the scheduled job:
