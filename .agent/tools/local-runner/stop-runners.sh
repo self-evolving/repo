@@ -4,9 +4,11 @@
 set -euo pipefail
 
 BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Runner working directories may live outside this checkout (see LOCAL_RUNNER_ROOT).
+RUNNER_ROOT="${LOCAL_RUNNER_ROOT:-$BASE_DIR}"
 FOUND=0
 
-for dir in "$BASE_DIR"/runner-*/; do
+for dir in "$RUNNER_ROOT"/runner-*/; do
   [ -d "$dir" ] || continue
   FOUND=1
   runner_path="${dir%/}"

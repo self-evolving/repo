@@ -14,6 +14,12 @@ GITHUB_URL=${1:-${GITHUB_URL:-}}
 TOKEN=${2:-${RUNNER_TOKEN:-}}
 NUM_RUNNERS=${3:-${NUM_RUNNERS:-1}}
 BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Where runner working directories (runner-N, actions-runner cache, _work, tool
+# cache, logs) live. Defaults to this checkout. On hosts where the checkout sits
+# on a size- or inode-constrained filesystem (e.g. an HPC home directory with a
+# per-user file-count quota), point LOCAL_RUNNER_ROOT at a roomier location; all
+# of setup/start/stop/cleanup honor it consistently.
+RUNNER_ROOT="${LOCAL_RUNNER_ROOT:-$BASE_DIR}"
 RUNNER_VERSION=${RUNNER_VERSION:-2.332.0}
 
 usage() {
@@ -34,6 +40,12 @@ detect_runner_platform() {
     Darwin-x86_64)
       echo "osx-x64"
       ;;
+    Linux-x86_64)
+      echo "linux-x64"
+      ;;
+    Linux-aarch64 | Linux-arm64)
+      echo "linux-arm64"
+      ;;
     *)
       echo "Unsupported platform: $(uname -s) $(uname -m). Set RUNNER_PLATFORM explicitly if a runner package exists for this machine." >&2
       exit 1
@@ -47,6 +59,27 @@ runner_arch_label() {
     *x64*) echo "X64" ;;
     *) echo "$1" ;;
   esac
+}
+
+runner_os_label() {
+  case "$1" in
+    osx-*) echo "macOS" ;;
+    linux-*) echo "Linux" ;;
+    *) echo "$1" ;;
+  esac
+}
+
+# Compute a SHA-256 digest with whichever tool the host provides. macOS ships
+# `shasum`; most Linux distros ship coreutils `sha256sum` and may omit `shasum`.
+compute_sha256() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{print $1}'
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" | awk '{print $1}'
+  else
+    echo "Neither sha256sum nor shasum is available to verify the runner download." >&2
+    exit 1
+  fi
 }
 
 escape_basic_regex() {
@@ -87,7 +120,7 @@ verify_runner_tarball() {
     exit 1
   fi
 
-  actual_sha=$(shasum -a 256 "$RUNNER_TAR" | awk '{print $1}')
+  actual_sha=$(compute_sha256 "$RUNNER_TAR")
 
   if [ "$actual_sha" != "$expected_sha" ]; then
     echo "Checksum mismatch for $RUNNER_TAR" >&2
@@ -120,11 +153,11 @@ if [ "${LOCAL_RUNNER_REQUIREMENTS_CHECKED:-0}" != "1" ]; then
 fi
 
 RUNNER_PLATFORM=${RUNNER_PLATFORM:-$(detect_runner_platform)}
-DEFAULT_LABELS="self-hosted,macOS,$(runner_arch_label "$RUNNER_PLATFORM")"
+DEFAULT_LABELS="self-hosted,$(runner_os_label "$RUNNER_PLATFORM"),$(runner_arch_label "$RUNNER_PLATFORM")"
 RUNNER_LABELS=${RUNNER_LABELS:-$DEFAULT_LABELS}
 DEFAULT_RUNNER_NAME_PREFIX="$(hostname -s 2>/dev/null || hostname)-runner"
 RUNNER_NAME_PREFIX=${RUNNER_NAME_PREFIX:-$DEFAULT_RUNNER_NAME_PREFIX}
-RUNNER_CACHE_DIR="$BASE_DIR/actions-runner"
+RUNNER_CACHE_DIR="$RUNNER_ROOT/actions-runner"
 RUNNER_ASSET="actions-runner-${RUNNER_PLATFORM}-${RUNNER_VERSION}.tar.gz"
 RUNNER_TAR="$RUNNER_CACHE_DIR/$RUNNER_ASSET"
 RUNNER_URL="https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/$RUNNER_ASSET"
@@ -152,14 +185,14 @@ ensure_hook_env() {
 
 # Reconcile the hook into every existing runner, regardless of NUM_RUNNERS,
 # so multi-runner hosts get all runners updated on a plain rerun.
-for existing in "$BASE_DIR"/runner-*/; do
+for existing in "$RUNNER_ROOT"/runner-*/; do
   [ -d "$existing" ] || continue
   [ -f "$existing/.runner" ] || continue
   ensure_hook_env "${existing%/}"
 done
 
 for i in $(seq 1 "$NUM_RUNNERS"); do
-  RUNNER_DIR="$BASE_DIR/runner-$i"
+  RUNNER_DIR="$RUNNER_ROOT/runner-$i"
   RUNNER_NAME="$RUNNER_NAME_PREFIX-$i"
 
   if [ -d "$RUNNER_DIR" ] && [ -f "$RUNNER_DIR/.runner" ]; then

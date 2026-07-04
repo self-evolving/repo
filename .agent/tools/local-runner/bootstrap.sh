@@ -14,6 +14,10 @@ GITHUB_URL=${1:-${GITHUB_URL:-}}
 TOKEN=${2:-${RUNNER_TOKEN:-}}
 NUM_RUNNERS=${3:-${NUM_RUNNERS:-1}}
 BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Runner working directories may live outside this checkout (see LOCAL_RUNNER_ROOT
+# in setup-runners.sh). setup/start/stop read it from the environment; we only
+# need it here to point scheduled cleanup at the same location.
+RUNNER_ROOT="${LOCAL_RUNNER_ROOT:-$BASE_DIR}"
 PLIST_TEMPLATE="$BASE_DIR/com.local-runner.cleanup.plist.template"
 PLIST_PATH="$HOME/Library/LaunchAgents/com.local-runner.cleanup.plist"
 LOCAL_RUNNER_DOCKER_PRUNE=${LOCAL_RUNNER_DOCKER_PRUNE:-0}
@@ -87,18 +91,46 @@ if [ "$(uname -s)" = "Darwin" ]; then
     rm -f "$PLIST_PATH"
   fi
 
-  # Render the template with this checkout's absolute path. Escape first for XML,
-  # then for sed replacement syntax so XML-sensitive path characters remain valid.
+  # Render path placeholders after escaping first for XML, then for sed
+  # replacement syntax so XML-sensitive path characters remain valid.
   ESCAPED_BASE_DIR=$(sed_replacement_escape "$(xml_escape "$BASE_DIR")")
+  ESCAPED_RUNNER_ROOT=$(sed_replacement_escape "$(xml_escape "$RUNNER_ROOT")")
   sed \
     -e "s|__PROJECT_DIR__|$ESCAPED_BASE_DIR|g" \
+    -e "s|__LOCAL_RUNNER_ROOT__|$ESCAPED_RUNNER_ROOT|g" \
     -e "s|__LOCAL_RUNNER_DOCKER_PRUNE__|$LOCAL_RUNNER_DOCKER_PRUNE|g" \
     "$PLIST_TEMPLATE" > "$PLIST_PATH"
 
   launchctl load "$PLIST_PATH"
   echo "Cleanup scheduled: $PLIST_PATH"
+elif [ "$(uname -s)" = "Linux" ]; then
+  # Linux has no launchd. Prefer cron, which does not require a user D-Bus
+  # session or lingering the way a systemd --user timer would.
+  if command -v crontab >/dev/null 2>&1; then
+    CRON_MARKER="# local-runner-cleanup ($BASE_DIR)"
+    # The trailing marker is a shell comment when cron runs the line, so it is
+    # ignored at execution time but lets us find and replace our own entry.
+    CRON_LINE="0 */6 * * * LOCAL_RUNNER_ROOT=\"$RUNNER_ROOT\" LOCAL_RUNNER_DOCKER_PRUNE=$LOCAL_RUNNER_DOCKER_PRUNE /bin/bash \"$BASE_DIR/cleanup-runner.sh\" $CRON_MARKER"
+
+    # `crontab -l` exits non-zero when no crontab exists; capture without tripping set -e.
+    if EXISTING_CRON="$(crontab -l 2>/dev/null)"; then :; else EXISTING_CRON=""; fi
+
+    # Keep every existing line except a prior entry for this checkout, then
+    # append the refreshed schedule. `|| true` swallows grep's no-match exit.
+    FILTERED_CRON="$(printf '%s\n' "$EXISTING_CRON" | grep -vF "$CRON_MARKER" | sed '/^[[:space:]]*$/d' || true)"
+    NEW_CRON="${FILTERED_CRON:+$FILTERED_CRON$'\n'}$CRON_LINE"
+
+    if printf '%s\n' "$NEW_CRON" | crontab -; then
+      echo "Cleanup scheduled via cron (every 6 hours): $BASE_DIR/cleanup-runner.sh"
+      echo "Note: cleanup only runs while the cron daemon (crond) is active on this host."
+    else
+      echo "Could not install cron job. Run cleanup-runner.sh manually or add it to your crontab."
+    fi
+  else
+    echo "crontab not found. Skipping scheduled cleanup; run cleanup-runner.sh manually if needed."
+  fi
 else
-  echo "Skipping launchd setup because this is not macOS. Run cleanup-runner.sh manually if needed."
+  echo "Skipping scheduled cleanup setup on $(uname -s). Run cleanup-runner.sh manually if needed."
 fi
 
 echo ""

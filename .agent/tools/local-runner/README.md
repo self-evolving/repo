@@ -1,29 +1,30 @@
 # Local GitHub Actions Runner
 
-Scripts for running one or more self-hosted GitHub Actions runners on a local macOS machine.
+Scripts for running one or more self-hosted GitHub Actions runners on a local macOS or Linux machine.
 
 The repository is intentionally generic: provide your own GitHub organization or repository URL and a short-lived registration token when you set up the runners.
 
 ## What this does
 
-- Downloads the GitHub Actions runner for your Mac (`osx-arm64` or `osx-x64`).
+- Downloads the GitHub Actions runner for your host: `osx-arm64` / `osx-x64` on macOS, or `linux-x64` / `linux-arm64` on Linux (auto-detected; override with `RUNNER_PLATFORM`).
 - Verifies the downloaded runner archive with the SHA-256 checksum from the GitHub runner release.
 - Creates `runner-1`, `runner-2`, ... directories so each runner has its own working directory.
 - Starts all configured runners and writes logs to `runner-N/runner.log`.
-- Optionally installs a macOS `launchd` cleanup job that removes old runner diagnostic logs every 6 hours.
+- Optionally installs a cleanup job that removes old runner diagnostic logs every 6 hours — via `launchd` on macOS or `cron` on Linux.
 
 ## Requirements
 
 `bootstrap.sh` and `setup-runners.sh` run `check-requirements.sh` before registering runners. For the default agent workflows, the runner host needs:
 
-- macOS with Bash, `git`, `gh`, `jq`, `curl`, `tar`, and `shasum`.
+- macOS or Linux with Bash, `git`, `gh`, `jq`, `curl`, `tar`, and a SHA-256 tool (`sha256sum` on Linux, `shasum` on macOS — either is accepted).
 - Node.js 22.x and npm. This matches the default `node_version` in `.github/actions/setup-agent-runtime` for self-hosted runners.
+- On Linux, the ICU library (`libicu`) that the .NET-based runner depends on. Most desktop/server distros ship it; minimal images may need `sudo apt-get install -y libicu-dev` (Debian/Ubuntu) or `sudo dnf install -y libicu` (RHEL/Rocky/Fedora). `check-requirements.sh` warns if it is missing.
 - Admin access to the target GitHub organization or repository so you can create a self-hosted runner registration token.
 - Docker is optional. Docker cleanup is disabled unless you explicitly opt in.
 
 You do **not** need to preinstall `acpx`: each workflow runs `npm ci` in `.agent/`, and `acpx` is a package dependency exposed through `.agent/node_modules/.bin`.
 
-You also do **not** need to preinstall `codex` or `claude` for normal secret-backed runs. The shared `setup-agent-runtime` action installs the selected provider CLI when it is missing. If you want to rely on local provider authentication instead of repository secrets, authenticate the provider CLI as the same macOS user that runs the GitHub runner service.
+You also do **not** need to preinstall `codex` or `claude` for normal secret-backed runs. The shared `setup-agent-runtime` action installs the selected provider CLI when it is missing. If you want to rely on local provider authentication instead of repository secrets, authenticate the provider CLI as the same OS user that runs the GitHub runner.
 
 ## Security note
 
@@ -49,7 +50,7 @@ To create multiple local runners:
 ./bootstrap.sh https://github.com/<ORG_OR_USER> <REGISTRATION_TOKEN> 3
 ```
 
-`bootstrap.sh` configures the runner(s), installs the cleanup schedule on macOS, and then starts the runners. Press `Ctrl+C` to stop them.
+`bootstrap.sh` configures the runner(s), installs the cleanup schedule (`launchd` on macOS, `cron` on Linux), and then starts the runners. Press `Ctrl+C` to stop them.
 
 > Registration tokens expire quickly. If setup fails with an authorization error, create a fresh token and run the command again. Do not commit tokens to the repository.
 
@@ -98,10 +99,11 @@ You can customize setup with environment variables:
 | `RUNNER_VERSION` | `2.332.0` | GitHub Actions runner version to download. |
 | `RUNNER_SHA256` | release checksum | Optional explicit SHA-256 checksum for the selected runner archive; useful if release checksum lookup is rate-limited. |
 | `GITHUB_TOKEN` | none | Optional token used only for runner release checksum lookup to avoid anonymous GitHub API rate limits. |
-| `RUNNER_PLATFORM` | auto-detected | Runner package platform, usually `osx-arm64` or `osx-x64`. |
-| `RUNNER_LABELS` | `self-hosted,macOS,ARM64` or `self-hosted,macOS,X64` | Labels passed to GitHub during runner registration. |
+| `RUNNER_PLATFORM` | auto-detected | Runner package platform: `osx-arm64` / `osx-x64` on macOS, `linux-x64` / `linux-arm64` on Linux. |
+| `RUNNER_LABELS` | `self-hosted,<macOS\|Linux>,<ARM64\|X64>` | Labels passed to GitHub during runner registration (OS and arch auto-detected). |
 | `RUNNER_NAME_PREFIX` | `<hostname>-runner` | Prefix for runner names. Runner numbers are appended. |
-| `RUNNER_TOOL_CACHE` | `./shared-tool-cache` | Shared tool cache used when runners are started. |
+| `LOCAL_RUNNER_ROOT` | this checkout | Directory that holds the runner working dirs (`runner-N`, downloaded runner cache, `_work`, tool cache, logs). Point it at a roomier filesystem when the checkout lives on a size- or inode-constrained one (see "Hosting the runner off a constrained filesystem"). |
+| `RUNNER_TOOL_CACHE` | `$LOCAL_RUNNER_ROOT/shared-tool-cache` | Shared tool cache used when runners are started. |
 | `LOCAL_RUNNER_DOCKER_PRUNE` | `0` | Set to `1` before running `bootstrap.sh` or `cleanup-runner.sh` to allow `docker system prune -f`. |
 
 Example:
@@ -110,6 +112,44 @@ Example:
 RUNNER_NAME_PREFIX=build-mac RUNNER_LABELS=self-hosted,macOS,ARM64,local \
   ./bootstrap.sh https://github.com/<OWNER> <REGISTRATION_TOKEN> 2
 ```
+
+## Hosting the runner off a constrained filesystem
+
+By default the runner directories live inside this checkout. On many servers that
+is fine, but on HPC login nodes and other managed hosts the home filesystem often
+has a per-user **quota** — not just on bytes, but on **inode count** (number of
+files). A GitHub Actions runner is inode-heavy: the base install is ~20k+ files,
+each agent job's `npm ci` adds tens of thousands more under `_work`, and the
+runner's periodic self-update briefly writes a *second* full copy of itself. Any
+of these can blow an inode quota, and the failure surfaces as a confusing
+`Disk quota exceeded` error mid-job (or during self-update).
+
+Set `LOCAL_RUNNER_ROOT` to a filesystem with room (scratch, project, or pool
+storage) so all runner state lands there instead of the quota'd home:
+
+```bash
+export LOCAL_RUNNER_ROOT=/path/to/roomy/storage/github-runners
+./bootstrap.sh https://github.com/<ORG_OR_USER>/<REPO> <REGISTRATION_TOKEN>
+```
+
+`setup-runners.sh`, `start-runners.sh`, `stop-runners.sh`, and `cleanup-runner.sh`
+all honor `LOCAL_RUNNER_ROOT`, so export it (or prefix each command with it)
+consistently. Only the scripts and the post-job hook stay in the checkout; all
+runner *data* lives under `LOCAL_RUNNER_ROOT`.
+
+To move an already-configured runner without re-registering it, stop it, move the
+directories across (registration travels with the `runner-N` directory), then
+restart with the variable set:
+
+```bash
+./stop-runners.sh
+mv runner-* actions-runner shared-tool-cache /path/to/roomy/storage/github-runners/
+export LOCAL_RUNNER_ROOT=/path/to/roomy/storage/github-runners
+./start-runners.sh
+```
+
+Check inode usage with `df -i <path>` (and, where available, `quota -s`) before
+and after.
 
 ## Post-job cleanup hook
 
@@ -155,26 +195,34 @@ LOCAL_RUNNER_DOCKER_PRUNE=1 bash cleanup-runner.sh
 
 To opt in for the scheduled cleanup job, set `LOCAL_RUNNER_DOCKER_PRUNE=1` when you run `bootstrap.sh`.
 
-`bootstrap.sh` renders `com.local-runner.cleanup.plist.template` with this repository's local absolute path, writes it to `~/Library/LaunchAgents/com.local-runner.cleanup.plist`, and loads it with `launchctl`.
+`bootstrap.sh` installs the schedule differently per OS:
+
+- **macOS (`launchd`):** renders `com.local-runner.cleanup.plist.template` with this repository's local absolute path, writes it to `~/Library/LaunchAgents/com.local-runner.cleanup.plist`, and loads it with `launchctl`.
+- **Linux (`cron`):** adds a user crontab entry that runs `cleanup-runner.sh` every 6 hours (`0 */6 * * *`). A systemd `--user` timer is intentionally not used because it needs a user D-Bus session and lingering, which are often unavailable on shared/HPC hosts. Cleanup only runs while the cron daemon (`crond`) is active, and some managed hosts disable per-user `crontab` entirely — `bootstrap.sh` reports this and falls back to manual cleanup rather than failing.
+
+Run cleanup manually (any OS):
+
+```bash
+bash cleanup-runner.sh
+tail -f "${LOCAL_RUNNER_ROOT:-.}/cleanup.log"
+```
 
 Check the scheduled job:
 
 ```bash
-launchctl list | grep local-runner.cleanup
-```
-
-Run cleanup manually:
-
-```bash
-bash cleanup-runner.sh
-tail -f cleanup.log
+launchctl list | grep local-runner.cleanup     # macOS
+crontab -l | grep local-runner-cleanup          # Linux
 ```
 
 Disable the scheduled job:
 
 ```bash
+# macOS
 launchctl unload ~/Library/LaunchAgents/com.local-runner.cleanup.plist
 rm ~/Library/LaunchAgents/com.local-runner.cleanup.plist
+
+# Linux (remove the local-runner-cleanup line)
+crontab -l | grep -v local-runner-cleanup | crontab -
 ```
 
 ## Resetting runners
@@ -188,9 +236,13 @@ To recreate a runner from scratch:
 
 ## Files created locally
 
-The scripts create local runtime files that are ignored by Git:
+The scripts create runtime files under `LOCAL_RUNNER_ROOT` (the checkout by
+default, where they are ignored by Git):
 
 - `actions-runner/` — downloaded runner tarballs.
 - `runner-*/` — configured runner directories and workspaces.
 - `shared-tool-cache/` — reusable tool cache for started runners.
 - `*.log` — runner and cleanup logs.
+
+When `LOCAL_RUNNER_ROOT` points outside the checkout, these live there instead
+and Git never sees them.

@@ -5,6 +5,9 @@
 set -euo pipefail
 
 BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Runner working directories may live outside this checkout (see LOCAL_RUNNER_ROOT
+# in setup-runners.sh), e.g. on a roomier filesystem than a quota'd HPC home.
+RUNNER_ROOT="${LOCAL_RUNNER_ROOT:-$BASE_DIR}"
 PIDS=()
 
 cleanup() {
@@ -20,7 +23,7 @@ cleanup() {
 trap cleanup SIGINT SIGTERM
 
 # Share tool cache (Node, Python, etc.) across all runners to avoid re-downloading.
-export RUNNER_TOOL_CACHE="${RUNNER_TOOL_CACHE:-$BASE_DIR/shared-tool-cache}"
+export RUNNER_TOOL_CACHE="${RUNNER_TOOL_CACHE:-$RUNNER_ROOT/shared-tool-cache}"
 mkdir -p "$RUNNER_TOOL_CACHE"
 
 # Ask the GitHub runner wrapper to trap signals and forward them to the
@@ -30,7 +33,7 @@ export RUNNER_MANUALLY_TRAP_SIG=1
 
 echo "Starting runners..."
 
-for dir in "$BASE_DIR"/runner-*/; do
+for dir in "$RUNNER_ROOT"/runner-*/; do
   [ -d "$dir" ] || continue
   [ -f "$dir/.runner" ] || { echo "Skipping unconfigured dir: $dir"; continue; }
 
@@ -48,6 +51,6 @@ fi
 
 echo ""
 echo "${#PIDS[@]} runner(s) started. Press Ctrl+C to stop all."
-echo "To view logs: tail -f $BASE_DIR/runner-*/runner.log"
+echo "To view logs: tail -f $RUNNER_ROOT/runner-*/runner.log"
 
 wait
