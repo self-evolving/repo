@@ -120,3 +120,4 @@
 - test-scripts.yml runner labels resolve AGENT_TEST_RUNS_ON, then AGENT_RUNS_ON, then ["ubuntu-latest"].
 - Treat acpx >0.6.1 upgrades as compatibility PRs; verify Codex adapter model IDs and Node >=22.13. [[github/self-evolving/repo/issue-364.json]]
 - Edited-comment commands need idempotency: compare current body with changes.body.from; never blanket-allow edits.
+- Self-improvement is opt-in via AGENT_SELF_IMPROVEMENT_ENABLED; apply gates requester auth before issue/comment side effects.
