@@ -7,7 +7,7 @@
   },
   "baseRefName": "main",
   "body": "The local-runner scripts only targeted macOS (osx-* runner packages, launchd cleanup, shasum). Make them work on Linux hosts too:\r\n\r\n- setup-runners.sh: detect linux-x64/linux-arm64, derive OS/arch labels (self-hosted,Linux,X64 instead of hardcoded macOS), and verify the download with sha256sum or shasum.\r\n- check-requirements.sh: accept either SHA-256 tool, add Debian/Ubuntu and RHEL/Rocky install hints, and warn when libicu (needed by the .NET-based runner) is missing.\r\n- bootstrap.sh: install the 6-hourly cleanup via cron on Linux (launchd is macOS-only); degrade gracefully when per-user crontab is unavailable.\r\n- Add LOCAL_RUNNER_ROOT so runner working dirs can live off a size- or inode-constrained filesystem (e.g. an HPC home with a per-user file quota); honored by setup/start/stop/cleanup.\r\n- README: document Linux setup, cron cleanup, and LOCAL_RUNNER_ROOT.",
-  "closedAt": null,
+  "closedAt": "2026-07-04T07:41:38Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABIt5MdA",
@@ -169,6 +169,58 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/453#issuecomment-4880097761",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIvBImw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer can you check what's implemented here? ",
+      "createdAt": "2026-07-04T07:29:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/453#issuecomment-4881139867",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIvBPeA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I checked current head `af931ecdb3fb7deb37e7b4338bc4cfc03722fa52`. This PR implements Linux support for `.agent/tools/local-runner`, plus a new runner-state root override.\n\nImplemented:\n\n- Linux runner setup in [`setup-runners.sh`](https://github.com/self-evolving/repo/blob/af931ecdb3fb7deb37e7b4338bc4cfc03722fa52/.agent/tools/local-runner/setup-runners.sh#L35-L83): detects `linux-x64` / `linux-arm64`, derives `self-hosted,Linux,X64|ARM64` labels, and verifies downloads with either `sha256sum` or `shasum`.\n- `LOCAL_RUNNER_ROOT` support in setup/start/stop/cleanup so runner dirs, runner cache, tool cache, and cleanup logs can live outside the checkout, e.g. on scratch storage instead of a quota-limited home filesystem: [`setup-runners.sh`](https://github.com/self-evolving/repo/blob/af931ecdb3fb7deb37e7b4338bc4cfc03722fa52/.agent/tools/local-runner/setup-runners.sh#L17-L22), [`start-runners.sh`](https://github.com/self-evolving/repo/blob/af931ecdb3fb7deb37e7b4338bc4cfc03722fa52/.agent/tools/local-runner/start-runners.sh#L7-L54), [`stop-runners.sh`](https://github.com/self-evolving/repo/blob/af931ecdb3fb7deb37e7b4338bc4cfc03722fa52/.agent/tools/local-runner/stop-runners.sh#L6-L28), [`cleanup-runner.sh`](https://github.com/self-evolving/repo/blob/af931ecdb3fb7deb37e7b4338bc4cfc03722fa52/.agent/tools/local-runner/cleanup-runner.sh#L7-L28).\n- Linux scheduled cleanup through cron in [`bootstrap.sh`](https://github.com/self-evolving/repo/blob/af931ecdb3fb7deb37e7b4338bc4cfc03722fa52/.agent/tools/local-runner/bootstrap.sh#L106-L131). macOS still uses launchd, and now passes `LOCAL_RUNNER_ROOT` into the plist: [`bootstrap.sh`](https://github.com/self-evolving/repo/blob/af931ecdb3fb7deb37e7b4338bc4cfc03722fa52/.agent/tools/local-runner/bootstrap.sh#L94-L102), [`com.local-runner.cleanup.plist.template`](https://github.com/self-evolving/repo/blob/af931ecdb3fb7deb37e7b4338bc4cfc03722fa52/.agent/tools/local-runner/com.local-runner.cleanup.plist.template#L17-L23).\n- Linux-aware requirement checks: accepts either SHA tool, adds Debian/RHEL install hints, and warns if `libicu` is missing for the .NET-based runner: [`check-requirements.sh`](https://github.com/self-evolving/repo/blob/af931ecdb3fb7deb37e7b4338bc4cfc03722fa52/.agent/tools/local-runner/check-requirements.sh#L17-L72).\n- Docs updated for macOS/Linux usage, cron vs launchd cleanup, `LOCAL_RUNNER_ROOT`, and the corrected cleanup log path: [`README.md`](https://github.com/self-evolving/repo/blob/af931ecdb3fb7deb37e7b4338bc4cfc03722fa52/.agent/tools/local-runner/README.md#L1-L248), [`self-hosted-github-action-runner.md`](https://github.com/self-evolving/repo/blob/af931ecdb3fb7deb37e7b4338bc4cfc03722fa52/.agent/docs/setup/self-hosted-github-action-runner.md#L14-L18).\n\nThe earlier review findings were already addressed by the follow-up fix-pr pass, and the re-review marked the current head as `SHIP`. I also verified the changed shell scripts with `bash -n`; the PR’s GitHub check is passing. I did not run actual runner registration or cron/launchd execution on a real host in this workflow.\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — answer · 2m24s · 29 steps**\n\nLast message\n> I checked current head `af931ecdb3fb7deb37e7b4338bc4cfc03722fa52`. This PR implements Linux support for `.agent/tools/local-runner`, plus a new runner-state root override. Implemented: - Linux runner setup in [`setup-runners.sh`](https://g…\n\nActivity\n\n- 🔧 Used tool `git show origin/pr/453:.agent/docs/setup/self-hosted-github-action-runner.md | nl -ba | sed -n '1,40p'` (completed)\n- 🔧 Used tool `git diff --stat main...origin/pr/453` (failed)\n- 💬 Message \"The diff and PR metadata are enough to summarize implementation. I also tried local `git diff` against `main`, but this checkout lacks a merge base for that ref; the GitHub PR diff and fetched PR head are still available.\"\n- 💬 Message \"I’m doing one light syntax verification on the PR-head shell scripts, then I’ll return a concise implementation summary with direct file links.\"\n- 💻 Ran `for f in .agent/tools/local-runner/bootstrap.sh .agent/tools/local-runner/check-requirements.sh .agent/tools/local-runn…` (completed)\n- 💬 Message \"I checked current head `af931ecdb3fb7deb37e7b4338bc4cfc03722fa52`. This PR implements Linux support for `.agent/tools/local-runner`, plus a new runner-state root override. Implemented: - Linux runner setup in [`setup-runners.sh`](https://g…\"\n</details>\n\n<!-- sepo-progress:run-28699168977 -->\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-5`",
+      "createdAt": "2026-07-04T07:30:38Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/453#issuecomment-4881141624",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIvDQFw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #453.\n\nno rubric changes\n\nI inspected PR #453’s PR body, issue comments, review comments, reviews, collaborator signals, diff, and existing rubric files. The only substantive implementation feedback came from `sepo-agent-app[bot]`, and the human comments from `lolipopshock` were route commands or a request to summarize what was implemented, not durable rubric guidance. Existing rubrics already cover the review themes that appeared here: docs in sync, actionable setup guidance, minimal native escape hatches, scoped changes, and idempotent automation.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-3`",
+      "createdAt": "2026-07-04T07:42:58Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/453#issuecomment-4881174551",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-07-03T02:15:11Z",
@@ -237,7 +289,7 @@
       "color": "0e8a16"
     }
   ],
-  "mergedAt": null,
+  "mergedAt": "2026-07-04T07:41:38Z",
   "number": 453,
   "reviewDecision": "",
   "reviews": [
@@ -257,8 +309,8 @@
       }
     }
   ],
-  "state": "OPEN",
+  "state": "MERGED",
   "title": "Add Linux support to local-runner tooling",
-  "updatedAt": "2026-07-04T01:04:25Z",
+  "updatedAt": "2026-07-04T07:42:59Z",
   "url": "https://github.com/self-evolving/repo/pull/453"
 }
