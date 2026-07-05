@@ -6,7 +6,7 @@
     "name": "Shannon Shen"
   },
   "body": "## Background\n\nThe model footer normalization work in #399 / #400 covers one concrete display inconsistency for Codex GPT-5 reasoning suffixes. A newer observed case shows the same class of problem for Claude aliases:\n\n- Target run: https://github.com/augmented-mind/augmented-mind.github.io/actions/runs/26965233625\n- Issue/comment: https://github.com/augmented-mind/augmented-mind.github.io/issues/65#issuecomment-4624175564\n- Public footer rendered:\n  ```text\n  `claude` | `default` | `high` | `GitHub Actions 1000001638`\n  ```\n- The workflow logs for the answer job showed:\n  ```text\n  Resolved agent model for answer: claude-opus-4-8.\n  MODEL_ID: claude-opus-4-8\n  ```\n- The Claude session artifact showed the initial session/new result with `currentModelId: default`, then a later `session/set_model` to `claude-opus-4-8`; the Claude transcript messages also used `model: claude-opus-4-8`.\n\nSo the effective model was `claude-opus-4-8`, but the footer displayed the provider-local alias `default` because Sepo currently extracts the early compact session model and prefers it over the concrete requested/resolved model.\n\n## Goal\n\nDo a general cleanup of Sepo run model-display metadata so footers consistently show canonical/effective model information across providers, rather than provider-local aliases or mixed display shapes.\n\nThis should build on or supersede the work in #400 rather than creating a parallel, incompatible display path.\n\n## Expected behavior\n\nFooter shape should remain compact and stable:\n\n```text\n`provider` | `model` | `reasoning/effort` | `runner`\n```\n\nExamples:\n\n- Claude alias with concrete requested model:\n  - inputs/evidence: `agent=claude`, `reportedSessionModel=default`, `requestedModel=claude-opus-4-8`, `reasoningEffort=high`\n  - display: `` `claude` | `claude-opus-4-8` | `high` | `runner` ``\n- Claude concrete session model:\n  - display the concrete session model.\n- Claude alias only, no concrete model known:\n  - display `default model` or a clearly non-canonical alias, but do not imply a specific model without evidence.\n- Codex GPT-5 reasoning suffixes:\n  - `gpt-5.5/xhigh` or `gpt-5.5[xhigh]` should display as `` `codex` | `gpt-5.5` | `xhigh` | `runner` ``.\n- Plain fallback model plus reasoning:\n  - `` `codex` | `gpt-5.5` | `high` | `runner` ``.\n\n## Suggested implementation direction\n\n1. Centralize display normalization in a testable helper, likely extending the helper introduced by #400.\n2. Treat `requestedModel` / resolved workflow model separately from `reportedSessionModel`.\n3. Prefer concrete model IDs over generic provider aliases such as Claude `default`, especially when Sepo already resolved a concrete `MODEL_ID`.\n4. Keep provider-specific normalization small and explicit:\n   - Codex: parse GPT-5 reasoning suffixes into the reasoning column.\n   - Claude: normalize or de-prioritize aliases like `default`, `opus`, and `haiku` when a concrete requested/effective model is available.\n5. Update `run.ts` so `model_display` is built from both reported and requested model evidence, not only `extractSessionModel(result.sessionLog) || requestedModel`.\n6. Add regression tests for:\n   - Claude `default` session alias + concrete requested model.\n   - Claude concrete session model.\n   - Claude alias-only fallback.\n   - Codex encoded reasoning suffix normalization.\n   - Resumed sessions with missing/partial session model metadata.\n7. Update docs/configuration wording if needed so `AGENT_DISPLAY_MODEL` describes canonical display behavior.\n\n## Acceptance criteria\n\n- A footer for the augmented-mind issue #65 scenario would render `claude-opus-4-8`, not `default`.\n- #399/#400's Codex display inconsistency remains fixed.\n- Existing response posting helpers continue to receive one markdown-ready `model_display` string.\n- Tests cover the provider alias and reasoning-suffix cases.\n",
-  "closedAt": null,
+  "closedAt": "2026-07-05T10:59:15Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABE6K_Kw",
@@ -65,6 +65,21 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/406#issuecomment-4624468209",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIza1cg",
+      "author": {
+        "login": "github-actions"
+      },
+      "authorAssociation": "NONE",
+      "body": "Closing because this agent issue has had no activity for 30 days.",
+      "createdAt": "2026-07-05T10:59:14Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/406#issuecomment-4885755250",
+      "viewerDidAuthor": false
     }
   ],
   "createdAt": "2026-06-04T17:03:29Z",
@@ -77,8 +92,8 @@
     }
   ],
   "number": 406,
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Clean up agent model display normalization across providers",
-  "updatedAt": "2026-06-04T17:11:41Z",
+  "updatedAt": "2026-07-05T10:59:15Z",
   "url": "https://github.com/self-evolving/repo/issues/406"
 }
