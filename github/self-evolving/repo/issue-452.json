@@ -22,6 +22,43 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/452#issuecomment-4871670440",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIykqQw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "Also in the final comment we should hide the reviews immediately before if it is shipped or passed? \n\n@sepo-agent /answer ",
+      "createdAt": "2026-07-05T04:46:01Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/452#issuecomment-4884867651",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABIykwjQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, I’d add that as part of the same change, but keep it narrow.\n\nRecommended behavior:\n- When the orchestrator posts/updates the finalized PR note for a successful terminal state, collapse prior Sepo-generated review noise.\n- Treat success as terminal states like `review` + `SHIP`, `agent-self-approve` + `approved`, and `agent-self-merge` + `merged` / `auto_merge_enabled`.\n- Do not collapse on blocked, failed, needs-rework, or clarification states, because those comments may still be the actionable context.\n- Only minimize trusted Sepo-authored generated comments, not human reviews or discussion.\n\nThis fits existing code well:\n- Use the existing cleanup toggle `AGENT_COLLAPSE_OLD_REVIEWS`.\n- Reuse/extend `collapsePreviousReviewSummaries`, `collapsePreviousRubricsReviews`, `collapsePreviousFixPrComments`, and `collapsePreviousHandoffComments` from https://github.com/self-evolving/repo/blob/main/.agent/src/review-summary-minimize.ts\n- Call that cleanup from the orchestrator terminal/final-comment path in https://github.com/self-evolving/repo/blob/main/.agent/src/cli/orchestrate-handoff.ts, right before or after upserting the finalized note.\n- Keep the finalized note visible as the one durable summary, and mark earlier generated review/handoff comments as `OUTDATED`.\n\nSo the updated plan is: finalized orchestration note + human requester mention + PR note upsert + conditional cleanup of immediately preceding Sepo-generated review artifacts when the orchestration shipped/passed.\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — answer · 1m00s · 8 steps**\n\nLast message\n> Yes, I’d add that as part of the same change, but keep it narrow. Recommended behavior: - When the orchestrator posts/updates the finalized PR note for a successful terminal state, collapse prior Sepo-generated review noise. - Treat succes…\n\nActivity\n\n- 📖 Read `Read orchestrate-handoff.ts` (completed)\n- 📖 Read `Read review-summary-minimize.ts` (completed)\n- 📖 Read `Search collapsePrevious|review synthesis|orchestrate stop|orchestrate-final|orchestrate-stop|SHIP|passed|HUMAN_DECISION…` (completed)\n- 📖 Read `Read handoff.ts` (completed)\n- 📖 Read `Read handoff.ts` (completed)\n- 💬 Message \"Yes, I’d add that as part of the same change, but keep it narrow. Recommended behavior: - When the orchestrator posts/updates the finalized PR note for a successful terminal state, collapse prior Sepo-generated review noise. - Treat succes…\"\n</details>\n\n<!-- sepo-progress:run-28729837775 -->\n\n---\n`codex` | `gpt-5.5` | `high` | `Macmini-runner-2`",
+      "createdAt": "2026-07-05T04:46:50Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/452#issuecomment-4884869261",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-07-03T00:57:51Z",
@@ -36,6 +73,6 @@
   "number": 452,
   "state": "OPEN",
   "title": "Consider adding a finalized comment at the end of orchestrator",
-  "updatedAt": "2026-07-03T01:00:49Z",
+  "updatedAt": "2026-07-05T04:47:57Z",
   "url": "https://github.com/self-evolving/repo/issues/452"
 }
