@@ -10,3 +10,4 @@
 ## Open Questions
 - Should Sepo add inner/reportable timeouts in run.ts/runAcpx/acpx-adapter after the GitHub-step timeout first pass?
 - Should hosted Sepo be the quick-start default while repo-local Actions remains first-class for control/auditability?
+- Should Sepo add MCP server setup as runtime config instead of prompt text? [[github/self-evolving/repo/issue-450.json]]
