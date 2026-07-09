@@ -94,8 +94,8 @@ const DEFAULT_PERMISSION_MODE: PermissionMode = "approve-all";
 const ACPX_MAX_BUFFER = 50 * 1024 * 1024; // 50 MB
 const AGENT_PROGRESS_STREAM_FILE_ENV = "AGENT_PROGRESS_STREAM_FILE";
 const TRANSIENT_EXEC_SESSION_BYTES = 6;
-const CODEX_REASONING_EFFORTS = new Set(["low", "medium", "high", "xhigh"]);
-const CODEX_REASONING_SUFFIX = /(?:\/(?:low|medium|high|xhigh)|\[(?:low|medium|high|xhigh)\])$/u;
+const CODEX_REASONING_EFFORTS = new Set(["low", "medium", "high", "xhigh", "max"]);
+const CODEX_REASONING_SUFFIX = /(?:\/(?:low|medium|high|xhigh|max)|\[(?:low|medium|high|xhigh|max)\])$/u;
 const CODEX_REASONING_MODEL_PREFIX = /^gpt-5(?:[.-]|$)/u;
 // Date/version-pinned Claude model IDs (e.g. "claude-opus-4-8" or
 // "claude-opus-4-8[1m]"), as opposed to adapter-advertised aliases such as
@@ -290,9 +290,9 @@ export interface AcpxModelSelection {
  * Normalizes Sepo's provider-neutral `model` + `reasoning_effort` fields into
  * the model ids advertised by newer Codex ACP adapters.
  *
- * `@zed-industries/codex-acp` reports GPT-5 Codex reasoning variants as model
- * ids such as `gpt-5.5/xhigh`. Sending `model=gpt-5.5` and then setting
- * `thought_level=xhigh` no longer replays reliably for named sessions, so Sepo
+ * `@agentclientprotocol/codex-acp` reports GPT-5 Codex reasoning variants as model
+ * ids such as `gpt-5.6-sol/max`. Sending `model=gpt-5.6-sol` and then setting
+ * `thought_level=max` no longer replays reliably for named sessions, so Sepo
  * composes those values before handing them to acpx. Non-Codex agents and
  * Codex requests without a known GPT-5 reasoning variant keep the legacy
  * separate thought-level path.

@@ -304,7 +304,7 @@ function extractSessionModel(sessionLog: string): string {
   return "";
 }
 
-const CODEX_REASONING_MODEL_SUFFIX = /(?:\/(?:low|medium|high|xhigh)|\[(?:low|medium|high|xhigh)\])$/u;
+const CODEX_REASONING_MODEL_SUFFIX = /(?:\/(?:low|medium|high|xhigh|max)|\[(?:low|medium|high|xhigh|max)\])$/u;
 
 function displayReasoningEffort(options: {
   agent: string;

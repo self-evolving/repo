@@ -129,8 +129,8 @@ test("provider resolver loads bundled provider model defaults", () => {
 
   assert.equal(codex.status, 0, codex.stderr);
   assert.equal(codex.outputs.provider, "codex");
-  assert.equal(codex.outputs.model, "gpt-5.5");
-  assert.equal(codex.outputs.reasoning_effort, "");
+  assert.equal(codex.outputs.model, "gpt-5.6-sol");
+  assert.equal(codex.outputs.reasoning_effort, "max");
 
   const claude = runResolver({
     DEFAULT_PROVIDER: "claude",
@@ -157,7 +157,7 @@ test("provider resolver fails when a bundled provider default is missing", () =>
     mkdirSync(path.join(tempDir, ".agent"), { recursive: true });
     writeFileSync(
       path.join(tempDir, ".agent/model-defaults.json"),
-      JSON.stringify({ providers: { codex: { default: { model: "gpt-5.5" } } } }),
+      JSON.stringify({ providers: { codex: { default: { model: "gpt-5.6-sol" } } } }),
     );
 
     const result = spawnSync(process.execPath, [scopedResolver], {
@@ -256,8 +256,8 @@ test("provider resolver ignores display policy because display is handled by run
 
   assert.equal(policyDisplay.status, 0, policyDisplay.stderr);
   assert.equal(policyDisplay.outputs.provider, "codex");
-  assert.equal(policyDisplay.outputs.model, "gpt-5.5");
-  assert.equal(policyDisplay.outputs.reasoning_effort, "");
+  assert.equal(policyDisplay.outputs.model, "gpt-5.6-sol");
+  assert.equal(policyDisplay.outputs.reasoning_effort, "max");
 });
 
 test("provider resolver lets route model policy override provider defaults", () => {

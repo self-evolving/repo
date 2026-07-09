@@ -183,7 +183,11 @@ function loadModelDefaults() {
     if (!model) {
       throw new Error(`model-defaults.json must define a non-empty providers.${provider}.default.model`);
     }
-    defaults[provider] = { model };
+    const reasoningEffort = normalizeOptionalToken(
+      providers[provider]?.default?.reasoning_effort,
+      `model-defaults.json providers.${provider}.default.reasoning_effort`,
+    );
+    defaults[provider] = reasoningEffort ? { model, reasoningEffort } : { model };
   }
   return defaults;
 }

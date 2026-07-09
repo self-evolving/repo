@@ -148,7 +148,7 @@ test("buildClaudePinnedModelEnv ignores aliases, non-Claude agents, and preset o
   // Advertised alias → acpx applies it directly, no env pin.
   assert.deepEqual(buildClaudePinnedModelEnv({ agent: "claude", model: "opus", env: {} }), {});
   // Non-Claude agent keeps its normal model handling.
-  assert.deepEqual(buildClaudePinnedModelEnv({ agent: "codex", model: "gpt-5.5", env: {} }), {});
+  assert.deepEqual(buildClaudePinnedModelEnv({ agent: "codex", model: "gpt-5.6-sol", env: {} }), {});
   // An operator-set ANTHROPIC_MODEL is left untouched.
   assert.deepEqual(
     buildClaudePinnedModelEnv({
@@ -162,13 +162,13 @@ test("buildClaudePinnedModelEnv ignores aliases, non-Claude agents, and preset o
 
 test("resolveAcpxModelSelection folds GPT-5 Codex reasoning into the model id", () => {
   assert.deepEqual(
-    resolveAcpxModelSelection({ agent: "codex", model: "gpt-5.5", thoughtLevel: "xhigh" }),
-    { model: "gpt-5.5/xhigh", thoughtLevel: undefined, reasoningEncodedInModel: true },
+    resolveAcpxModelSelection({ agent: "codex", model: "gpt-5.6-sol", thoughtLevel: "max" }),
+    { model: "gpt-5.6-sol/max", thoughtLevel: undefined, reasoningEncodedInModel: true },
   );
 
   assert.deepEqual(
-    resolveAcpxModelSelection({ agent: "codex", model: "gpt-5.5/high", thoughtLevel: "xhigh" }),
-    { model: "gpt-5.5/high", thoughtLevel: undefined, reasoningEncodedInModel: true },
+    resolveAcpxModelSelection({ agent: "codex", model: "gpt-5.6-sol/max", thoughtLevel: "xhigh" }),
+    { model: "gpt-5.6-sol/max", thoughtLevel: undefined, reasoningEncodedInModel: true },
   );
 
   assert.deepEqual(
@@ -193,13 +193,13 @@ test("buildSessionSetupCommands encodes Codex model reasoning for named sessions
   const commands = buildSessionSetupCommands({
     agent: "codex",
     sessionName: "pull_request-38-fix-pr-default",
-    model: "gpt-5.4",
-    thoughtLevel: "xhigh",
+    model: "gpt-5.6-sol",
+    thoughtLevel: "max",
     permissionMode: "approve-all",
   });
 
   assert.deepEqual(commands.map((command) => command.args), [
-    ["codex", "set", "model", "gpt-5.4/xhigh", "-s", "pull_request-38-fix-pr-default"],
+    ["codex", "set", "model", "gpt-5.6-sol/max", "-s", "pull_request-38-fix-pr-default"],
     ["codex", "set-mode", "-s", "pull_request-38-fix-pr-default", "full-access"],
   ]);
 });
@@ -242,7 +242,7 @@ const args = process.argv.slice(2);
 fs.appendFileSync(process.env.ACPX_TEST_CALLS, JSON.stringify({ args }) + "\\n");
 if (args.includes("exec")) {
   process.stdout.write([
-    '{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-track-only","models":{"currentModelId":"gpt-5.5/xhigh"}}}',
+    '{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-track-only","models":{"currentModelId":"gpt-5.6-sol/max"}}}',
     '{"jsonrpc":"2.0","method":"session/update","params":{"update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"Done."}}}}',
     '{"jsonrpc":"2.0","id":2,"result":{"stopReason":"end_turn"}}'
   ].join("\\n") + "\\n");
@@ -255,13 +255,13 @@ if (args.includes("exec")) {
 
     const result = runAcpx({
       agent: "codex",
-      model: "gpt-5.5",
+      model: "gpt-5.6-sol",
       prompt: "synthesize current artifacts",
       cwd: process.cwd(),
       sessionMode: sessionModeForPolicy("track-only"),
       threadKey,
       permissionMode: "approve-all",
-      thoughtLevel: "xhigh",
+      thoughtLevel: "max",
       env: { ACPX_TEST_CALLS: callsPath },
     });
 
@@ -282,7 +282,7 @@ if (args.includes("exec")) {
       "--json-strict",
       "--suppress-reads",
       "--model",
-      "gpt-5.5/xhigh",
+      "gpt-5.6-sol/max",
       "codex",
       "exec",
       "synthesize current artifacts",
