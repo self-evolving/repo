@@ -260,6 +260,48 @@ test("provider resolver ignores display policy because display is handled by run
   assert.equal(policyDisplay.outputs.reasoning_effort, "max");
 });
 
+test("provider resolver does not leak bundled Codex reasoning to model-only overrides", () => {
+  const modelOnly = runResolver({
+    OPENAI_API_KEY: "openai-token",
+    AGENT_MODEL_POLICY: JSON.stringify({
+      providers: {
+        codex: { model: "o3" },
+      },
+    }),
+  });
+
+  assert.equal(modelOnly.status, 0, modelOnly.stderr);
+  assert.equal(modelOnly.outputs.provider, "codex");
+  assert.equal(modelOnly.outputs.model, "o3");
+  assert.equal(modelOnly.outputs.reasoning_effort, "");
+
+  const explicitNull = runResolver({
+    OPENAI_API_KEY: "openai-token",
+    AGENT_MODEL_POLICY: JSON.stringify({
+      providers: {
+        codex: { model: "o3", reasoning_effort: null },
+      },
+    }),
+  });
+
+  assert.equal(explicitNull.status, 0, explicitNull.stderr);
+  assert.equal(explicitNull.outputs.model, "o3");
+  assert.equal(explicitNull.outputs.reasoning_effort, "");
+
+  const explicitEmpty = runResolver({
+    OPENAI_API_KEY: "openai-token",
+    AGENT_MODEL_POLICY: JSON.stringify({
+      providers: {
+        codex: { model: "o3", reasoning_effort: "" },
+      },
+    }),
+  });
+
+  assert.equal(explicitEmpty.status, 0, explicitEmpty.stderr);
+  assert.equal(explicitEmpty.outputs.model, "o3");
+  assert.equal(explicitEmpty.outputs.reasoning_effort, "");
+});
+
 test("provider resolver lets route model policy override provider defaults", () => {
   const resolved = runResolver({
     DEFAULT_PROVIDER: "codex",
@@ -373,7 +415,7 @@ test("provider resolver preserves null and empty model policy token handling", (
   assert.equal(resolved.status, 0, resolved.stderr);
   assert.equal(resolved.outputs.provider, "codex");
   assert.equal(resolved.outputs.model, "");
-  assert.equal(resolved.outputs.reasoning_effort, "xhigh");
+  assert.equal(resolved.outputs.reasoning_effort, "");
 });
 
 test("provider resolver supports nonfatal unresolved setup passes", () => {

@@ -41,6 +41,7 @@ runs:
       shell: bash
       env:
         REQUESTED_NODE_VERSION: ${{ inputs.node_version }}
+        MINIMUM_NODE_VERSION: "22.13.0"
       run: |
         set -euo pipefail
 
@@ -64,6 +65,26 @@ runs:
 
         if [ -n "$requested_major" ] && [ "$installed_major" != "$requested_major" ]; then
           echo "Self-hosted runner has Node.js ${installed_node}, but setup-agent-runtime requires major version ${requested_major}.x." >&2
+          exit 1
+        fi
+
+        if ! node - "$installed_node" "$MINIMUM_NODE_VERSION" <<'NODE'
+        const [installed, minimum] = process.argv.slice(2);
+        function parts(version) {
+          return String(version).replace(/^v/, "").split(".").map((part) => Number.parseInt(part, 10) || 0);
+        }
+        const current = parts(installed);
+        const required = parts(minimum);
+        for (let index = 0; index < Math.max(current.length, required.length); index += 1) {
+          const actual = current[index] || 0;
+          const expected = required[index] || 0;
+          if (actual > expected) process.exit(0);
+          if (actual < expected) process.exit(1);
+        }
+        process.exit(0);
+        NODE
+        then
+          echo "Self-hosted runner has Node.js ${installed_node}, but setup-agent-runtime requires Node.js ${MINIMUM_NODE_VERSION} or newer." >&2
           exit 1
         fi
 

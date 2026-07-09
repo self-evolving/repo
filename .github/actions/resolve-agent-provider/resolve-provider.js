@@ -59,11 +59,14 @@ function normalizeConfig(value, label, allowProvider) {
     config.model = normalizeOptionalToken(value.model, `${label}.model`);
   }
   if (Object.prototype.hasOwnProperty.call(value, "reasoning_effort")) {
-    const reasoningEffort = normalizeOptionalToken(
-      value.reasoning_effort,
-      `${label}.reasoning_effort`,
-    );
-    if (reasoningEffort) config.reasoningEffort = reasoningEffort;
+    if (value.reasoning_effort === null || value.reasoning_effort === undefined) {
+      config.reasoningEffort = "";
+    } else {
+      config.reasoningEffort = normalizeOptionalToken(
+        value.reasoning_effort,
+        `${label}.reasoning_effort`,
+      );
+    }
   }
   return config;
 }
@@ -135,8 +138,8 @@ function applyRunConfig(target, config) {
   if (Object.prototype.hasOwnProperty.call(config, "model")) {
     target.model = config.model || "";
   }
-  if (config.reasoningEffort) {
-    target.reasoningEffort = config.reasoningEffort;
+  if (Object.prototype.hasOwnProperty.call(config, "reasoningEffort")) {
+    target.reasoningEffort = config.reasoningEffort || "";
   }
 }
 
@@ -194,11 +197,31 @@ function loadModelDefaults() {
 
 function resolveRunConfig(policy, modelDefaults, provider, route, options = {}) {
   const config = { model: "", reasoningEffort: "" };
-  applyRunConfig(config, modelDefaults[provider] || {});
-  applyRunConfig(config, policy.defaultConfig);
-  applyRunConfig(config, policy.providers[provider] || {});
+  const bundledDefault = modelDefaults[provider] || {};
+  applyRunConfig(config, bundledDefault);
+
+  let policyTouchedReasoningEffort = false;
+  function applyPolicyConfig(runConfig) {
+    if (Object.prototype.hasOwnProperty.call(runConfig, "reasoningEffort")) {
+      policyTouchedReasoningEffort = true;
+    }
+    applyRunConfig(config, runConfig);
+  }
+
+  applyPolicyConfig(policy.defaultConfig);
+  applyPolicyConfig(policy.providers[provider] || {});
   if (!options.hasRouteProviderOverride) {
-    applyRunConfig(config, policy.routeOverrides[route] || {});
+    applyPolicyConfig(policy.routeOverrides[route] || {});
+  }
+
+  const inheritedBundledReasoningEffort = bundledDefault.reasoningEffort || "";
+  if (
+    inheritedBundledReasoningEffort &&
+    !policyTouchedReasoningEffort &&
+    config.model !== bundledDefault.model &&
+    config.reasoningEffort === inheritedBundledReasoningEffort
+  ) {
+    config.reasoningEffort = "";
   }
   return config;
 }

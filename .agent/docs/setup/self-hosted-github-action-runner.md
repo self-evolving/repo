@@ -19,7 +19,7 @@ Keep this setup page focused on the decision to use self-hosted runners; keep ma
 
 ## Runner requirements
 
-At a high level, the runner host needs Node support compatible with `.github/actions/setup-agent-runtime`, `git`, `gh`, `jq`, `curl`, `bash`, and network access. It also needs either repository secrets for the selected agent providers or local provider authentication available to the same user that runs the GitHub runner. Docker is optional unless your workflows require it.
+At a high level, the runner host needs Node.js 22.13.0 or newer (matching `.github/actions/setup-agent-runtime` and the bundled ACPX runtime), `git`, `gh`, `jq`, `curl`, `bash`, and network access. It also needs either repository secrets for the selected agent providers or local provider authentication available to the same user that runs the GitHub runner. Docker is optional unless your workflows require it.
 
 ## Provider auth note
 

@@ -1383,6 +1383,8 @@ test("shared setup-agent-runtime action exists and is referenced by reusable wor
 
   assert.match(action, /name: Setup Agent Runtime/);
   assert.match(action, /actions\/setup-node/);
+  assert.match(action, /MINIMUM_NODE_VERSION:\s*"22\.13\.0"/);
+  assert.match(action, /requires Node\.js \$\{MINIMUM_NODE_VERSION\} or newer/);
   assert.match(action, /npm ci/);
   assert.match(action, /npm run build/);
   assert.match(runnerWorkflow, /\.\/\.github\/actions\/setup-agent-runtime/);
