@@ -1,0 +1,288 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n\n- Migrate the bundled Codex ACP adapter dependency from deprecated `@zed-industries/codex-acp` to `@agentclientprotocol/codex-acp@1.1.2` and bump `acpx` to `^0.12.0`.\n- Change Sepo's bundled Codex default to `gpt-5.6-sol` with `reasoning_effort: max`.\n- Teach provider resolution to load bundled default reasoning efforts from `.agent/model-defaults.json`.\n- Teach ACPX model selection/display logic that Codex GPT-5 reasoning suffixes include `max`.\n- Update docs and regression tests for the new default and adapter package.\n\nRefs #457.\n\n## Testing\n\n- `cd .agent && npm run test:ci`\n- Local smoke: with a clean Codex config but existing auth, `acpx codex set model gpt-5.6-sol/max` succeeded against the upgraded adapter.\n\n## Notes\n\nA local smoke run using the ambient `~/.codex/config.toml` failed because that config contains `ultra`, and the upgraded Codex stack rejects `ultra` as a config value before Sepo can set the ACP model. This PR uses `max` as the ACP model suffix (`gpt-5.6-sol/max`), not an ambient `ultra` config value. Self-hosted runner Codex configs should avoid `ultra` unless/until the underlying Codex CLI supports it.\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJcLWPA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review ",
+      "createdAt": "2026-07-09T18:52:36Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/458#issuecomment-4928493116",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJcOpQw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 6 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Couple Runtime-Dependent Defaults | pass | 8/8 | The Codex default is bundled as `gpt-5.6-sol` with `max` in [model-defaults.json](https://github.com/self-evolving/repo/blob/b46f3843c08e454fc77573fae9a22a9438e2df20/.agent/model-defaults.json#L3-L7), while the runtime adapter stack is updated in [package.json](https://github.com/self-evolving/repo/blob/b46f3843c08e454fc77573fae9a22a9438e2df20/.agent/package.json#L16-L19) and [package-lock.json](https://github.com/self-evolving/repo/blob/b46f3843c08e454fc77573fae9a22a9438e2df20/.agent/package-lock.json#L20-L32). |\n| coding_workflow/generic | Reuse Existing Code | pass | 8/8 | The change extends existing resolver and ACPX paths: `loadModelDefaults` now reads `default.reasoning_effort` in [resolve-provider.js](https://github.com/self-evolving/repo/blob/b46f3843c08e454fc77573fae9a22a9438e2df20/.github/actions/resolve-agent-provider/resolve-provider.js#L170-L190), and existing Codex model selection/display regexes are updated in [acpx-adapter.ts](https://github.com/self-evolving/repo/blob/b46f3843c08e454fc77573fae9a22a9438e2df20/.agent/src/acpx-adapter.ts#L97-L98) and [run.ts](https://github.com/self-evolving/repo/blob/b46f3843c08e454fc77573fae9a22a9438e2df20/.agent/src/run.ts#L307-L318). |\n| coding_workflow/generic | Keep Docs In Sync | pass | 7/7 | User-facing docs now describe the new bundled Codex default and reasoning effort in [configuration-list.md](https://github.com/self-evolving/repo/blob/b46f3843c08e454fc77573fae9a22a9438e2df20/.agent/docs/customization/configuration-list.md#L43-L68) and [supported-workflows.md](https://github.com/self-evolving/repo/blob/b46f3843c08e454fc77573fae9a22a9438e2df20/.agent/docs/usage/supported-workflows.md#L241-L244). |\n| coding_workflow/generic | Minimal Defaults, Native Escape Hatches | pass | 8/8 | The PR keeps the bundled default file small and pinned, and the docs continue to point users to `AGENT_MODEL_POLICY` and inline `route_provider` as escape hatches in [configuration-list.md](https://github.com/self-evolving/repo/blob/b46f3843c08e454fc77573fae9a22a9438e2df20/.agent/docs/customization/configuration-list.md#L50-L70). |\n| coding_workflow/generic | Prefer Explicit Structured Inputs | pass | 7/7 | The implementation adds a structured `reasoning_effort` field instead of overloading the model string, validates it through the existing token normalizer, and covers resolver output in [resolve-agent-provider.test.ts](https://github.com/self-evolving/repo/blob/b46f3843c08e454fc77573fae9a22a9438e2df20/.agent/src/__tests__/resolve-agent-provider.test.ts#L125-L133). |\n| coding_workflow/generic | Make Surgical Changes | pass | 8/8 | The changed files are limited to the adapter dependency bump, default selection, matching docs, and focused regression tests. Lockfile movement is tied to `@agentclientprotocol/codex-acp`, `@openai/codex`, and `acpx` transitive updates in [package-lock.json](https://github.com/self-evolving/repo/blob/b46f3843c08e454fc77573fae9a22a9438e2df20/.agent/package-lock.json#L20-L32) and [package-lock.json](https://github.com/self-evolving/repo/blob/b46f3843c08e454fc77573fae9a22a9438e2df20/.agent/package-lock.json#L622-L632). |\n\n## Notes\n\n- The PR follows the linked #457 scope: update to `gpt-5.6-sol`, support `max`, and avoid treating `ultra` as a plain reasoning-effort value.\n- Regression coverage is focused on resolver defaults and ACPX Codex model encoding in [resolve-agent-provider.test.ts](https://github.com/self-evolving/repo/blob/b46f3843c08e454fc77573fae9a22a9438e2df20/.agent/src/__tests__/resolve-agent-provider.test.ts#L125-L133) and [acpx-adapter.test.ts](https://github.com/self-evolving/repo/blob/b46f3843c08e454fc77573fae9a22a9438e2df20/.agent/src/__tests__/acpx-adapter.test.ts#L163-L202).\n- `git diff --check main...origin/pr-458` passed. I did not rerun the full `.agent` test suite locally.\n\n## Findings\n\n- No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-5`",
+      "createdAt": "2026-07-09T18:58:55Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/458#issuecomment-4928547139",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJcTcPg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: b46f3843c08e454fc77573fae9a22a9438e2df20 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #458 updates Sepo’s bundled Codex runtime for the linked #457 request. It moves the default Codex model to `gpt-5.6-sol` with `max` reasoning, migrates from `@zed-industries/codex-acp` to `@agentclientprotocol/codex-acp@1.1.2`, and bumps `acpx` to `^0.12.0`. It also updates resolver logic, ACPX model folding/display handling, docs, and focused regression tests. The PR intentionally avoids mapping `ultra` to `reasoning_effort`, matching the prior #457 answer that described Ultra as a separate Codex capability.\n\n## Review\nThe core direction matches the linked issue and the rubrics review passed, but the current implementation introduces one blocking resolver inheritance bug. There is also a runtime compatibility warning for self-hosted runners on older Node 22 patch versions.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Bundled Codex reasoning effort cannot be cleared from model overrides | BLOCKING | The resolver now loads `max` as a bundled Codex default and keeps it when policies override only `model` or try `reasoning_effort:null`/`\"\"`. This can send unintended `reasoning_effort=max` for repos pinning custom or older Codex models. |\n| Self-hosted Node validation lags the upgraded ACPX engine | WARNING | `acpx@0.12.0` requires Node `>=22.13.0`, while `setup-agent-runtime` still accepts any Node 22.x on self-hosted runners. Older 22.0-22.12 runners can pass setup and then run an unsupported runtime. |\n\n## Progress\n- Rubrics review passed all selected rubrics with no rubric-specific findings.\n- The PR already updates docs/tests for `gpt-5.6-sol`, `max`, and the adapter package rename.\n- Existing inline comments and review threads were empty before synthesis.\n- Posted two inline comments: https://github.com/self-evolving/repo/pull/458#discussion_r3554146067 and https://github.com/self-evolving/repo/pull/458#discussion_r3554146095.\n- Claude also flagged real ACPX smoke coverage and durable `ultra` config guidance as pre-merge/operator cautions; these are not the primary automated branch-change blockers in this synthesis.\n\n## Issue Details\n\n<details>\n<summary>Bundled Codex reasoning effort cannot be cleared from model overrides</summary>\n\n**Cause:** `loadModelDefaults` puts `reasoningEffort: \"max\"` into the base Codex config. `normalizeConfig` drops null/empty efforts and `applyRunConfig` only overwrites truthy `reasoningEffort`, so later policy layers that specify only `model` cannot clear the inherited default.\n\n**Candidate solutions:** Couple the bundled reasoning default only to the bundled default model, or preserve explicit clear semantics for `reasoning_effort: null` / `\"\"`. Add resolver regression tests for model-only overrides and clearing inherited reasoning effort.\n\n**Comments:** Codex marked this blocking; Claude treated inherited `max` as a backward-compat warning. I verified against PR head that model-only, null, and empty-string policies all still emit `reasoning_effort=max`, so this is blocking for installed repos that pin custom/non-default Codex models.\n\n</details>\n\n<details>\n<summary>Self-hosted Node validation lags the upgraded ACPX engine</summary>\n\n**Cause:** The PR upgrades to `acpx@0.12.0`, whose lockfile entry declares Node `>=22.13.0`, but `setup-agent-runtime` validates only the major version for self-hosted runners.\n\n**Candidate solutions:** Enforce a semver minimum of Node 22.13.0 in `setup-agent-runtime` for self-hosted runners, and update durable setup docs if they currently imply any Node 22.x is sufficient.\n\n**Comments:** Hosted `actions/setup-node` with `node-version: 22` should pick a current patch. The risk is self-hosted runners pinned to Node 22.0-22.12.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The unresolved issues are concrete branch changes that an automated fix-pr pass can safely address.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Adjust resolver layering so the bundled `max` effort applies only with the bundled Codex default model, or add explicit clear semantics for policy overrides, with regression tests.\n- [ ] Update self-hosted Node runtime validation to enforce Node `>=22.13.0`, and update durable setup docs if they list the Node 22 requirement.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-1`",
+      "createdAt": "2026-07-09T19:07:42Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/458#issuecomment-4928625726",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJcWI2w",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "Addressed the review findings in 987d157:\\n\\n- Resolver no longer leaks bundled Codex `max` into model-only overrides that move away from `gpt-5.6-sol`.\\n- `reasoning_effort: null` / `\"\"` now explicitly clears inherited policy effort.\\n- Added regression coverage for model-only, null, and empty-string override behavior.\\n- Self-hosted setup now enforces Node.js >= 22.13.0 and docs mention that requirement.\\n\\nValidation:\\n- `cd .agent && npm run test:ci`\\n- Extracted self-hosted setup step and ran `bash -n`\\n- After docs wording update: `cd .agent && npm run build && npm run check:docs`",
+      "createdAt": "2026-07-09T19:13:31Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/458#issuecomment-4928669915",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJcWpiw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review",
+      "createdAt": "2026-07-09T19:14:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/458#issuecomment-4928678283",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJcZM1g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Couple Runtime-Dependent Defaults | pass | 8/8 | The default Codex model and reasoning effort are bundled in [`model-defaults.json`](https://github.com/self-evolving/repo/blob/987d157ad568bb53a3237cbbc0a37e35c37cd965/.agent/model-defaults.json#L3-L7), while the compatible adapter/runtime bump is kept in [`package.json`](https://github.com/self-evolving/repo/blob/987d157ad568bb53a3237cbbc0a37e35c37cd965/.agent/package.json#L16-L19) and lockfile entries for `@agentclientprotocol/codex-acp` / `acpx`. |\n| coding_workflow/generic | Reuse Existing Code | pass | 8/8 | The PR extends existing resolver and ACPX model-selection paths instead of adding parallel logic: [`resolve-provider.js`](https://github.com/self-evolving/repo/blob/987d157ad568bb53a3237cbbc0a37e35c37cd965/.github/actions/resolve-agent-provider/resolve-provider.js#L173-L226), [`acpx-adapter.ts`](https://github.com/self-evolving/repo/blob/987d157ad568bb53a3237cbbc0a37e35c37cd965/.agent/src/acpx-adapter.ts#L97-L99), and [`run.ts`](https://github.com/self-evolving/repo/blob/987d157ad568bb53a3237cbbc0a37e35c37cd965/.agent/src/run.ts#L307-L320). |\n| coding_workflow/generic | Keep Docs In Sync | pass | 7/7 | The default model, `max` effort, override semantics, and self-hosted Node requirement are reflected in [`configuration-list.md`](https://github.com/self-evolving/repo/blob/987d157ad568bb53a3237cbbc0a37e35c37cd965/.agent/docs/customization/configuration-list.md#L44-L72), [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/987d157ad568bb53a3237cbbc0a37e35c37cd965/.agent/docs/usage/supported-workflows.md#L244-L244), and [`self-hosted-github-action-runner.md`](https://github.com/self-evolving/repo/blob/987d157ad568bb53a3237cbbc0a37e35c37cd965/.agent/docs/setup/self-hosted-github-action-runner.md#L20-L22). |\n| coding_workflow/generic | Minimal Defaults, Native Escape Hatches | pass | 8/8 | The bundled defaults remain a small local file, and docs preserve `AGENT_MODEL_POLICY` plus inline `route_provider` as native escape hatches instead of adding a model catalog or new setting surface. |\n| coding_workflow/generic | Prefer Explicit Structured Inputs | pass | 7/7 | The implementation uses structured `reasoning_effort`, including explicit `null` / `\"\"` clear behavior in [`normalizeConfig`](https://github.com/self-evolving/repo/blob/987d157ad568bb53a3237cbbc0a37e35c37cd965/.github/actions/resolve-agent-provider/resolve-provider.js#L61-L70), with regression coverage for model-only, null, and empty-string overrides in [`resolve-agent-provider.test.ts`](https://github.com/self-evolving/repo/blob/987d157ad568bb53a3237cbbc0a37e35c37cd965/.agent/src/__tests__/resolve-agent-provider.test.ts#L263-L303). |\n| coding_workflow/generic | Make Surgical Changes | pass | 8/8 | The changed files are scoped to the dependency bump, model default/resolution behavior, ACPX display/selection handling, setup validation, docs, and focused tests. `git diff --check main...origin/pr-458` passed. |\n| communication/generic | Make Setup Guidance Actionable | pass | 7/7 | The self-hosted runner docs now state the concrete minimum `Node.js 22.13.0 or newer`, and the setup action fails with a clear message when a self-hosted runner is below that minimum: [`action.yml`](https://github.com/self-evolving/repo/blob/987d157ad568bb53a3237cbbc0a37e35c37cd965/.github/actions/setup-agent-runtime/action.yml#L41-L89). |\n\n## Notes\n\n- The implementation matches the linked #457 guidance: it updates to `gpt-5.6-sol`, supports `max`, and does not treat `ultra` as an ordinary reasoning-effort value.\n- I independently ran the PR-head resolver for default Codex resolution and model-only / `null` / empty-string override cases; the outputs matched the new contract.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- No rubric-specific findings.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-5`",
+      "createdAt": "2026-07-09T19:19:59Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/458#issuecomment-4928720086",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJcdYMA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 987d157ad568bb53a3237cbbc0a37e35c37cd965 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #458 implements the linked #457 request to move Sepo’s bundled Codex default from `gpt-5.5` to `gpt-5.6-sol` with `max` reasoning. It also migrates the Codex ACP dependency to `@agentclientprotocol/codex-acp@1.1.2`, bumps `acpx` to `^0.12.0`, and updates ACPX suffix/display handling for `max`. The PR updates docs and resolver tests, and it intentionally does not treat `ultra` as an ordinary reasoning-effort value. Current head is `987d157ad568bb53a3237cbbc0a37e35c37cd965`.\n\n## Review\nThe original resolver leak and self-hosted Node warning are fixed at the current head, but one end-to-end blocking issue remains. The resolver can now emit a blank cleared effort, yet existing workflow call sites still coalesce that blank back to route defaults before `run-agent-task` runs.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Cleared Codex reasoning effort is reintroduced by workflow fallbacks | BLOCKING | Model-only or explicit-clear policies can produce `reasoning_effort=\"\"`, but workflow expressions such as `steps.provider.outputs.reasoning_effort || 'xhigh'` convert that cleared value back into a runtime effort. This contradicts the new documented clear semantics and needs workflow/shared-action coverage. |\n| Non-blocking adapter/runtime observations | INFO | Reviewers noted fake ACPX stub coverage, ambient `ultra` config risk, and lockfile validation limits; these are either documented, consistent with existing patterns, or expected to be covered by CI. |\n\n## Progress\n- Rubrics review passed with no rubric-specific findings.\n- The prior resolver bug is fixed in the resolver itself, with regression coverage for model-only, `null`, and empty-string overrides.\n- The prior self-hosted Node warning is fixed: `setup-agent-runtime` now enforces Node.js `>=22.13.0`, and docs mention the same requirement.\n- Added one inline reply on the existing same-agent resolver thread: https://github.com/self-evolving/repo/pull/458#discussion_r3554264044.\n- Existing older same-agent threads could not be resolved because `viewerCanResolve` is false.\n\n## Issue Details\n\n<details>\n<summary>Cleared Codex reasoning effort is reintroduced by workflow fallbacks</summary>\n\n**Cause:** The resolver clears bundled `max` when a model-only override moves away from `gpt-5.6-sol`, but callers still pass fallback expressions into `run-agent-task`. For example, [`agent-implement.yml#L237`](https://github.com/self-evolving/repo/blob/987d157ad568bb53a3237cbbc0a37e35c37cd965/.github/workflows/agent-implement.yml#L237) and [`agent-review.yml#L352`](https://github.com/self-evolving/repo/blob/987d157ad568bb53a3237cbbc0a37e35c37cd965/.github/workflows/agent-review.yml#L352) treat the blank output as false and replace it with `xhigh`.\n\n**Candidate solutions:** Carry an explicit cleared-state signal through the workflow layer, or centralize route fallback selection in the resolver/shared action so “blank because cleared” is distinguishable from “unset, use route default.” Add regression coverage that verifies the workflow/action input path preserves explicit clears.\n\n**Comments:** Claude and the rubrics reviewer verified the original findings as resolved, while Codex carried the check through the workflow call path and found this remaining behavior. The synthesis agrees this is blocking because the docs now state that model-only overrides do not inherit bundled `max` and that `null` / `\"\"` can clear inherited policy effort.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The remaining issue is a concrete branch change that an automated fix-pr pass can safely address.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Preserve explicit blank/cleared `reasoning_effort` through workflow and `run-agent-task` callers, or centralize route fallback selection so model-only and `null` / `\"\"` clears are honored end to end, with regression coverage.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-1`",
+      "createdAt": "2026-07-09T19:28:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/458#issuecomment-4928788528",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-07-09T18:47:56Z",
+  "files": [
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 8,
+      "deletions": 6,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/setup/self-hosted-github-action-runner.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/supported-workflows.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/model-defaults.json",
+      "additions": 2,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/package-lock.json",
+      "additions": 457,
+      "deletions": 262,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/package.json",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/acpx-adapter.test.ts",
+      "additions": 12,
+      "deletions": 12,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/resolve-agent-provider.test.ts",
+      "additions": 48,
+      "deletions": 6,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/acpx-adapter.ts",
+      "additions": 5,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/run.ts",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/resolve-agent-provider/resolve-provider.js",
+      "additions": 39,
+      "deletions": 12,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/setup-agent-runtime/action.yml",
+      "additions": 21,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/update-codex-acp-gpt56",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 458,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABFh1NHw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-07-09T19:06:43Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "b46f3843c08e454fc77573fae9a22a9438e2df20"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABFh1NVg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-07-09T19:06:43Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "b46f3843c08e454fc77573fae9a22a9438e2df20"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABFh9TcQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-07-09T19:26:58Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "987d157ad568bb53a3237cbbc0a37e35c37cd965"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Update Codex ACP adapter for GPT-5.6 max",
+  "updatedAt": "2026-07-09T19:28:47Z",
+  "url": "https://github.com/self-evolving/repo/pull/458"
+}

@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "@sepo-agent /answer \n\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJbukLg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I can’t make repository changes from `/answer`; this route is answer-only. The requested default-model change is feasible, but `ultra` is not a simple `reasoning_effort` value in Sepo today.\n\nCurrent state:\n- Sepo’s Codex default is pinned to `gpt-5.5` in [`.agent/model-defaults.json`](https://github.com/self-evolving/repo/blob/main/.agent/model-defaults.json#L3-L6).\n- The resolver intentionally reads that bundled file offline, not a live model catalog: [`.github/actions/resolve-agent-provider/resolve-provider.js`](https://github.com/self-evolving/repo/blob/main/.github/actions/resolve-agent-provider/resolve-provider.js#L9-L13).\n- Docs and examples also say Codex defaults to `gpt-5.5` and use `xhigh`: [configuration-list.md](https://github.com/self-evolving/repo/blob/main/.agent/docs/customization/configuration-list.md#L44-L68).\n- The ACPX adapter currently recognizes Codex reasoning suffixes only through `xhigh`, not `max` or `ultra`: [`.agent/src/acpx-adapter.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/acpx-adapter.ts#L97-L99).\n\nUpstream docs now list `gpt-5.6-sol` as the flagship GPT-5.6 model, with API reasoning efforts `none`, `low`, `medium`, `high`, `xhigh`, and `max`: https://developers.openai.com/api/docs/models. Codex docs describe “Ultra” separately as a subagent mode, not just a model slug or ordinary reasoning effort: https://developers.openai.com/codex/models.\n\nRecommended implementation:\n1. Change Sepo’s bundled Codex default from `gpt-5.5` to `gpt-5.6-sol`.\n2. Add `max` support to the Codex GPT-5 reasoning suffix handling and display logic.\n3. Do not silently map `ultra` to `reasoning_effort`; add a separate config path only if Codex/ACPX exposes Ultra as a supported CLI/API setting.\n4. Update docs and tests covering model defaults, resolver output, and ACPX model selection.\n5. Verify with `.agent` tests: `cd .agent && npm run test:ci`.\n\nFor an immediate repo-local override, the closest currently supported policy is:\n\n```json\n{\n  \"providers\": {\n    \"codex\": {\n      \"model\": \"gpt-5.6-sol\",\n      \"reasoning_effort\": \"max\"\n    }\n  }\n}\n```\n\nTo have me make the code change, rerun this as `@sepo-agent /implement`.\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — answer · 2m26s · 29 steps**\n\nLast message\n> I can’t make repository changes from `/answer`; this route is answer-only. The requested default-model change is feasible, but `ultra` is not a simple `reasoning_effort` value in Sepo today. Current state: - Sepo’s Codex default is pinned…\n\nActivity\n\n- 💬 Message \"I have enough context now. The final response will keep this in answer-only mode: explain that I can’t make the repo change from `/answer`, identify the supported default-model change, and call out that `ultra` is a separate capability tha…\"\n- 📖 Read `Read model-defaults.json` (completed)\n- 📖 Read `Read acpx-adapter.ts` (completed)\n- 📖 Read `Read configuration-list.md` (completed)\n- 📖 Read `Read resolve-provider.js` (completed)\n- 💬 Message \"I can’t make repository changes from `/answer`; this route is answer-only. The requested default-model change is feasible, but `ultra` is not a simple `reasoning_effort` value in Sepo today. Current state: - Sepo’s Codex default is pinned…\"\n</details>\n\n<!-- sepo-progress:run-29038571109 -->\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-6`",
+      "createdAt": "2026-07-09T17:52:55Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/457#issuecomment-4928021550",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-07-09T17:52:05Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 457,
+  "state": "OPEN",
+  "title": "upgrade default gpt model to gpt-5.6-sol and ultra",
+  "updatedAt": "2026-07-09T17:55:29Z",
+  "url": "https://github.com/self-evolving/repo/issues/457"
+}
