@@ -1,0 +1,179 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n\n- Bump the bundled Codex adapter to @agentclientprotocol/codex-acp 1.1.2 and ACPX 0.12.0.\n- Change the Codex default to gpt-5.6-sol with max reasoning.\n- Adapt model, reasoning, and named-session mode handling to the new adapter contract.\n- Keep bundled max coupled to the bundled model, without workflow call-site or explicit-clear changes.\n\nRefs #457.\nSupersedes #458.\n\n## Validation\n\n- Node.js 22.13.0: npm run test:ci\n  - 754 runtime tests\n  - 79 workflow tests\n  - 5 docs tests\n  - 15 shell tests\n- Authenticated one-shot runAcpx smoke returned OK on gpt-5.6-sol[max] without a saved ACPX session.\n- Authenticated reconnect smoke retained gpt-5.6-sol[max] and agent-full-access.",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJgVklQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review ",
+      "createdAt": "2026-07-10T07:06:11Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/459#issuecomment-4932854933",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJgXx4A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 87 | PARTIAL | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow/generic | Couple Runtime-Dependent Defaults | pass | 8/8 | The Codex default is bundled as `gpt-5.6-sol` with `max` in [`.agent/model-defaults.json`](https://github.com/self-evolving/repo/blob/26e0e8d95c6081968f3a15abeb7454f63f042a52/.agent/model-defaults.json#L3-L7), and the compatible runtime packages are bumped in [`.agent/package.json`](https://github.com/self-evolving/repo/blob/26e0e8d95c6081968f3a15abeb7454f63f042a52/.agent/package.json#L17-L18). |\n| coding_workflow/generic | Reuse Existing Code | pass | 8/8 | The PR extends existing resolver and ACPX paths rather than adding parallel logic: [`resolveRunConfig`](https://github.com/self-evolving/repo/blob/26e0e8d95c6081968f3a15abeb7454f63f042a52/.github/actions/resolve-agent-provider/resolve-provider.js#L195-L205) and Codex ACPX config handling in [`acpx-adapter.ts`](https://github.com/self-evolving/repo/blob/26e0e8d95c6081968f3a15abeb7454f63f042a52/.agent/src/acpx-adapter.ts#L798-L805). |\n| coding_workflow/generic | Keep Docs In Sync | partial | 5/7 | Model/default docs were updated in [configuration-list.md](https://github.com/self-evolving/repo/blob/26e0e8d95c6081968f3a15abeb7454f63f042a52/.agent/docs/customization/configuration-list.md#L48-L68) and [supported-workflows.md](https://github.com/self-evolving/repo/blob/26e0e8d95c6081968f3a15abeb7454f63f042a52/.agent/docs/usage/supported-workflows.md#L244), but the new `acpx@0.12.0` Node `>=22.13.0` requirement is not reflected in self-hosted setup docs. |\n| coding_workflow/generic | Minimal Defaults, Native Escape Hatches | pass | 8/8 | The default remains a small bundled file, and docs continue to direct custom cases to `AGENT_MODEL_POLICY` and inline `route_provider` rather than adding a model catalog or broad new setting surface. |\n| coding_workflow/generic | Prefer Explicit Structured Inputs | pass | 7/7 | The default adds structured `reasoning_effort` instead of encoding all behavior in the model string, and resolver coverage checks model-only overrides do not inherit bundled reasoning in [resolve-agent-provider.test.ts](https://github.com/self-evolving/repo/blob/26e0e8d95c6081968f3a15abeb7454f63f042a52/.agent/src/__tests__/resolve-agent-provider.test.ts#L263-L271). |\n| coding_workflow/generic | Make Surgical Changes | pass | 8/8 | The 12 changed files are scoped to the Codex adapter/runtime bump, default resolution, ACPX handling, matching docs, and focused tests. |\n| communication/generic | Make Setup Guidance Actionable | partial | 2/7 | `acpx@0.12.0` declares Node `>=22.13.0` in [package-lock.json](https://github.com/self-evolving/repo/blob/26e0e8d95c6081968f3a15abeb7454f63f042a52/.agent/package-lock.json#L622-L638), but self-hosted guidance still says only `Node.js 22.x` in [local-runner README](https://github.com/self-evolving/repo/blob/26e0e8d95c6081968f3a15abeb7454f63f042a52/.agent/tools/local-runner/README.md#L20), and setup validation only checks the major version in [setup-agent-runtime](https://github.com/self-evolving/repo/blob/26e0e8d95c6081968f3a15abeb7454f63f042a52/.github/actions/setup-agent-runtime/action.yml#L60-L70). |\n\n## Notes\n\n- The implementation matches the linked #457 direction: `gpt-5.6-sol` plus `max`, without treating `ultra` as a plain reasoning-effort value.\n- Regression coverage is focused on the resolver and ACPX adapter contracts, including Codex `reasoning_effort`, `agent-full-access`, and `CODEX_CONFIG` behavior.\n- The main rubric miss is setup/operator guidance for the new ACPX engine floor. Hosted runners using `node-version: 22` are likely fine, but self-hosted runners pinned to Node 22.0-22.12 can pass Sepo’s current preflight and then fail during runtime install/use.\n\n## Findings\n\n- **WARNING:** The PR upgrades `acpx` to a version requiring Node `>=22.13.0`, but self-hosted docs and setup validation still communicate/accept generic Node 22.x. Update setup guidance and the self-hosted runtime check, or otherwise make the new minimum visible before `npm ci` or ACPX fails.\n\n## Final Rubric Verdict\n\nPARTIAL\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-5`",
+      "createdAt": "2026-07-10T07:11:19Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/459#issuecomment-4932891104",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJgcakQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 26e0e8d95c6081968f3a15abeb7454f63f042a52 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\nPR #459 implements the linked #457 request by moving Sepo’s bundled Codex default to `gpt-5.6-sol` with `max` reasoning. It also migrates the Codex ACP adapter to `@agentclientprotocol/codex-acp@1.1.2`, bumps `acpx` to `0.12.0`, and adapts Sepo’s ACPX model/reasoning/session-mode handling to the new adapter contract. The PR supersedes #458 and intentionally avoids the broader explicit-clear workflow changes from that branch. Tests and model/default docs were updated for the new default and adapter behavior.\n\n## Review\nThe core adapter and resolver direction is sound, and reviewers agreed the default/runtime bump is appropriately bundled. One operational compatibility gap remains: the upgraded ACPX package now requires a stricter Node patch floor than Sepo’s self-hosted setup checks and docs enforce.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Self-hosted Node minimum is not enforced | BLOCKING | `acpx@0.12.0` declares `node >=22.13.0`, but self-hosted setup and local-runner checks still accept generic Node 22.x. Runners on Node 22.0-22.12 can pass Sepo validation and then run an unsupported ACPX runtime. |\n| CODEX_CONFIG parse fails opaquely | WARNING | `runAcpx` parses externally settable `CODEX_CONFIG` without a guard. Malformed JSON throws a raw `SyntaxError` before the Codex run starts. |\n\n## Progress\n- Current PR checks show `Test Scripts / check` passing on head `26e0e8d95c6081968f3a15abeb7454f63f042a52`.\n- The posted rubrics review already acknowledges the Node floor mismatch as a setup/docs gap.\n- No existing inline comments or review threads were present before synthesis.\n- Posted one inline warning for the `CODEX_CONFIG` parse guard: https://github.com/self-evolving/repo/pull/459#discussion_r3557068280.\n- No inline replies, minimizations, or thread resolutions were performed.\n\n## Issue Details\n\n<details>\n<summary>Self-hosted Node minimum is not enforced</summary>\n\n**Cause:** The PR upgrades `acpx` to `0.12.0`, whose lockfile entry requires Node `>=22.13.0`, but `.github/actions/setup-agent-runtime/action.yml` still compares only the installed/requested major version. The local runner preflight and README also continue to communicate Node 22.x rather than the patch-level minimum.\n\n**Candidate solutions:** Enforce Node.js `>=22.13.0` in the self-hosted setup action and local-runner requirement check. Update local/self-hosted setup docs that currently say generic Node 22.x.\n\n**Comments:** Codex marked this blocking, rubrics marked it warning/partial, and Claude did not flag it. Current PR head supports the issue: the ACPX engine floor is present in `.agent/package-lock.json`, while the setup action and local runner checks still accept Node 22.0-22.12.\n\n</details>\n\n<details>\n<summary>CODEX_CONFIG parse fails opaquely</summary>\n\n**Cause:** `.agent/src/acpx-adapter.ts` calls `JSON.parse(env.CODEX_CONFIG?.trim() || \"{}\")` directly in the Codex run path. If the environment contains malformed `CODEX_CONFIG`, the run fails with a raw parse error before ACPX starts.\n\n**Candidate solutions:** Add a small guarded parser that either falls back to `{}` with a warning or reports a clearer configuration error.\n\n**Comments:** This is a non-blocking robustness issue. I posted it inline because it is tied to a newly changed line and was not already covered in PR discussion.\n\n</details>\n\n## Recommended Next Step\nFIX_PR: The Node minimum mismatch requires a concrete branch change and is safe for an automated fix-pr pass.\n\n## Final Verdict\nNEEDS_REWORK\n\n## Action Items\n- [ ] Enforce Node.js `>=22.13.0` for self-hosted setup/local-runner checks and update self-hosted/local-runner docs that currently describe generic Node 22.x.\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-4`",
+      "createdAt": "2026-07-10T07:21:22Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/459#issuecomment-4932967057",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-07-10T06:27:01Z",
+  "files": [
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 6,
+      "deletions": 6,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/session-continuity.md",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/supported-workflows.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/model-defaults.json",
+      "additions": 2,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/package-lock.json",
+      "additions": 457,
+      "deletions": 262,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/package.json",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/acpx-adapter.test.ts",
+      "additions": 33,
+      "deletions": 27,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 3,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/resolve-agent-provider.test.ts",
+      "additions": 15,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/acpx-adapter.ts",
+      "additions": 24,
+      "deletions": 35,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/run.ts",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/resolve-agent-provider/resolve-provider.js",
+      "additions": 11,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/minimal-codex-gpt56",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 459,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABFlCpdQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-07-10T07:20:33Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "26e0e8d95c6081968f3a15abeb7454f63f042a52"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Update Codex runtime and GPT-5.6 default",
+  "updatedAt": "2026-07-10T07:21:22Z",
+  "url": "https://github.com/self-evolving/repo/pull/459"
+}
