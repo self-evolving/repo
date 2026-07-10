@@ -1310,7 +1310,7 @@ test("shared run-agent-task exposes an optional secondary GitHub token", () => {
   assert.match(basePrompt, /Do not use the secondary token for external writes/);
 });
 
-test("run-agent-task maps reasoning effort for Claude env and Codex thought level", () => {
+test("run-agent-task maps reasoning effort for Claude env and Codex session config", () => {
   const action = readRepoFile(".github/actions/run-agent-task/action.yml");
   const runSource = readRepoFile(".agent/src/run.ts");
   const runtimeEnvSource = readRepoFile(".agent/src/runtime-env.ts");
@@ -1324,7 +1324,8 @@ test("run-agent-task maps reasoning effort for Claude env and Codex thought leve
   assert.match(runSource, /parseBooleanFlag\(process\.env\.DISPLAY_MODEL, true\)/);
   assert.match(runSource, /CODEX_REASONING_MODEL_SUFFIX/);
   assert.match(runSource, /displayReasoningEffort/);
-  assert.match(acpxSource, /"thought_level", thoughtLevel/);
+  assert.match(acpxSource, /model_reasoning_effort/);
+  assert.match(acpxSource, /INITIAL_AGENT_MODE/);
 });
 
 test("run-agent-task callers pass secondary token without replacing primary auth", () => {
