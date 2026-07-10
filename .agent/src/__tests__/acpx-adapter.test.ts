@@ -160,20 +160,20 @@ test("buildClaudePinnedModelEnv ignores aliases, non-Claude agents, and preset o
   );
 });
 
-test("resolveAcpxModelSelection folds GPT-5 Codex reasoning into the model id", () => {
+test("resolveAcpxModelSelection separates Codex model and reasoning options", () => {
   assert.deepEqual(
     resolveAcpxModelSelection({ agent: "codex", model: "gpt-5.5", thoughtLevel: "xhigh" }),
-    { model: "gpt-5.5/xhigh", thoughtLevel: undefined, reasoningEncodedInModel: true },
+    { model: "gpt-5.5", thoughtLevel: "xhigh", reasoningEncodedInModel: false },
   );
 
   assert.deepEqual(
-    resolveAcpxModelSelection({ agent: "codex", model: "gpt-5.5/high", thoughtLevel: "xhigh" }),
-    { model: "gpt-5.5/high", thoughtLevel: undefined, reasoningEncodedInModel: true },
+    resolveAcpxModelSelection({ agent: "codex", model: "gpt-5.6-sol/max", thoughtLevel: "xhigh" }),
+    { model: "gpt-5.6-sol", thoughtLevel: "max", reasoningEncodedInModel: true },
   );
 
   assert.deepEqual(
     resolveAcpxModelSelection({ agent: "codex", model: "gpt-5.5[xhigh]", thoughtLevel: "high" }),
-    { model: "gpt-5.5[xhigh]", thoughtLevel: undefined, reasoningEncodedInModel: true },
+    { model: "gpt-5.5", thoughtLevel: "xhigh", reasoningEncodedInModel: true },
   );
 });
 
@@ -189,7 +189,7 @@ test("resolveAcpxModelSelection keeps non-Codex and unknown Codex reasoning sepa
   );
 });
 
-test("buildSessionSetupCommands encodes Codex model reasoning for named sessions", () => {
+test("buildSessionSetupCommands configures Codex model and reasoning for named sessions", () => {
   const commands = buildSessionSetupCommands({
     agent: "codex",
     sessionName: "pull_request-38-fix-pr-default",
@@ -199,8 +199,9 @@ test("buildSessionSetupCommands encodes Codex model reasoning for named sessions
   });
 
   assert.deepEqual(commands.map((command) => command.args), [
-    ["codex", "set", "model", "gpt-5.4/xhigh", "-s", "pull_request-38-fix-pr-default"],
-    ["codex", "set-mode", "-s", "pull_request-38-fix-pr-default", "full-access"],
+    ["codex", "set", "model", "gpt-5.4", "-s", "pull_request-38-fix-pr-default"],
+    ["codex", "set", "-s", "pull_request-38-fix-pr-default", "reasoning_effort", "xhigh"],
+    ["codex", "set-mode", "-s", "pull_request-38-fix-pr-default", "agent-full-access"],
   ]);
 });
 
@@ -226,7 +227,7 @@ test("buildAcpxArgs keeps track-only synthesis in exec mode without a named sess
   assert.equal(args.includes("-s"), false);
 });
 
-test("runAcpx encodes GPT-5 Codex thought level into the exec model id", () => {
+test("runAcpx applies Codex model and reasoning to a one-shot exec", () => {
   const dir = mkdtempSync(join(tmpdir(), "acpx-track-only-test-"));
   const oldPath = process.env.PATH;
   const threadKey = "self-evolving/repo:pull_request:268:review:synthesize";
@@ -239,10 +240,10 @@ test("runAcpx encodes GPT-5 Codex thought level into the exec model id", () => {
       `#!/usr/bin/env node
 const fs = require("node:fs");
 const args = process.argv.slice(2);
-fs.appendFileSync(process.env.ACPX_TEST_CALLS, JSON.stringify({ args }) + "\\n");
+fs.appendFileSync(process.env.ACPX_TEST_CALLS, JSON.stringify({ args, codexConfig: process.env.CODEX_CONFIG }) + "\\n");
 if (args.includes("exec")) {
   process.stdout.write([
-    '{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-track-only","models":{"currentModelId":"gpt-5.5/xhigh"}}}',
+    '{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-track-only","models":{"currentModelId":"gpt-5.5[xhigh]"}}}',
     '{"jsonrpc":"2.0","method":"session/update","params":{"update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"Done."}}}}',
     '{"jsonrpc":"2.0","id":2,"result":{"stopReason":"end_turn"}}'
   ].join("\\n") + "\\n");
@@ -262,7 +263,7 @@ if (args.includes("exec")) {
       threadKey,
       permissionMode: "approve-all",
       thoughtLevel: "xhigh",
-      env: { ACPX_TEST_CALLS: callsPath },
+      env: { ACPX_TEST_CALLS: callsPath, CODEX_CONFIG: '{"web_search":true}' },
     });
 
     assert.equal(result.exitCode, 0);
@@ -273,7 +274,7 @@ if (args.includes("exec")) {
     const calls = readFileSync(callsPath, "utf8")
       .trim()
       .split("\n")
-      .map((line) => JSON.parse(line) as { args: string[] });
+      .map((line) => JSON.parse(line) as { args: string[]; codexConfig?: string });
 
     assert.deepEqual(calls.map((call) => call.args), [[
       "--approve-all",
@@ -282,11 +283,16 @@ if (args.includes("exec")) {
       "--json-strict",
       "--suppress-reads",
       "--model",
-      "gpt-5.5/xhigh",
+      "gpt-5.5",
       "codex",
       "exec",
       "synthesize current artifacts",
     ]]);
+    assert.deepEqual(JSON.parse(calls[0].codexConfig!), {
+      web_search: true,
+      model: "gpt-5.5",
+      model_reasoning_effort: "xhigh",
+    });
   } finally {
     if (oldPath === undefined) {
       delete process.env.PATH;
@@ -297,7 +303,7 @@ if (args.includes("exec")) {
   }
 });
 
-test("runAcpx applies Codex thought level for session_policy none exec runs", () => {
+test("runAcpx applies Codex reasoning effort for session_policy none exec runs", () => {
   const dir = mkdtempSync(join(tmpdir(), "acpx-exec-thought-test-"));
   const oldPath = process.env.PATH;
   const threadKey = "self-evolving/repo:pull_request:337:answer:default";
@@ -313,7 +319,7 @@ const args = process.argv.slice(2);
 fs.appendFileSync(process.env.ACPX_TEST_CALLS, JSON.stringify({ args }) + "\\n");
 if (args.includes("prompt")) {
   process.stdout.write([
-    '{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-exec-thought","models":{"currentModelId":"gpt-5.4/xhigh"}}}',
+    '{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-exec-thought","models":{"currentModelId":"gpt-5.4[xhigh]"}}}',
     '{"jsonrpc":"2.0","method":"session/update","params":{"update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"Done."}}}}',
     '{"jsonrpc":"2.0","id":2,"result":{"stopReason":"end_turn"}}'
   ].join("\\n") + "\\n");
@@ -348,8 +354,8 @@ if (args.includes("prompt")) {
 
     assert.deepEqual(calls.map((call) => call.args), [
       ["codex", "sessions", "new", "--name", sessionName],
-      ["codex", "set", "-s", sessionName, "thought_level", "xhigh"],
-      ["codex", "set-mode", "-s", sessionName, "full-access"],
+      ["codex", "set", "-s", sessionName, "reasoning_effort", "xhigh"],
+      ["codex", "set-mode", "-s", sessionName, "agent-full-access"],
       [
         "--approve-all",
         "--format",
@@ -490,7 +496,7 @@ test("selectPromptForSessionOutcome falls back to full prompt without continuati
   );
 });
 
-test("buildSessionSetupCommands configures thought level and full-access mode for persistent sessions", () => {
+test("buildSessionSetupCommands configures reasoning effort and agent-full-access mode", () => {
   const commands = buildSessionSetupCommands({
     agent: "codex",
     sessionName: "issue-24-implement-default",
@@ -500,17 +506,17 @@ test("buildSessionSetupCommands configures thought level and full-access mode fo
 
   assert.deepEqual(commands, [
     {
-      label: "set thought_level",
-      args: ["codex", "set", "-s", "issue-24-implement-default", "thought_level", "xhigh"],
+      label: "set reasoning_effort",
+      args: ["codex", "set", "-s", "issue-24-implement-default", "reasoning_effort", "xhigh"],
     },
     {
       label: "set-mode",
-      args: ["codex", "set-mode", "-s", "issue-24-implement-default", "full-access"],
+      args: ["codex", "set-mode", "-s", "issue-24-implement-default", "agent-full-access"],
     },
   ]);
 });
 
-test("buildSessionSetupCommands sets full-access mode for all persistent sessions", () => {
+test("buildSessionSetupCommands sets agent-full-access mode for persistent sessions", () => {
   const commands = buildSessionSetupCommands({
     agent: "codex",
     sessionName: "pull_request-38-review-default",
@@ -520,12 +526,12 @@ test("buildSessionSetupCommands sets full-access mode for all persistent session
 
   assert.deepEqual(commands, [
     {
-      label: "set thought_level",
-      args: ["codex", "set", "-s", "pull_request-38-review-default", "thought_level", "high"],
+      label: "set reasoning_effort",
+      args: ["codex", "set", "-s", "pull_request-38-review-default", "reasoning_effort", "high"],
     },
     {
       label: "set-mode",
-      args: ["codex", "set-mode", "-s", "pull_request-38-review-default", "full-access"],
+      args: ["codex", "set-mode", "-s", "pull_request-38-review-default", "agent-full-access"],
     },
   ]);
 });
@@ -551,7 +557,7 @@ test("buildSessionSetupCommands does nothing without a session and ignores blank
     [
       {
         label: "set-mode",
-        args: ["codex", "set-mode", "-s", "issue-24-answer-default", "full-access"],
+        args: ["codex", "set-mode", "-s", "issue-24-answer-default", "agent-full-access"],
       },
     ],
   );

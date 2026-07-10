@@ -183,18 +183,26 @@ function loadModelDefaults() {
     if (!model) {
       throw new Error(`model-defaults.json must define a non-empty providers.${provider}.default.model`);
     }
-    defaults[provider] = { model };
+    const reasoningEffort = normalizeOptionalToken(
+      providers[provider]?.default?.reasoning_effort,
+      `model-defaults.json providers.${provider}.default.reasoning_effort`,
+    );
+    defaults[provider] = reasoningEffort ? { model, reasoningEffort } : { model };
   }
   return defaults;
 }
 
 function resolveRunConfig(policy, modelDefaults, provider, route, options = {}) {
-  const config = { model: "", reasoningEffort: "" };
-  applyRunConfig(config, modelDefaults[provider] || {});
+  const bundledDefault = modelDefaults[provider] || {};
+  const config = { model: bundledDefault.model || "", reasoningEffort: "" };
   applyRunConfig(config, policy.defaultConfig);
   applyRunConfig(config, policy.providers[provider] || {});
   if (!options.hasRouteProviderOverride) {
     applyRunConfig(config, policy.routeOverrides[route] || {});
+  }
+  // A bundled effort belongs to its bundled model, not to the provider in general.
+  if (!config.reasoningEffort && config.model === bundledDefault.model) {
+    config.reasoningEffort = bundledDefault.reasoningEffort || "";
   }
   return config;
 }

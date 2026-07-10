@@ -43,10 +43,10 @@ title: "Configurations list"
 
 Bundled model defaults live in `.agent/model-defaults.json` and are intentionally small and pinned:
 
-| Provider | Default model |
-|---|---|
-| `codex` | `gpt-5.5` |
-| `claude` | `claude-opus-4-8` |
+| Provider | Default model | Default reasoning effort |
+|---|---|---|
+| `codex` | `gpt-5.6-sol` | `max` |
+| `claude` | `claude-opus-4-8` | — |
 
 Sepo does not maintain a general model catalog, and the resolver reads these defaults from the bundled file locally with no network access at run time. Updates to the file ship through `agent-update.yml` with the rest of `.agent/`. Use `AGENT_MODEL_POLICY` when a repository needs different models, route-specific choices, or reasoning effort overrides.
 
@@ -55,7 +55,7 @@ Sepo does not maintain a general model catalog, and the resolver reads these def
 ```json
 {
   "providers": {
-    "codex": { "model": "gpt-5.5", "reasoning_effort": "xhigh" },
+    "codex": { "model": "gpt-5.6-sol", "reasoning_effort": "max" },
     "claude": { "model": "claude-opus-4-8", "reasoning_effort": "max" }
   },
   "route_overrides": {
@@ -65,7 +65,7 @@ Sepo does not maintain a general model catalog, and the resolver reads these def
 }
 ```
 
-For Codex GPT-5 models, Sepo accepts provider-neutral `model` plus `reasoning_effort` policy entries and passes the effective ACP model id to acpx. For example, `{ "model": "gpt-5.5", "reasoning_effort": "xhigh" }` is sent to Codex ACP as `gpt-5.5/xhigh`, matching the model ids advertised by the bundled `@zed-industries/codex-acp` adapter. If a Codex model already includes an effort suffix such as `gpt-5.5/xhigh`, Sepo treats that model id as authoritative and does not send a separate `thought_level` setting. Claude and unknown/custom Codex model ids keep using the separate reasoning-effort path.
+For Codex GPT-5 models, Sepo accepts provider-neutral `model` plus `reasoning_effort` policy entries and applies them together whenever the adapter creates or resumes a thread. For example, `{ "model": "gpt-5.6-sol", "reasoning_effort": "max" }` is reported by the bundled `@agentclientprotocol/codex-acp` adapter as the effective model id `gpt-5.6-sol[max]`. A policy model with a slash suffix such as `gpt-5.6-sol/max` is also accepted, and its suffix is authoritative over a separate `reasoning_effort` value. The bundled `max` effort applies only with the bundled `gpt-5.6-sol` model; reasoning-only policy overrides still apply independently.
 
 The bundled workflows still keep native YAML escape hatches: an inline `route_provider` in a workflow's `resolve-agent-provider` step overrides `AGENT_MODEL_POLICY` for that route. Provider selection precedence is inline `route_provider`, then `AGENT_MODEL_POLICY.route_overrides[route].provider`, then `AGENT_DEFAULT_PROVIDER`, then `auto` detection from configured provider secrets. Model selection starts from Sepo's built-in provider default, then applies `AGENT_MODEL_POLICY.default.model`, `AGENT_MODEL_POLICY.providers[provider].model`, and `AGENT_MODEL_POLICY.route_overrides[route].model`; inline `route_provider` skips that route's policy override. The review workflow still launches explicit Claude and Codex reviewer lanes; those lane providers are fixed with inline `route_provider`, so built-in/default/provider-specific model settings apply while route-specific review overrides do not. The synthesis step is resolved separately as `review-synthesize`.
 
