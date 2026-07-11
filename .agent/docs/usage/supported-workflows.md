@@ -257,7 +257,7 @@ The command is attachment-specific. It accepts only `https://github.com/user-att
 
 ### `agent-entrypoint.yml`
 
-The broad pre-filter starts the router when the event contains `@sepo-agent`. Real mention validation happens in `agent-router.yml` through `extract-context.js`. That validation is boundary-aware and strips code blocks and quoted text before deciding whether a mention is live.
+The mention branch of the entrypoint pre-filter starts the router only when the active trigger title, body, comment, or review contains `@sepo-agent`. A handle elsewhere in the webhook payload, such as the parent issue body for an unmentioned comment, does not qualify as a mention; unless the separate unmentioned-follow-up branch below applies, no runner is allocated. Real mention validation happens in `agent-router.yml` through `extract-context.js`. That validation is boundary-aware and strips code blocks and quoted text before deciding whether a mention is live.
 
 When `AGENT_FOLLOWUP_INTENT_MODE` is unset or `agent-label`, new unmentioned issue/PR comments, new PR review comments, and submitted PR reviews can also wake the router if the target already has the fixed `agent` label. The router marks these as `implicit_followup=true`, checks `answer` route authorization before the intent gate, and only continues to the inline `answer` route when the communication-rubric-aware gate returns `respond`. `ignore` posts nothing. Set `AGENT_FOLLOWUP_INTENT_MODE=disabled` or `false` to require explicit mentions only.
 
@@ -272,6 +272,8 @@ Supported surfaces:
 | `pull_request_review` | review body |
 | `discussion` | discussion title, discussion body |
 | `discussion_comment` | comment body |
+
+GitHub still records a workflow run for each configured webhook event. When the entrypoint pre-filter rejects an event, the `agent` job is marked as skipped and no runner is allocated. Bot-authored events are rejected both by this pre-filter and by context extraction, so bot-to-bot mentions are not supported; enabling them would require changing both layers deliberately.
 
 By default, the portal responds to `OWNER`, `MEMBER`, `COLLABORATOR`, and `CONTRIBUTOR` associations. `AGENT_ACCESS_POLICY` can tighten or widen access globally or for specific routes; public repositories that do not want prior contributors to trigger Sepo should remove `CONTRIBUTOR` from the allowlist. Bot authors are always skipped. Mention-based implicit route requests are triaged first and then checked against the resolved route, so denied requests get a visible unsupported reply instead of being dropped silently. Unmentioned implicit follow-ups are answer-only and are dropped silently when the answer route is not authorized. See [Trigger access policy](../customization/access-policy.md).
 
