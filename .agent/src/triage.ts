@@ -51,33 +51,34 @@ const MAX_IMPLEMENT_ISSUE_TITLE_LENGTH = 70;
 const DEFAULT_ADD_RUBRICS_ISSUE_TITLE = "Propose rubric updates";
 const ANCESTRY_CLAUSE_PREFIX = String.raw`^\s*(?:(?:please|kindly)\s+|(?:can|could|would)\s+you\s+|let['’]s\s+)?`;
 const ANCESTRY_ACTION = String.raw`(?:create|make|open|start|build|land|implement|continue|recreate|do|use|handle)`;
-const ANCESTRY_ARTIFACT = String.raw`(?:pr|pull request|branch)`;
-const ANCESTRY_TARGET = String.raw`(?:change|work|implementation|pr|pull request)`;
-const ANCESTRY_SOURCE = String.raw`(?:(?:this|the|current|source|open)\s+){1,2}(?:pr|pull request|branch|change|work|implementation)`;
-const ANCESTRY_OBJECT_PREFIX = String.raw`(?:(?:this|it|the\s+${ANCESTRY_TARGET})\s+(?:(?:as|in)\s+)?(?:an?\s+)?|an?\s+)?`;
+const ANCESTRY_ARTIFACT = String.raw`(?:pr|pull request|branch|change|work|implementation)`;
+const ANCESTRY_TARGET = ANCESTRY_ARTIFACT;
+const ANCESTRY_SOURCE = String.raw`(?:(?:this|the|current|source|open)\s+){1,2}${ANCESTRY_ARTIFACT}`;
+const ANCESTRY_OBJECT_PREFIX = String.raw`(?:(?:(?:this|it)(?:\s+${ANCESTRY_TARGET})?|the\s+${ANCESTRY_TARGET})\s+(?:(?:as|in)\s+)?(?:an?\s+)?|an?\s+)?`;
+const ANCESTRY_INTENT_END = String.raw`(?:(?:\s+(?:on|onto|above|from)\s+${ANCESTRY_SOURCE})|(?:\s+(?:for|to)\s+.+))?\s*$`;
 const STACKED_IMPLEMENT_REQUEST = new RegExp(
   [
-    String.raw`${ANCESTRY_CLAUSE_PREFIX}stack(?:ed|ing)?\s+(?:this|it)(?:\s+${ANCESTRY_TARGET})?(?:\s+(?:on|onto|above)\b)?`,
-    String.raw`${ANCESTRY_CLAUSE_PREFIX}stack(?:ed|ing)?\s+the\s+${ANCESTRY_TARGET}\b`,
-    String.raw`${ANCESTRY_CLAUSE_PREFIX}stack(?:ed|ing)?\s+(?:on|onto|above)\s+${ANCESTRY_SOURCE}\b`,
-    String.raw`${ANCESTRY_CLAUSE_PREFIX}${ANCESTRY_ACTION}\s+${ANCESTRY_OBJECT_PREFIX}stacked\s+(?:(?:follow[\s-]?up)\s+)?${ANCESTRY_ARTIFACT}\b`,
-    String.raw`${ANCESTRY_CLAUSE_PREFIX}${ANCESTRY_ACTION}\s+${ANCESTRY_OBJECT_PREFIX}follow[\s-]?up\s+${ANCESTRY_ARTIFACT}\b`,
-    String.raw`${ANCESTRY_CLAUSE_PREFIX}${ANCESTRY_ACTION}\s+${ANCESTRY_OBJECT_PREFIX}${ANCESTRY_ARTIFACT}\s+stacked\s+(?:on|onto|above)\s+${ANCESTRY_SOURCE}\b`,
-    String.raw`${ANCESTRY_CLAUSE_PREFIX}follow[\s-]?up\s+(?:on|to|from)\s+${ANCESTRY_SOURCE}\b`,
-    String.raw`${ANCESTRY_CLAUSE_PREFIX}(?:add|create|make|do)\s+(?:an?\s+)?follow[\s-]?up\s+(?:on|to|from)\s+${ANCESTRY_SOURCE}\b`,
-    String.raw`${ANCESTRY_CLAUSE_PREFIX}(?:(?:build|land|implement|continue|do|stack)\s+(?:(?:this|it|the\s+${ANCESTRY_TARGET})\s+)?)?on top of\s+${ANCESTRY_SOURCE}\b`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}stack(?:ed|ing)?\s+(?:this|it)(?:\s+${ANCESTRY_TARGET})?(?:\s+(?:on|onto|above)\s+${ANCESTRY_SOURCE})?${ANCESTRY_INTENT_END}`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}stack(?:ed|ing)?\s+the\s+${ANCESTRY_TARGET}(?:\s+(?:on|onto|above)\s+${ANCESTRY_SOURCE})?${ANCESTRY_INTENT_END}`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}stack(?:ed|ing)?\s+(?:on|onto|above)\s+${ANCESTRY_SOURCE}${ANCESTRY_INTENT_END}`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}${ANCESTRY_ACTION}\s+${ANCESTRY_OBJECT_PREFIX}stacked\s+(?:(?:follow[\s-]?up)\s+)?${ANCESTRY_ARTIFACT}${ANCESTRY_INTENT_END}`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}${ANCESTRY_ACTION}\s+${ANCESTRY_OBJECT_PREFIX}follow[\s-]?up\s+${ANCESTRY_ARTIFACT}${ANCESTRY_INTENT_END}`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}${ANCESTRY_ACTION}\s+${ANCESTRY_OBJECT_PREFIX}${ANCESTRY_ARTIFACT}\s+stacked\s+(?:on|onto|above)\s+${ANCESTRY_SOURCE}${ANCESTRY_INTENT_END}`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}follow[\s-]?up\s+(?:on|to|from)\s+${ANCESTRY_SOURCE}${ANCESTRY_INTENT_END}`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}(?:add|create|make|do)\s+(?:an?\s+)?follow[\s-]?up\s+(?:on|to|from)\s+${ANCESTRY_SOURCE}${ANCESTRY_INTENT_END}`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}(?:(?:build|land|implement|continue|do|stack)\s+(?:(?:this|it|the\s+${ANCESTRY_TARGET})\s+)?)?on top of\s+${ANCESTRY_SOURCE}${ANCESTRY_INTENT_END}`,
   ].join("|"),
   "i",
 );
 const INDEPENDENT_IMPLEMENT_REQUEST = new RegExp(
   [
-    String.raw`${ANCESTRY_CLAUSE_PREFIX}(?:make|keep|leave)\s+(?:this|it|the\s+${ANCESTRY_TARGET})\s+independent\b`,
-    String.raw`${ANCESTRY_CLAUSE_PREFIX}(?:implement|build|create|do|handle|land)\s+(?:this|it|the\s+${ANCESTRY_TARGET})\s+independently\b`,
-    String.raw`${ANCESTRY_CLAUSE_PREFIX}${ANCESTRY_ACTION}\s+${ANCESTRY_OBJECT_PREFIX}independent\s+(?:(?:stacked|follow[\s-]?up)\s+)?${ANCESTRY_ARTIFACT}\b`,
-    String.raw`${ANCESTRY_CLAUSE_PREFIX}${ANCESTRY_ACTION}\s+${ANCESTRY_OBJECT_PREFIX}(?:(?:stacked|follow[\s-]?up)\s+)?${ANCESTRY_ARTIFACT}\s+(?:(?:as|is|that\s+is|to be)\s+)?independent(?:ly)?\b`,
-    String.raw`${ANCESTRY_CLAUSE_PREFIX}(?:work\s+)?independently\s+(?:from|of)\s+${ANCESTRY_SOURCE}\b`,
-    String.raw`${ANCESTRY_CLAUSE_PREFIX}${ANCESTRY_ACTION}\s+${ANCESTRY_OBJECT_PREFIX}standalone\s+${ANCESTRY_ARTIFACT}\b`,
-    String.raw`${ANCESTRY_CLAUSE_PREFIX}${ANCESTRY_ACTION}\s+${ANCESTRY_OBJECT_PREFIX}unstacked\s+${ANCESTRY_ARTIFACT}\b`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}(?:make|keep|leave)\s+(?:this|it|the\s+${ANCESTRY_TARGET})\s+independent${ANCESTRY_INTENT_END}`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}(?:implement|build|create|do|handle|land)\s+(?:this|it|the\s+${ANCESTRY_TARGET})\s+independently${ANCESTRY_INTENT_END}`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}${ANCESTRY_ACTION}\s+${ANCESTRY_OBJECT_PREFIX}independent\s+(?:(?:stacked|follow[\s-]?up)\s+)?${ANCESTRY_ARTIFACT}${ANCESTRY_INTENT_END}`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}${ANCESTRY_ACTION}\s+${ANCESTRY_OBJECT_PREFIX}(?:(?:stacked|follow[\s-]?up)\s+)?${ANCESTRY_ARTIFACT}\s+(?:(?:as|is|that\s+is|to be)\s+)?independent(?:ly)?${ANCESTRY_INTENT_END}`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}(?:work\s+)?independently\s+(?:from|of)\s+${ANCESTRY_SOURCE}${ANCESTRY_INTENT_END}`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}${ANCESTRY_ACTION}\s+${ANCESTRY_OBJECT_PREFIX}standalone\s+${ANCESTRY_ARTIFACT}${ANCESTRY_INTENT_END}`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}${ANCESTRY_ACTION}\s+${ANCESTRY_OBJECT_PREFIX}unstacked\s+${ANCESTRY_ARTIFACT}${ANCESTRY_INTENT_END}`,
   ].join("|"),
   "i",
 );

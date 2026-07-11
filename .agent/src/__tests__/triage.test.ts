@@ -414,6 +414,27 @@ test("buildRequestedRouteDecision handles remaining ancestry grammar cases", () 
   assert.equal(decide("Implement stacked change tracking UI").basePr, "");
 });
 
+test("buildRequestedRouteDecision requires complete ancestry intent", () => {
+  const context = {
+    agentMention: "@sepo-agent",
+    triggerKind: "mention",
+    sourceKind: "issue_comment",
+    targetKind: "pull_request",
+    targetNumber: "470",
+  };
+  const decide = (request: string) => buildRequestedRouteDecision(
+    "implement",
+    `@sepo-agent /implement ${request}`,
+    context,
+  );
+
+  assert.equal(decide("Implement a stacked PR viewer").basePr, "");
+  assert.equal(decide("Build follow-up PR notifications").basePr, "");
+  assert.equal(decide("Create stacked PR documentation").basePr, "");
+  assert.equal(decide("Implement this as a stacked change").basePr, "470");
+  assert.equal(decide("Create this work as a stacked PR").basePr, "470");
+});
+
 test("buildRequestedRouteDecision uses label target context without parsing stale commands", () => {
   const sourceContext = [
     "Current PR body",

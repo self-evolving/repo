@@ -104,11 +104,11 @@ For explicit `/implement` requests from pull requests, deterministic router
 logic sets `base_pr` to the source PR when the active request asks for a stacked
 or follow-up PR. Independent requests leave `base_pr` empty. The implementation
 workflow verifies that the PR is open and same-repository before using its head
-branch. If the inferred source PR is closed or merged, the router omits
-`base_pr` before dispatch and leaves the closed PR link in the tracking issue
-context so the run starts from the default branch. For `agent/implement` label
-triggers, the target title supplies the tracking title and target body prose is
-context only; it cannot infer a stacked base.
+branch. If the inferred source PR is closed, merged, or from a fork, the router
+omits `base_pr` before dispatch and leaves the source PR link in the tracking
+issue context so the run starts from the default branch. For an
+`agent/implement` label trigger, the target title supplies the tracking title
+and target body prose is context only; it cannot infer a stacked base.
 
 When a new review synthesis, rubrics review, `fix-pr` status comment, or
 orchestrator handoff marker is posted, the workflows minimize prior visible

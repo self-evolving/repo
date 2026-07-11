@@ -44,10 +44,10 @@ function loadAccessPolicy(): AccessPolicy | null {
   }
 }
 
-function appendClosedInferredBaseNote(body: string, basePr: string, state: string): string {
+function appendIneligibleInferredBaseNote(body: string, basePr: string, reason: string): string {
   const note = [
     "## Base branch note",
-    `PR #${basePr} is ${state.toLowerCase()}, so implementation will start from the repository default branch while keeping that PR as context.`,
+    `PR #${basePr} ${reason}, so implementation will start from the repository default branch while keeping that PR as context.`,
   ].join("\n");
   const trimmed = String(body || "").trim();
   if (!trimmed) return note;
@@ -68,6 +68,20 @@ function normalizeInferredImplementBase(decision: DispatchDecision): DispatchDec
   try {
     const meta = fetchPrMeta(Number.parseInt(decision.basePr, 10), repo);
     const state = String(meta.state || "").trim().toUpperCase();
+    if (meta.isCrossRepository) {
+      console.warn(
+        `Dropping inferred base_pr #${decision.basePr} because source PR is from a fork; using the default branch instead.`,
+      );
+      return {
+        ...decision,
+        basePr: "",
+        issueBody: appendIneligibleInferredBaseNote(
+          decision.issueBody,
+          decision.basePr,
+          "is from a fork",
+        ),
+      };
+    }
     if (!state || state === "OPEN") {
       return decision;
     }
@@ -78,7 +92,11 @@ function normalizeInferredImplementBase(decision: DispatchDecision): DispatchDec
     return {
       ...decision,
       basePr: "",
-      issueBody: appendClosedInferredBaseNote(decision.issueBody, decision.basePr, state),
+      issueBody: appendIneligibleInferredBaseNote(
+        decision.issueBody,
+        decision.basePr,
+        `is ${state.toLowerCase()}`,
+      ),
     };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);

@@ -23,7 +23,7 @@ function writeFakePrViewGh(tempDir: string): void {
   writeFileSync(join(tempDir, "gh"), `#!/usr/bin/env bash
 set -euo pipefail
 if [ "\${1-}" = "pr" ] && [ "\${2-}" = "view" ]; then
-  printf '{"headRefName":"agent/source","headRefOid":"abc123","isCrossRepository":false,"state":"%s"}\\n' "\${FAKE_PR_STATE-OPEN}"
+  printf '{"headRefName":"agent/source","headRefOid":"abc123","isCrossRepository":%s,"state":"%s"}\\n' "\${FAKE_PR_CROSS_REPOSITORY-false}" "\${FAKE_PR_STATE-OPEN}"
   exit 0
 fi
 printf 'unexpected gh args: %s\\n' "$*" >&2
@@ -133,6 +133,46 @@ test("resolve-dispatch drops closed inferred base PR metadata", () => {
     assert.equal(outputs.get("base_pr"), "");
     assert.match(outputs.get("issue_body") || "", /Base branch note/);
     assert.match(outputs.get("issue_body") || "", /repository default branch/);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("resolve-dispatch drops open fork inferred base PR metadata", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-resolve-dispatch-"));
+
+  try {
+    const outputPath = join(tempDir, "github-output.txt");
+    writeFileSync(outputPath, "", "utf8");
+    writeFakePrViewGh(tempDir);
+
+    const result = spawnSync("node", [".agent/dist/cli/resolve-dispatch.js"], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        PATH: `${tempDir}:${process.env.PATH || ""}`,
+        FAKE_PR_CROSS_REPOSITORY: "true",
+        FAKE_PR_STATE: "OPEN",
+        GITHUB_OUTPUT: outputPath,
+        AGENT_HANDLE: "@sepo-agent",
+        REQUESTED_ROUTE: "implement",
+        REQUEST_TEXT: "@sepo-agent /implement Create a stacked PR for this change",
+        TARGET_KIND: "pull_request",
+        TARGET_NUMBER: "294",
+        GITHUB_REPOSITORY: "self-evolving/repo",
+        AUTHOR_ASSOCIATION: "MEMBER",
+        ACCESS_POLICY: "",
+        REPOSITORY_PRIVATE: "true",
+      },
+      encoding: "utf8",
+    });
+
+    assert.equal(result.status, 0);
+    assert.match(result.stderr, /Dropping inferred base_pr #294 because source PR is from a fork/);
+    const outputs = parseGithubOutput(outputPath);
+    assert.equal(outputs.get("base_pr"), "");
+    assert.match(outputs.get("issue_body") || "", /PR #294 is from a fork/);
+    assert.match(outputs.get("issue_body") || "", /keeping that PR as context/);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
