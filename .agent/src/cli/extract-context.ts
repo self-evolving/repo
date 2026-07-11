@@ -3,8 +3,9 @@
 // Env: GITHUB_EVENT_PATH, GITHUB_EVENT_NAME, GITHUB_REPOSITORY, INPUT_MENTION,
 //      INPUT_TRIGGER_KIND, INPUT_LABEL_NAME, INPUT_AUTHOR_ASSOCIATION,
 //      INPUT_FOLLOWUP_INTENT_MODE, INPUT_TRIAGE_MODE
-// Outputs: should_respond, association, body, source_kind, target_kind,
-//          target_number, target_url, reaction_subject_id, response_kind,
+// Outputs: should_respond, association, body, trigger_kind, source_kind,
+//          target_kind, target_number, target_title, target_url,
+//          reaction_subject_id, response_kind,
 //          source_comment_id, source_comment_url, review_comment_id,
 //          discussion_node_id, reply_to_id, requested_by, requested_route,
 //          requested_skill, implicit_followup
@@ -237,9 +238,11 @@ if (!eventPath || !eventName) {
             setOutput("should_respond", "true");
             setOutput("association", association);
             setOutput("body", ctx.body);
+            setOutput("trigger_kind", triggerKind);
             setOutput("source_kind", ctx.sourceKind);
             setOutput("target_kind", ctx.targetKind);
             setOutput("target_number", ctx.targetNumber);
+            setOutput("target_title", ctx.targetTitle);
             setOutput("target_url", ctx.targetUrl);
             setOutput("reaction_subject_id", ctx.reactionSubjectId);
             setOutput("response_kind", ctx.responseKind);

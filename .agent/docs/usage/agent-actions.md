@@ -39,7 +39,9 @@ For explicit `/implement` requests on pull requests, the router derives
 requests that explicitly ask for independent work use the default branch. If
 the inferred source PR is closed or merged, the router drops `base_pr` so the
 implementation starts from the default branch while the tracking issue keeps
-the closed PR as linked context.
+the closed PR as linked context. An `agent/implement` label instead derives the
+tracking title from the target issue or PR title and never infers `base_pr` from
+body prose.
 
 The `add-rubrics` route reuses the implementation workflow with
 `base_branch=agent/rubrics` and the dedicated add-rubrics prompt. Because the

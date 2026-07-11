@@ -51,24 +51,28 @@ const MAX_IMPLEMENT_ISSUE_TITLE_LENGTH = 70;
 const DEFAULT_ADD_RUBRICS_ISSUE_TITLE = "Propose rubric updates";
 const STACKED_IMPLEMENT_REQUEST = new RegExp(
   [
-    String.raw`\bfollow[\s-]?up\b`,
-    String.raw`\bstack(?:ed|ing)?\s+(?:this|it|the\s+(?:change|work|implementation|pr|pull request))\b`,
-    String.raw`\bstack(?:ed|ing)?\s+(?:on|onto|above)\b`,
-    String.raw`\bstacked\s+(?:pr|pull request|change|work|implementation)\b`,
+    String.raw`\bstack(?:ed|ing)?\s+(?:this|it)(?:\s+(?:change|work|implementation|pr|pull request))?(?:\s+(?:on|onto|above)\b)?`,
+    String.raw`\bstack(?:ed|ing)?\s+the\s+(?:change|work|implementation|pr|pull request)\b`,
+    String.raw`\bstack(?:ed|ing)?\s+(?:on|onto|above)\s+(?:this|the|current|source|open)\s+(?:pr|pull request|branch|change|work|implementation)\b`,
+    String.raw`\bstacked\s+(?:(?:follow[\s-]?up)\s+)?(?:pr|pull request|change|work|implementation)\b`,
+    String.raw`\bfollow[\s-]?up\s+(?:pr|pull request|change|work|implementation)\b`,
+    String.raw`\bfollow[\s-]?up\s+(?:on|to|from)\s+(?:(?:this|the|current|source|open)\s+){1,2}(?:pr|pull request|branch|change|work|implementation)\b`,
     String.raw`\bon top of (?:this|the|current) (?:pr|pull request|branch)\b`,
   ].join("|"),
   "i",
 );
 const INDEPENDENT_IMPLEMENT_REQUEST = new RegExp(
   [
-    String.raw`\bindependent(?:ly)?\b`,
+    String.raw`\b(?:make|keep|leave)\s+(?:this|it|the\s+(?:change|work|implementation|pr|pull request))\s+independent\b`,
+    String.raw`\b(?:implement|build|create|do|handle|land)\s+(?:this|it|the\s+(?:change|work|implementation))\s+independently\b`,
+    String.raw`\bindependent\s+(?:(?:stacked|follow[\s-]?up)\s+)?(?:pr|pull request|change|branch|implementation|work)\b`,
+    String.raw`\bindependently\s+(?:from|of)\s+(?:this|the|current|source)\s+(?:pr|pull request|branch|change|work|implementation)\b`,
     String.raw`\bstandalone\s+(?:pr|pull request|change|branch|implementation)\b`,
-    String.raw`\bunstacked\b`,
-    String.raw`\b(?:do not|don't|not to)\s+stack\b`,
-    String.raw`\bnot\s+(?:a\s+)?(?:stacked|follow[\s-]?up)\b`,
+    String.raw`\bunstacked\s+(?:pr|pull request|change|branch|implementation|work)\b`,
   ].join("|"),
   "i",
 );
+const LOCAL_INTENT_NEGATION = /\b(?:do\s+not|don['’]t|never|not|no|without|avoid(?:ing)?)\b(?:\s+[\w'’-]+){0,5}\s*$/i;
 
 export interface RequestedLabelDecision {
   route: string;
@@ -88,8 +92,18 @@ export interface ImplementIssueMetadata {
 
 export interface RequestedRouteContext {
   agentMention?: string;
+  triggerKind?: string;
+  sourceKind?: string;
   targetKind?: string;
   targetNumber?: string;
+  targetTitle?: string;
+}
+
+interface ExplicitRouteMatch {
+  body: string;
+  commandStart: number;
+  commandEnd: number;
+  route: string;
 }
 
 export function parseTriageMode(raw: string | undefined): TriageMode {
@@ -105,12 +119,24 @@ export function parseTriageMode(raw: string | undefined): TriageMode {
   );
 }
 
-function fallbackImplementIssueBody(originalRequest: string): string {
+function fallbackImplementIssueBody(
+  originalRequest: string,
+  context: RequestedRouteContext,
+): string {
+  const labelTriggered = String(context.triggerKind || "").trim().toLowerCase() === "label";
+  const sourceKind = String(context.sourceKind || context.targetKind || "")
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, " ");
+  const goal = labelTriggered
+    ? `Implement the requested change from the ${sourceKind || "target"} selected by the \`agent/implement\` label.`
+    : "Implement the requested change from the agent mention.";
+
   return [
     "## Goal",
-    "Implement the requested change from the agent mention.",
+    goal,
     "",
-    "## Original request",
+    labelTriggered ? "## Source context" : "## Original request",
     originalRequest,
     "",
     "## Acceptance criteria",
@@ -120,22 +146,39 @@ function fallbackImplementIssueBody(originalRequest: string): string {
   ].join("\n");
 }
 
-function requestWithoutImplementCommand(requestText: string, agentMention: string): string {
-  const sanitized = stripNonLiveMentions(String(requestText || ""));
-  const mention = String(agentMention || "").trim();
-  if (!sanitized.trim() || !mention) {
-    return "";
+function findExplicitRouteCommand(body: string, mention: string): ExplicitRouteMatch | null {
+  const sanitized = stripNonLiveMentions(String(body || ""));
+  const trimmedMention = String(mention || "").trim();
+  if (!sanitized.trim() || !trimmedMention) {
+    return null;
   }
 
-  const command = new RegExp(
-    `(^|[\\s(])${escapeRegex(mention)}\\s+/implement(?=$|[\\s.,;:!?)\\]}])`,
+  const routePattern = EXPLICIT_ROUTE_COMMANDS.map((route) => escapeRegex(route)).join("|");
+  const explicitRegex = new RegExp(
+    `(^|[\\s(])(${escapeRegex(trimmedMention)}\\s+/(${routePattern})(?=$|[\\s.,;:!?)\\]}]))`,
     "im",
   );
-  if (!command.test(sanitized)) {
+  const match = explicitRegex.exec(sanitized);
+  if (!match) {
+    return null;
+  }
+
+  const commandStart = (match.index || 0) + match[1].length;
+  return {
+    body: sanitized,
+    commandStart,
+    commandEnd: commandStart + match[2].length,
+    route: match[3].toLowerCase(),
+  };
+}
+
+function requestWithoutImplementCommand(requestText: string, agentMention: string): string {
+  const match = findExplicitRouteCommand(requestText, agentMention);
+  if (!match || match.route !== "implement") {
     return "";
   }
 
-  return sanitized.replace(command, "$1");
+  return `${match.body.slice(0, match.commandStart)}${match.body.slice(match.commandEnd)}`;
 }
 
 function normalizeImplementIssueTitle(request: string): string {
@@ -160,16 +203,47 @@ function normalizeImplementIssueTitle(request: string): string {
   return `${prefix}...`;
 }
 
+function isLocallyNegated(request: string, matchIndex: number): boolean {
+  const prefix = request.slice(Math.max(0, matchIndex - 100), matchIndex);
+  const clauseStart = Math.max(
+    prefix.lastIndexOf("."),
+    prefix.lastIndexOf(";"),
+    prefix.lastIndexOf(":"),
+    prefix.lastIndexOf("!"),
+    prefix.lastIndexOf("?"),
+    prefix.lastIndexOf("\n"),
+  );
+  return LOCAL_INTENT_NEGATION.test(prefix.slice(clauseStart + 1));
+}
+
+function hasUnnegatedIntent(request: string, pattern: RegExp): boolean {
+  const matcher = new RegExp(
+    pattern.source,
+    pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`,
+  );
+  for (const match of request.matchAll(matcher)) {
+    if (!isLocallyNegated(request, match.index || 0)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function inferImplementBasePr(request: string, context: RequestedRouteContext): string {
   const targetKind = String(context.targetKind || "").trim().toLowerCase();
   const targetNumber = String(context.targetNumber || "").trim();
-  if (targetKind !== "pull_request" || !/^[1-9]\d*$/.test(targetNumber)) {
+  const triggerKind = String(context.triggerKind || "mention").trim().toLowerCase();
+  if (
+    triggerKind === "label" ||
+    targetKind !== "pull_request" ||
+    !/^[1-9]\d*$/.test(targetNumber)
+  ) {
     return "";
   }
-  if (INDEPENDENT_IMPLEMENT_REQUEST.test(request)) {
+  if (hasUnnegatedIntent(request, INDEPENDENT_IMPLEMENT_REQUEST)) {
     return "";
   }
-  return STACKED_IMPLEMENT_REQUEST.test(request) ? targetNumber : "";
+  return hasUnnegatedIntent(request, STACKED_IMPLEMENT_REQUEST) ? targetNumber : "";
 }
 
 /**
@@ -182,14 +256,18 @@ export function buildImplementIssueMetadata(
   context: RequestedRouteContext = {},
 ): ImplementIssueMetadata {
   const originalRequest = String(requestText || "").trim() || "No request text provided.";
-  const request = requestWithoutImplementCommand(
-    requestText,
-    String(context.agentMention || ""),
-  );
+  const labelTriggered = String(context.triggerKind || "").trim().toLowerCase() === "label";
+  const request = labelTriggered
+    ? ""
+    : requestWithoutImplementCommand(
+        requestText,
+        String(context.agentMention || ""),
+      );
+  const titleSource = labelTriggered ? String(context.targetTitle || "") : request;
 
   return {
-    issueTitle: normalizeImplementIssueTitle(request),
-    issueBody: fallbackImplementIssueBody(originalRequest),
+    issueTitle: normalizeImplementIssueTitle(titleSource),
+    issueBody: fallbackImplementIssueBody(originalRequest, context),
     basePr: inferImplementBasePr(request, context),
   };
 }
@@ -229,14 +307,9 @@ export function extractRequestedRouteDecision(body: string, mention: string): Re
     return { route: "", skill: "" };
   }
 
-  const routePattern = EXPLICIT_ROUTE_COMMANDS.map((route) => escapeRegex(route)).join("|");
-  const explicitRegex = new RegExp(
-    `(?:^|[\\s(])${escapeRegex(trimmedMention)}\\s+/(${routePattern})(?=$|[\\s.,;:!?)\\]}])`,
-    "im",
-  );
-  const explicitMatch = sanitized.match(explicitRegex);
+  const explicitMatch = findExplicitRouteCommand(sanitized, trimmedMention);
   if (explicitMatch) {
-    return { route: explicitMatch[1].toLowerCase(), skill: "" };
+    return { route: explicitMatch.route, skill: "" };
   }
 
   const skillRegex = new RegExp(

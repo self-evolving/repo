@@ -20,12 +20,14 @@ test("extractEventContext maps PR review comments to thread replies", () => {
     },
     pull_request: {
       number: 5,
+      title: "Fix review comment handling",
       html_url: "https://github.com/org/repo/pull/5",
     },
   });
   assert.equal(ctx.sourceKind, "pull_request_review_comment");
   assert.equal(ctx.targetKind, "pull_request");
   assert.equal(ctx.targetNumber, "5");
+  assert.equal(ctx.targetTitle, "Fix review comment handling");
   assert.equal(ctx.responseKind, "review_comment_reply");
   assert.equal(ctx.reviewCommentId, "42");
   assert.equal(ctx.reactionSubjectId, "PRRC_42");
@@ -148,6 +150,7 @@ test("extractEventContext handles pull_request_target same as pull_request", () 
   assert.equal(ctx.sourceKind, "pull_request");
   assert.equal(ctx.targetKind, "pull_request");
   assert.equal(ctx.targetNumber, "7");
+  assert.equal(ctx.targetTitle, "feat: label triggers");
   assert.equal(ctx.reactionSubjectId, "PR_7");
   assert.ok(ctx.body.includes("label triggers"));
 

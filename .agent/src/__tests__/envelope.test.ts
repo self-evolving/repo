@@ -1029,6 +1029,10 @@ test("agent router derives explicit implement metadata without an agent session"
   );
   assert.match(
     runnerWorkflow,
+    /TRIGGER_KIND:\s*\$\{\{\s*steps\.context\.outputs\.trigger_kind\s*\}\}[\s\S]*SOURCE_KIND:\s*\$\{\{\s*steps\.context\.outputs\.source_kind\s*\}\}[\s\S]*TARGET_TITLE:\s*\$\{\{\s*steps\.context\.outputs\.target_title\s*\}\}/,
+  );
+  assert.match(
+    runnerWorkflow,
     /RESPONSE_FILE:\s*\$\{\{\s*steps\.followup_intent\.outputs\.response_file \|\| steps\.triage\.outputs\.response_file\s*\}\}/,
   );
   assert.deepEqual(

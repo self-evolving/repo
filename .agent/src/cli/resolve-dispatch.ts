@@ -1,8 +1,9 @@
 // CLI: apply dispatch policy to agent triage output.
 // Usage: node .agent/dist/cli/resolve-dispatch.js
-// Env: RESPONSE_FILE, TARGET_KIND, TARGET_NUMBER, AUTHOR_ASSOCIATION,
-//      REQUESTED_ROUTE, REQUEST_TEXT, REQUESTED_SKILL, AGENT_HANDLE, ACCESS_POLICY,
-//      REPOSITORY_PRIVATE, GITHUB_REPOSITORY, GH_TOKEN, IMPLICIT_FOLLOWUP
+// Env: RESPONSE_FILE, TRIGGER_KIND, SOURCE_KIND, TARGET_KIND, TARGET_NUMBER,
+//      TARGET_TITLE, AUTHOR_ASSOCIATION, REQUESTED_ROUTE, REQUEST_TEXT,
+//      REQUESTED_SKILL, AGENT_HANDLE, ACCESS_POLICY, REPOSITORY_PRIVATE,
+//      GITHUB_REPOSITORY, GH_TOKEN, IMPLICIT_FOLLOWUP
 // Outputs: route, needs_approval, confidence, summary, issue_title, issue_body,
 //          skill, base_pr
 
@@ -19,8 +20,11 @@ import {
 } from "../triage.js";
 
 const responseFile = process.env.RESPONSE_FILE || "";
+const triggerKind = process.env.TRIGGER_KIND || "";
+const sourceKind = process.env.SOURCE_KIND || "";
 const targetKind = process.env.TARGET_KIND || "";
 const targetNumber = String(process.env.TARGET_NUMBER || "").trim();
+const targetTitle = process.env.TARGET_TITLE || "";
 const authorAssociation = process.env.AUTHOR_ASSOCIATION || "";
 const requestedRoute = String(process.env.REQUESTED_ROUTE || "").trim().toLowerCase();
 const requestedSkill = String(process.env.REQUESTED_SKILL || "").trim();
@@ -94,8 +98,11 @@ function emitDecision(accessPolicy: AccessPolicy): void {
     const decision = isExplicit
       ? buildRequestedRouteDecision(requestedRoute, requestText, {
           agentMention: agentHandle,
+          triggerKind,
+          sourceKind,
           targetKind,
           targetNumber,
+          targetTitle,
         })
       : normalizeDispatch(raw);
     const result = applyDispatchPolicy(

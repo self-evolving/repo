@@ -209,6 +209,50 @@ test("resolve-dispatch keeps independent PR implementation requests unstacked", 
   }
 });
 
+test("resolve-dispatch derives PR label metadata from explicit source context", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-resolve-dispatch-"));
+
+  try {
+    const outputPath = join(tempDir, "github-output.txt");
+    writeFileSync(outputPath, "", "utf8");
+    const sourceContext = [
+      "PR body with historical guidance",
+      "",
+      "Earlier: @sepo-agent /implement Create a stacked follow-up PR",
+    ].join("\n");
+
+    const result = spawnSync("node", [".agent/dist/cli/resolve-dispatch.js"], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        GITHUB_OUTPUT: outputPath,
+        AGENT_HANDLE: "@sepo-agent",
+        REQUESTED_ROUTE: "implement",
+        REQUEST_TEXT: sourceContext,
+        TRIGGER_KIND: "label",
+        SOURCE_KIND: "pull_request",
+        TARGET_KIND: "pull_request",
+        TARGET_NUMBER: "268",
+        TARGET_TITLE: "Fix label-triggered implementation metadata",
+        GITHUB_REPOSITORY: "self-evolving/repo",
+        AUTHOR_ASSOCIATION: "MEMBER",
+        ACCESS_POLICY: "",
+        REPOSITORY_PRIVATE: "true",
+      },
+      encoding: "utf8",
+    });
+
+    assert.equal(result.status, 0);
+    const outputs = parseGithubOutput(outputPath);
+    assert.equal(outputs.get("issue_title"), "Fix label-triggered implementation metadata");
+    assert.match(outputs.get("issue_body") || "", /## Source context/);
+    assert.ok((outputs.get("issue_body") || "").includes(sourceContext));
+    assert.equal(outputs.get("base_pr"), "");
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
 test("resolve-dispatch emits install route without a skill", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-resolve-dispatch-"));
 

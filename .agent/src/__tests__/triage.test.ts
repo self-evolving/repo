@@ -252,9 +252,11 @@ test("buildRequestedRouteDecision falls back and safely truncates implement titl
   assert.match(long.issueTitle, /\.\.\.$/);
 });
 
-test("buildRequestedRouteDecision infers only explicit stacked PR bases", () => {
+test("buildRequestedRouteDecision infers only phrase-scoped, unnegated stacked PR bases", () => {
   const context = {
     agentMention: "@sepo-agent",
+    triggerKind: "mention",
+    sourceKind: "issue_comment",
     targetKind: "pull_request",
     targetNumber: "268",
   };
@@ -273,6 +275,26 @@ test("buildRequestedRouteDecision infers only explicit stacked PR bases", () => 
     "@sepo-agent /implement Fix stack overflow handling",
     context,
   );
+  const domainFollowup = buildRequestedRouteDecision(
+    "implement",
+    "@sepo-agent /implement Add follow-up email notifications",
+    context,
+  );
+  const negatedIndependent = buildRequestedRouteDecision(
+    "implement",
+    "@sepo-agent /implement Do not make this independent; stack it on this PR",
+    context,
+  );
+  const negatedStack = buildRequestedRouteDecision(
+    "implement",
+    "@sepo-agent /implement Do not create a stacked PR for this change",
+    context,
+  );
+  const avoidedStack = buildRequestedRouteDecision(
+    "implement",
+    "@sepo-agent /implement Handle this without stacking it on the source PR",
+    context,
+  );
   const discussion = buildRequestedRouteDecision(
     "implement",
     "@sepo-agent /implement Create a stacked follow-up PR",
@@ -282,7 +304,32 @@ test("buildRequestedRouteDecision infers only explicit stacked PR bases", () => 
   assert.equal(stacked.basePr, "268");
   assert.equal(independent.basePr, "");
   assert.equal(ordinary.basePr, "");
+  assert.equal(domainFollowup.basePr, "");
+  assert.equal(negatedIndependent.basePr, "268");
+  assert.equal(negatedStack.basePr, "");
+  assert.equal(avoidedStack.basePr, "");
   assert.equal(discussion.basePr, "");
+});
+
+test("buildRequestedRouteDecision uses label target context without parsing stale commands", () => {
+  const sourceContext = [
+    "Current PR body",
+    "",
+    "Historical example: @sepo-agent /implement Create a stacked follow-up PR",
+  ].join("\n");
+  const d = buildRequestedRouteDecision("implement", sourceContext, {
+    agentMention: "@sepo-agent",
+    triggerKind: "label",
+    sourceKind: "pull_request",
+    targetKind: "pull_request",
+    targetNumber: "268",
+    targetTitle: "Fix label-triggered implementation metadata",
+  });
+
+  assert.equal(d.issueTitle, "Fix label-triggered implementation metadata");
+  assert.match(d.issueBody, /## Source context/);
+  assert.ok(d.issueBody.includes(sourceContext));
+  assert.equal(d.basePr, "");
 });
 
 test("buildRequestedRouteDecision builds deterministic review metadata", () => {
