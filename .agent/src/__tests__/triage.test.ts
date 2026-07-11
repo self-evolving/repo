@@ -364,6 +364,36 @@ test("buildRequestedRouteDecision handles reproduced follow-up ancestry cases", 
   assert.equal(decide("Create a follow-up branch for this work").basePr, "470");
 });
 
+test("buildRequestedRouteDecision scopes ancestry inference to explicit clauses", () => {
+  const context = {
+    agentMention: "@sepo-agent",
+    triggerKind: "mention",
+    sourceKind: "issue_comment",
+    targetKind: "pull_request",
+    targetNumber: "470",
+  };
+  const decide = (request: string) => buildRequestedRouteDecision(
+    "implement",
+    `@sepo-agent /implement ${request}`,
+    context,
+  );
+
+  assert.equal(
+    decide("No extra docs needed and create a stacked branch for this change").basePr,
+    "470",
+  );
+  assert.equal(
+    decide("Do not make this independent; create a stacked PR for this change").basePr,
+    "470",
+  );
+  assert.equal(decide("Add stacked PR documentation").basePr, "");
+  assert.equal(decide("Document how to stack this PR").basePr, "");
+  assert.equal(
+    decide("Rename the independent PR section, then stack this change on the current PR").basePr,
+    "470",
+  );
+});
+
 test("buildRequestedRouteDecision uses label target context without parsing stale commands", () => {
   const sourceContext = [
     "Current PR body",

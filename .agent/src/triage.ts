@@ -49,32 +49,37 @@ export const INSTALL_ROUTE = "install";
 const DEFAULT_IMPLEMENT_ISSUE_TITLE = "Implement requested change";
 const MAX_IMPLEMENT_ISSUE_TITLE_LENGTH = 70;
 const DEFAULT_ADD_RUBRICS_ISSUE_TITLE = "Propose rubric updates";
-const IMPERATIVE_ANCESTRY_REQUEST = String.raw`(?:^|[.;:!?\n]|\b(?:and|but|then)\b)\s*(?:(?:please|kindly)\s+|(?:can|could|would)\s+you\s+|let['’]s\s+)?(?:create|make|open|start|build|land|implement|continue|recreate|do|use|add)`;
+const ANCESTRY_CLAUSE_PREFIX = String.raw`^\s*(?:(?:please|kindly)\s+|(?:can|could|would)\s+you\s+|let['’]s\s+)?`;
+const ANCESTRY_ACTION = String.raw`(?:create|make|open|start|build|land|implement|continue|recreate|do|use|handle)`;
+const ANCESTRY_ARTIFACT = String.raw`(?:pr|pull request|branch|change|work|implementation)`;
+const ANCESTRY_TARGET = String.raw`(?:change|work|implementation|pr|pull request)`;
+const ANCESTRY_SOURCE = String.raw`(?:(?:this|the|current|source|open)\s+){1,2}(?:pr|pull request|branch|change|work|implementation)`;
+const ANCESTRY_OBJECT_PREFIX = String.raw`(?:(?:this|it|the\s+${ANCESTRY_TARGET})\s+(?:(?:as|in)\s+)?(?:an?\s+)?|an?\s+)?`;
 const STACKED_IMPLEMENT_REQUEST = new RegExp(
   [
-    String.raw`\bstack(?:ed|ing)?\s+(?:this|it)(?:\s+(?:change|work|implementation|pr|pull request))?(?:\s+(?:on|onto|above)\b)?`,
-    String.raw`\bstack(?:ed|ing)?\s+the\s+(?:change|work|implementation|pr|pull request)\b`,
-    String.raw`\bstack(?:ed|ing)?\s+(?:on|onto|above)\s+(?:this|the|current|source|open)\s+(?:pr|pull request|branch|change|work|implementation)\b`,
-    String.raw`${IMPERATIVE_ANCESTRY_REQUEST}\s+(?:(?:this|it|the\s+(?:change|work|implementation))\s+(?:(?:as|in)\s+)?(?:an?\s+)?|an?\s+)?stacked\s+(?:(?:follow[\s-]?up)\s+)?(?:pr|pull request|branch|change|work|implementation)\b`,
-    String.raw`${IMPERATIVE_ANCESTRY_REQUEST}\s+(?:(?:this|it|the\s+(?:change|work|implementation))\s+(?:(?:as|in)\s+)?(?:an?\s+)?|an?\s+)?follow[\s-]?up\s+(?:pr|pull request|branch|change|work|implementation)\b`,
-    String.raw`\bfollow[\s-]?up\s+(?:on|to|from)\s+(?:(?:this|the|current|source|open)\s+){1,2}(?:pr|pull request|branch|change|work|implementation)\b`,
-    String.raw`\bon top of (?:this|the|current) (?:pr|pull request|branch)\b`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}stack(?:ed|ing)?\s+(?:this|it)(?:\s+${ANCESTRY_TARGET})?(?:\s+(?:on|onto|above)\b)?`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}stack(?:ed|ing)?\s+the\s+${ANCESTRY_TARGET}\b`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}stack(?:ed|ing)?\s+(?:on|onto|above)\s+${ANCESTRY_SOURCE}\b`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}${ANCESTRY_ACTION}\s+${ANCESTRY_OBJECT_PREFIX}stacked\s+(?:(?:follow[\s-]?up)\s+)?${ANCESTRY_ARTIFACT}\b`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}${ANCESTRY_ACTION}\s+${ANCESTRY_OBJECT_PREFIX}follow[\s-]?up\s+${ANCESTRY_ARTIFACT}\b`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}follow[\s-]?up\s+(?:on|to|from)\s+${ANCESTRY_SOURCE}\b`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}(?:add|create|make|do)\s+(?:an?\s+)?follow[\s-]?up\s+(?:on|to|from)\s+${ANCESTRY_SOURCE}\b`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}(?:(?:build|land|implement|continue|do|stack)\s+(?:(?:this|it|the\s+${ANCESTRY_TARGET})\s+)?)?on top of\s+${ANCESTRY_SOURCE}\b`,
   ].join("|"),
   "i",
 );
 const INDEPENDENT_IMPLEMENT_REQUEST = new RegExp(
   [
-    String.raw`\b(?:make|keep|leave)\s+(?:this|it|the\s+(?:change|work|implementation|pr|pull request))\s+independent\b`,
-    String.raw`\b(?:implement|build|create|do|handle|land)\s+(?:this|it|the\s+(?:change|work|implementation))\s+independently\b`,
-    String.raw`\bindependent\s+(?:(?:stacked|follow[\s-]?up)\s+)?(?:pr|pull request|change|branch|implementation|work)\b`,
-    String.raw`\b(?:stacked|follow[\s-]?up)\s+(?:pr|pull request|branch|change|work|implementation)\s+(?:(?:as|is|to be)\s+)?independent(?:ly)?\b`,
-    String.raw`\bindependently\s+(?:from|of)\s+(?:this|the|current|source)\s+(?:pr|pull request|branch|change|work|implementation)\b`,
-    String.raw`\bstandalone\s+(?:pr|pull request|change|branch|implementation)\b`,
-    String.raw`\bunstacked\s+(?:pr|pull request|change|branch|implementation|work)\b`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}(?:make|keep|leave)\s+(?:this|it|the\s+${ANCESTRY_TARGET})\s+independent\b`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}(?:implement|build|create|do|handle|land)\s+(?:this|it|the\s+${ANCESTRY_TARGET})\s+independently\b`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}${ANCESTRY_ACTION}\s+${ANCESTRY_OBJECT_PREFIX}independent\s+(?:(?:stacked|follow[\s-]?up)\s+)?${ANCESTRY_ARTIFACT}\b`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}${ANCESTRY_ACTION}\s+${ANCESTRY_OBJECT_PREFIX}(?:stacked|follow[\s-]?up)\s+${ANCESTRY_ARTIFACT}\s+(?:(?:as|is|to be)\s+)?independent(?:ly)?\b`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}(?:work\s+)?independently\s+(?:from|of)\s+${ANCESTRY_SOURCE}\b`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}${ANCESTRY_ACTION}\s+${ANCESTRY_OBJECT_PREFIX}standalone\s+${ANCESTRY_ARTIFACT}\b`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}${ANCESTRY_ACTION}\s+${ANCESTRY_OBJECT_PREFIX}unstacked\s+${ANCESTRY_ARTIFACT}\b`,
   ].join("|"),
   "i",
 );
-const LOCAL_INTENT_NEGATION = /\b(?:do\s+not|don['’]t|never|not|no|without|avoid(?:ing)?)\b(?:\s+[\w'’-]+){0,5}\s*$/i;
 
 export interface RequestedLabelDecision {
   route: string;
@@ -220,36 +225,11 @@ function normalizeImplementIssueTitle(request: string): string {
   return `${prefix}...`;
 }
 
-function isLocallyNegated(request: string, matchIndex: number): boolean {
-  const prefix = request.slice(Math.max(0, matchIndex - 100), matchIndex);
-  const punctuationStart = Math.max(
-    prefix.lastIndexOf("."),
-    prefix.lastIndexOf(";"),
-    prefix.lastIndexOf(":"),
-    prefix.lastIndexOf("!"),
-    prefix.lastIndexOf("?"),
-    prefix.lastIndexOf("\n"),
-  );
-  const conjunctions = [...prefix.matchAll(/\b(?:and|but|then)\b/gi)];
-  const lastConjunction = conjunctions.at(-1);
-  const conjunctionStart = lastConjunction?.index === undefined
-    ? 0
-    : lastConjunction.index + lastConjunction[0].length;
-  const clauseStart = Math.max(punctuationStart + 1, conjunctionStart);
-  return LOCAL_INTENT_NEGATION.test(prefix.slice(clauseStart));
-}
-
-function hasUnnegatedIntent(request: string, pattern: RegExp): boolean {
-  const matcher = new RegExp(
-    pattern.source,
-    pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`,
-  );
-  for (const match of request.matchAll(matcher)) {
-    if (!isLocallyNegated(request, match.index || 0)) {
-      return true;
-    }
-  }
-  return false;
+function splitAncestryClauses(request: string): string[] {
+  return String(request || "")
+    .split(/[.;:!?\n]+|\b(?:and|but|then)\b/gi)
+    .map((clause) => clause.trim())
+    .filter(Boolean);
 }
 
 function inferImplementBasePr(request: string, context: RequestedRouteContext): string {
@@ -263,10 +243,18 @@ function inferImplementBasePr(request: string, context: RequestedRouteContext): 
   ) {
     return "";
   }
-  if (hasUnnegatedIntent(request, INDEPENDENT_IMPLEMENT_REQUEST)) {
-    return "";
+  let inferredBasePr = "";
+  for (const clause of splitAncestryClauses(request)) {
+    // Within one clause, explicit independence wins over stacking. Across
+    // clauses, the latest explicit ancestry instruction wins; topical clauses
+    // match neither anchored grammar and therefore cannot change the result.
+    if (INDEPENDENT_IMPLEMENT_REQUEST.test(clause)) {
+      inferredBasePr = "";
+    } else if (STACKED_IMPLEMENT_REQUEST.test(clause)) {
+      inferredBasePr = targetNumber;
+    }
   }
-  return hasUnnegatedIntent(request, STACKED_IMPLEMENT_REQUEST) ? targetNumber : "";
+  return inferredBasePr;
 }
 
 /**
