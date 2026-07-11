@@ -30,7 +30,11 @@ title: "Supported workflows"
 All packaged `agent-*.yml` workflow jobs honor `AGENT_ENABLED=false` as a
 global Sepo pause before checkout, auth, provider resolution, or runtime setup.
 Unset `AGENT_ENABLED` or any value other than exact `false` leaves Sepo enabled.
-`test-scripts.yml` remains normal CI and is not paused by this flag. Its runner
+`test-scripts.yml` remains normal CI and is not paused by this flag. Pull request
+runs are limited to changes under `.agent/`, `.github/actions/`,
+`.github/prompts/`, or `.github/workflows/`, and its check job runs by default
+only in `self-evolving/repo`. Downstream repositories can opt in by setting
+`AGENT_TEST_SCRIPTS_ENABLED=true`; manual workflow dispatches always run. Runner
 labels come from `AGENT_TEST_RUNS_ON`, then `AGENT_RUNS_ON`, then
 `["ubuntu-latest"]`.
 
