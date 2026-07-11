@@ -10,7 +10,7 @@ Agent actions are route-level behaviors exposed by the `.agent` backend. They ar
 | Implement | `implement` | `.github/prompts/agent-implement.md` | explicit `/implement` or `agent/implement` label dispatches `agent-implement.yml` directly; triaged implement goes through approval first |
 | Add rubrics | `add-rubrics` | `.github/prompts/agent-add-rubrics.md` | implementation-like proposal flow that branches from `agent/rubrics`, keeps Sepo runtime on the default branch, and opens a draft PR targeting `agent/rubrics` |
 | Fix PR | `fix-pr` | `.github/prompts/agent-fix-pr.md` | PR-only dispatch to `agent-fix-pr.yml` |
-| Review | `review` | `.github/prompts/review.md` and `.github/prompts/review-synthesize.md` | parallel review jobs plus synthesis in `agent-review.yml` |
+| Review | `review` | `.github/prompts/review.md` and `.github/prompts/review-synthesize.md` | parallel review jobs plus synthesis in `agent-review.yml`; PRs get diff review, issues get focused default-branch review |
 | Orchestrate | `orchestrate` | `.github/prompts/agent-orchestrator.md` | explicit `/orchestrate`, `agent/orchestrate`, or dispatch-triaged issue/PR requests dispatch `agent-orchestrator.yml`, which selects the next action based on current target state |
 | Self approve | `agent-self-approve` | `.github/prompts/agent-self-approve.md` | opt-in PR approval gate in `agent-self-approve.yml`; deterministic code submits a review approval or records an internal approval status only after current-head checks pass |
 | Self merge | `agent-self-merge` | deterministic resolver | opt-in PR merge gate in `agent-self-merge.yml`; deterministic code merges only after current-head self-approval review/status, checks, mergeability, and requested-change guards pass |

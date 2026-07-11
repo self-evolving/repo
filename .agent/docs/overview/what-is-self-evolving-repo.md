@@ -23,7 +23,7 @@ A self-evolving repository also needs a way to actually launch agents and work w
 - labels and approval commands
 - reusable workflows and route-specific prompts
 
-That operational layer lets the repository answer questions, propose changes, review pull requests, fix issues, and improve its own workflow over time.
+That operational layer lets the repository answer questions, propose changes, review pull requests or focused issue scopes, fix issues, and improve its own workflow over time.
 
 ## From static artifact to living system
 

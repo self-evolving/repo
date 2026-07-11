@@ -17,7 +17,7 @@ title: "Supported workflows"
 | `agent-self-merge.yml` | `workflow_dispatch` | Opt-in deterministic merge gate after current-head Sepo self-approval | None |
 | `agent-implement.yml` | `workflow_dispatch` | Implementation flow: branch, commit, draft PR; supports `base_branch` or `base_pr` for stacked PRs | Auto |
 | `agent-fix-pr.yml` | `workflow_dispatch`, `workflow_call` | PR fix flow: update existing PR branch, verify, push | Auto |
-| `agent-review.yml` | `workflow_dispatch`, `workflow_call` | Parallel Claude and Codex review with resolved-provider synthesis, captured reviewed-head provenance, plus a separate rubric review comment | Claude + Codex reviewers; configurable synthesis |
+| `agent-review.yml` | `workflow_dispatch`, `workflow_call` | Parallel Claude and Codex review with resolved-provider synthesis. PR targets include captured reviewed-head provenance plus a separate rubric review comment; issue targets review the default branch for the focused request scope. | Claude + Codex reviewers; configurable synthesis |
 | `agent-branch-cleanup.yml` | `pull_request_target.closed` | Event-driven cleanup of merged agent-created branches after retargeting open stacked PRs. Excludes the shared `agent/memory` and `agent/rubrics` branches. | None |
 | `agent-close-stale-issues.yml` | `schedule` (daily), `workflow_dispatch` | Closes open `agent` issues that have had no activity for 30 days by default | None |
 | `agent-daily-summary.yml` | `schedule` (daily, disabled by default), `workflow_dispatch` | Generates a concise repository activity summary and posts it as a Discussion | Auto |
@@ -291,6 +291,10 @@ Explicit routes are:
 - `@sepo-agent /install ...`
 
 Explicit routes skip dispatch triage and resolve locally, but still go through the same route policy checks afterward.
+`/review` runs on pull requests as a diff review and on issues as a focused
+default-branch review. Issue review uses the triggering message as the review
+goal and should ask for clearer scope rather than auditing the entire
+repository when the request is too broad or ambiguous.
 When an explicit `/implement` request on a pull request or discussion creates a tracking issue, the router runs a metadata-only agent prompt to synthesize the issue title and body from the request plus target context. The slash command approves the route; it is not copied into the title. Pull request metadata can also include `base_pr` for stacked or follow-up implementation requests. If metadata generation is unavailable or invalid, the issue falls back to `Implement requested change`.
 
 Mention-based skill requests normalize the skill name to lowercase and run
@@ -327,7 +331,7 @@ the agent.
 
 ### `agent-label.yml`
 
-Applying one of these labels triggers the same downstream routing stack without requiring a live mention:
+Applying one of these labels triggers the same downstream routing stack without requiring a live mention. Route policy still controls the target kinds each label can run on:
 
 - `agent/answer`
 - `agent/implement`

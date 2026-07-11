@@ -1,21 +1,38 @@
 ## Task Description
 
-Perform a thorough code review of this pull request.
+Perform a thorough code review for the current target.
 
-Gather current PR context before judging the change:
+If `TARGET_KIND` is `pull_request`, review the pull request diff. Gather
+current PR context before judging the change:
 - `gh pr view ${TARGET_NUMBER} --repo ${REPO_SLUG} --json title,body,author,comments,files,labels,reviews,reviewDecision,state,url`
 - `gh pr view ${TARGET_NUMBER} --repo ${REPO_SLUG} --json files,headRefOid`
 - `gh pr diff ${TARGET_NUMBER} --repo ${REPO_SLUG}`
 - use `git` and local file reads to inspect repository patterns and base-branch code
 
-The checked-out repository reflects the PR base branch for workflow safety, so
-treat the live PR diff as the source of truth for proposed changes.
+If `TARGET_KIND` is `issue`, perform a focused review of the default branch
+checkout. Gather issue context first:
+- `gh issue view ${TARGET_NUMBER} --repo ${REPO_SLUG} --json title,body,author,comments,labels,state,url`
+- Treat `${REQUEST_TEXT}` as the triggering inline review goal. Use the issue
+  body/comments as supporting scope.
+- Review only the files and behavior needed for that focused goal. If the
+  request and issue context do not provide enough scope, say that clearly
+  instead of attempting a whole-repository audit.
+- Do not call `gh pr diff`, inspect PR review threads, or recommend inline PR
+  comments for issue targets.
+
+For pull requests, the checked-out repository reflects the PR base branch for
+workflow safety, so treat the live PR diff as the source of truth for proposed
+changes. For issues, the checked-out repository reflects the default branch and
+is the review subject.
 
 This review phase must not mutate GitHub state:
 - do not submit a PR review with `gh`
 - do not post inline review comments
 - do not post top-level PR comments
+- do not post issue comments
 - return your review only as markdown in the final response
+- for issue targets, skip all PR inline-comment inspection and suggestion
+  mechanics below
 - inspect existing inline review comments with
   `gh api --paginate repos/${REPO_SLUG}/pulls/${TARGET_NUMBER}/comments`
   before recommending line-specific feedback

@@ -195,7 +195,7 @@ Merged fork PRs remain a deliberate trust trade-off. The PR title/body/comments/
 
 ### Per-job permissions on review
 
-Review is the least-trusted route because it ingests arbitrary PR diffs. `agent-review.yml` keeps the matrix reviewer jobs at `contents: read` and explicitly forces `memory_mode_override: 'read-only'` on them — reviewers can consult memory but can't write.
+Review is the least-trusted route because it can ingest arbitrary PR diffs or issue-scoped audit requests. `agent-review.yml` keeps the matrix reviewer jobs at `contents: read` and explicitly forces `memory_mode_override: 'read-only'` on them — reviewers can consult memory but can't write.
 
 Only the `synthesize` job gets `contents: write` and uses the default policy-resolved mode. This also avoids the parallel-push race (two reviewer jobs contending for a fast-forward on the same ref) that would otherwise arise from running both `claude-review` and `codex-review` concurrently.
 

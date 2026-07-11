@@ -1,18 +1,39 @@
 ## Task Description
 
-You are synthesizing one or more independent code reviews of PR #${PR_NUMBER}.
+You are synthesizing one or more independent code reviews for
+`${TARGET_KIND}` #${TARGET_NUMBER}.
 
 Review outputs are available under `${REVIEWS_DIR}`. Use every review file you
 find there. If only one review file exists, synthesize from that single
 reviewer input without treating missing reviewers as an error. Do not infer
 agreement, disagreement, or deduplication from missing reviewer outputs.
-Before reporting any `BLOCKING` finding, `FIX_PR` next step, or `NEEDS_REWORK`
+Before reporting any `BLOCKING` finding, automated fix next step, or
+`NEEDS_REWORK`
 verdict, verify that each unresolved issue is supported by the current
-`${REVIEWS_DIR}` artifacts or the current PR state. Do not carry forward
-findings from older agent conversations or prior PR discussion unless they are
-still grounded in the current review artifacts or current diff.
+`${REVIEWS_DIR}` artifacts or the current target state. Do not carry forward
+findings from older agent conversations or prior discussion unless they are
+still grounded in the current review artifacts and target state.
+For pull request targets, that means each unresolved issue must still be
+grounded in the current review artifacts or current diff.
 
-Use `gh pr view ${PR_NUMBER} --repo ${GITHUB_REPOSITORY} --json title,body,comments,reviews`
+If `TARGET_KIND` is `issue`, use
+`gh issue view ${TARGET_NUMBER} --repo ${GITHUB_REPOSITORY} --json title,body,comments,labels,state,url`
+to inspect the current issue conversation before synthesizing. Treat
+`${REQUEST_TEXT}` as the focused review goal, with `${REQUEST_SOURCE_KIND}`,
+`${REQUEST_COMMENT_ID}`, and `${REQUEST_COMMENT_URL}` identifying where that
+goal came from. Produce an issue-friendly synthesis and action items. Do not
+call PR inline-comment APIs, post inline comments, resolve review threads, or
+minimize comments for issue targets. If the issue and request do not provide a
+focused scope, explain that instead of presenting a broad repository audit.
+Do not post issue comments, top-level comments, or other GitHub comments
+directly for issue targets; return markdown only. The workflow's
+`post-comment.js` step is the sole publisher for issue-target synthesis.
+For issue targets, do not use `FIX_PR` as the recommended next step; use
+`HUMAN_DECISION` when follow-up implementation or prioritization is needed, or
+`NO_AUTOMATED_ACTION` when no automated follow-up is appropriate.
+
+If `TARGET_KIND` is `pull_request`, use
+`gh pr view ${PR_NUMBER} --repo ${GITHUB_REPOSITORY} --json title,body,comments,reviews`
 to inspect the current PR conversation before synthesizing.
 Use `gh api --paginate repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/comments`
 to inspect existing inline review comments before posting any new ones.
@@ -25,7 +46,8 @@ action. Before mutating GitHub inline comments, re-fetch existing inline
 comments and review threads when relevant, and verify the target still belongs
 to this PR and still warrants the action.
 
-When a finding is concrete, actionable, and tied to a specific changed line,
+For pull request targets, when a finding is concrete, actionable, and tied to a
+specific changed line,
 post an inline PR comment with `gh` before returning the final synthesis. Use
 inline comments sparingly:
 - only for file/line-specific issues that merit direct reviewer feedback

@@ -1138,13 +1138,18 @@ jobs:
       vars.AGENT_ENABLED != 'false' &&
       needs.portal.outputs.should_respond == 'true' &&
       needs.portal.outputs.route == 'review' &&
-      needs.portal.outputs.target_kind == 'pull_request' &&
+      (needs.portal.outputs.target_kind == 'issue' || needs.portal.outputs.target_kind == 'pull_request') &&
       github.event.action != 'edited'
     uses: ./.github/workflows/agent-review.yml
     with:
-      pr_number: ${{ needs.portal.outputs.target_number }}
+      pr_number: ${{ needs.portal.outputs.target_kind == 'pull_request' && needs.portal.outputs.target_number || '' }}
+      target_kind: ${{ needs.portal.outputs.target_kind }}
+      target_number: ${{ needs.portal.outputs.target_number }}
       requested_by: ${{ needs.portal.outputs.requested_by }}
       request_text: ${{ needs.portal.outputs.body }}
+      request_source_kind: ${{ needs.portal.outputs.source_kind }}
+      request_comment_id: ${{ needs.portal.outputs.source_comment_id }}
+      request_comment_url: ${{ needs.portal.outputs.source_comment_url }}
       runs_on: ${{ inputs.runs_on }}
       session_bundle_mode: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
       automation_mode: ${{ inputs.automation_mode }}

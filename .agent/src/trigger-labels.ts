@@ -27,7 +27,7 @@ export const BUILT_IN_TRIGGER_LABELS: TriggerLabel[] = [
   {
     name: "agent/review",
     route: "review",
-    description: "Ask Sepo to review a pull request",
+    description: "Ask Sepo to review a pull request or focused issue scope",
     color: "bf3989",
   },
   {

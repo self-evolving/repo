@@ -493,13 +493,13 @@ export function applyDispatchPolicy(
   }
 
   if (normalized.route === "review") {
-    if (targetKind !== "pull_request") {
+    if (targetKind !== "issue" && targetKind !== "pull_request") {
       return {
         ...normalized,
         route: "unsupported",
         needsApproval: false,
         summary:
-          "Review requests are only supported from pull requests right now.",
+          "Review requests are currently supported on issues and pull requests only.",
         issueTitle: "",
         issueBody: "",
       };

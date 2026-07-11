@@ -1,4 +1,6 @@
-import { readFileSync, readdirSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
@@ -49,6 +51,79 @@ function readRunAgentTaskSteps(relativePath: string): Array<{
     }
   }
   return steps;
+}
+
+function readReviewTargetPreflightScript(): string {
+  const workflow = parseYaml(readRepoFile(".github/workflows/agent-review.yml")) as unknown;
+  assert.ok(isRecord(workflow), "agent-review workflow should parse");
+  assert.ok(isRecord(workflow.jobs), "agent-review workflow should define jobs");
+  const preflightJob = workflow.jobs.preflight;
+  assert.ok(isRecord(preflightJob), "agent-review workflow should define preflight job");
+  assert.ok(Array.isArray(preflightJob.steps), "preflight job should define steps");
+
+  const targetStep = preflightJob.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Normalize review target",
+  );
+  assert.ok(targetStep, "preflight job should normalize review target");
+  const run = targetStep.run;
+  if (typeof run !== "string") {
+    assert.fail("preflight target step should define a shell script");
+  }
+  return run;
+}
+
+function parseSimpleGithubOutput(outputText: string): Record<string, string> {
+  const outputs: Record<string, string> = {};
+  for (const line of outputText.split(/\r?\n/)) {
+    if (!line) continue;
+    const separatorIndex = line.indexOf("=");
+    if (separatorIndex === -1) continue;
+    outputs[line.slice(0, separatorIndex)] = line.slice(separatorIndex + 1);
+  }
+  return outputs;
+}
+
+function runReviewTargetPreflight(env: Record<string, string>): {
+  status: number;
+  stderr: string;
+  stdout: string;
+  outputs: Record<string, string>;
+} {
+  const tempDir = mkdtempSync(path.join(tmpdir(), "agent-review-target-"));
+  try {
+    const outputPath = path.join(tempDir, "github-output");
+    const result = spawnSync("bash", ["-c", readReviewTargetPreflightScript()], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        GITHUB_OUTPUT: outputPath,
+        GITHUB_REPOSITORY: "self-evolving/repo",
+        GITHUB_SERVER_URL: "https://github.com",
+        RAW_PR_NUMBER: "",
+        RAW_TARGET_KIND: "",
+        RAW_TARGET_NUMBER: "",
+        ...env,
+      },
+      encoding: "utf8",
+    });
+
+    let outputText = "";
+    try {
+      outputText = readFileSync(outputPath, "utf8");
+    } catch {
+      outputText = "";
+    }
+
+    return {
+      status: result.status ?? 1,
+      stderr: result.stderr,
+      stdout: result.stdout,
+      outputs: parseSimpleGithubOutput(outputText),
+    };
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
 }
 
 function readMarkdownIssueTemplate(relativePath: string): {
@@ -139,14 +214,19 @@ test("route prompts do not duplicate the base metadata header", () => {
 
 test("review and implement prompts use self-serve context gathering", () => {
   const reviewPrompt = readRepoFile(".github/prompts/review.md");
+  const synthesisPrompt = readRepoFile(".github/prompts/review-synthesize.md");
   const implementPrompt = readRepoFile(".github/prompts/agent-implement.md");
 
   assert.match(reviewPrompt, /gh pr view \$\{TARGET_NUMBER\} --repo \$\{REPO_SLUG\}/);
   assert.match(reviewPrompt, /gh pr diff \$\{TARGET_NUMBER\} --repo \$\{REPO_SLUG\}/);
+  assert.match(reviewPrompt, /gh issue view \$\{TARGET_NUMBER\} --repo \$\{REPO_SLUG\}/);
+  assert.match(reviewPrompt, /\$\{REQUEST_TEXT\}/);
   assert.doesNotMatch(
     reviewPrompt,
     /\$\{PR_META_FILE\}|\$\{DIFF_FILE\}|\$\{RESOURCE_MANIFEST_FILE\}/,
   );
+  assert.match(synthesisPrompt, /do not post issue comments, top-level comments, or other GitHub comments\s+directly for issue targets/i);
+  assert.match(synthesisPrompt, /`post-comment\.js` step is the sole publisher for issue-target synthesis/i);
 
   assert.match(implementPrompt, /gh issue view \$\{TARGET_NUMBER\} --repo \$\{REPO_SLUG\}/);
   assert.match(implementPrompt, /"commit_message"/);
@@ -768,8 +848,28 @@ test("review workflow captures reviewed head as best-effort prepare output", () 
   assert.ok(isRecord(workflow), "review workflow should parse as a YAML object");
   assert.ok(isRecord(workflow.jobs), "review workflow should define jobs");
 
+  const preflightJob = workflow.jobs.preflight;
+  assert.ok(isRecord(preflightJob), "review workflow should define preflight job");
+  assert.ok(isRecord(preflightJob.outputs), "preflight job should define outputs");
+  assert.equal(preflightJob.outputs.target_kind, "${{ steps.target.outputs.target_kind }}");
+  assert.equal(preflightJob.outputs.target_number, "${{ steps.target.outputs.target_number }}");
+  assert.equal(preflightJob.outputs.target_url, "${{ steps.target.outputs.target_url }}");
+  assert.equal(preflightJob.outputs.comment_target, "${{ steps.target.outputs.comment_target }}");
+  assert.ok(Array.isArray(preflightJob.steps), "preflight job should define steps");
+  const preflightTargetStep = preflightJob.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Normalize review target",
+  );
+  assert.ok(preflightTargetStep, "preflight job should normalize review target");
+  assert.equal(preflightTargetStep.id, "target");
+  const preflightRun = String(preflightTargetStep.run || "");
+  assert.match(preflightRun, /case "\$target_kind" in\s+issue\|pull_request\)/);
+  assert.match(preflightRun, /\^\[1-9\]\[0-9\]\*\$/);
+  assert.doesNotMatch(preflightRun, /setup-agent-runtime|resolve-agent-provider|run-agent-task/);
+
   const prepareJob = workflow.jobs.prepare;
   assert.ok(isRecord(prepareJob), "review workflow should define prepare job");
+  assert.equal(prepareJob.needs, "preflight");
   assert.ok(isRecord(prepareJob.outputs), "prepare job should define outputs");
   assert.equal(prepareJob.outputs.reviewed_head_sha, "${{ steps.capture.outputs.head_sha }}");
   assert.ok(Array.isArray(prepareJob.steps), "prepare job should define steps");
@@ -779,22 +879,34 @@ test("review workflow captures reviewed head as best-effort prepare output", () 
   );
   assert.ok(captureStep, "prepare job should capture the reviewed head");
   assert.equal(captureStep["continue-on-error"], true);
+  assert.equal(captureStep.if, "${{ needs.preflight.outputs.target_kind == 'pull_request' }}");
   assert.equal(captureStep.run, "node .agent/dist/cli/capture-pr-head.js");
   assert.ok(isRecord(captureStep.env), "capture step should define env");
-  assert.equal(captureStep.env.TARGET_NUMBER, "${{ inputs.pr_number }}");
+  assert.equal(captureStep.env.TARGET_NUMBER, "${{ needs.preflight.outputs.target_number }}");
 
   const reviewJob = workflow.jobs.review;
   assert.ok(isRecord(reviewJob), "review workflow should define review job");
-  assert.deepEqual(reviewJob.needs, ["prepare"]);
-  assert.equal(reviewJob.if, "${{ vars.AGENT_ENABLED != 'false' && !cancelled() }}");
+  assert.deepEqual(reviewJob.needs, ["preflight", "prepare"]);
+  assert.equal(
+    reviewJob.if,
+    "${{ vars.AGENT_ENABLED != 'false' && needs.preflight.result == 'success' && !cancelled() }}",
+  );
 
   const rubricsReviewJob = workflow.jobs["rubrics-review"];
   assert.ok(isRecord(rubricsReviewJob), "review workflow should define rubrics-review job");
-  assert.equal(rubricsReviewJob.needs, undefined);
+  assert.equal(rubricsReviewJob.needs, "preflight");
+  assert.equal(
+    rubricsReviewJob.if,
+    "vars.AGENT_ENABLED != 'false' && needs.preflight.outputs.target_kind == 'pull_request'",
+  );
 
   const synthesizeJob = workflow.jobs.synthesize;
   assert.ok(isRecord(synthesizeJob), "review workflow should define synthesize job");
-  assert.deepEqual(synthesizeJob.needs, ["prepare", "review"]);
+  assert.deepEqual(synthesizeJob.needs, ["preflight", "prepare", "review"]);
+  assert.equal(
+    synthesizeJob.if,
+    "${{ vars.AGENT_ENABLED != 'false' && needs.preflight.result == 'success' && !cancelled() }}",
+  );
   assert.ok(Array.isArray(synthesizeJob.steps), "synthesize job should define steps");
 
   const postCommentStep = synthesizeJob.steps.find(
@@ -803,9 +915,113 @@ test("review workflow captures reviewed head as best-effort prepare output", () 
   assert.ok(postCommentStep, "synthesize job should post the review comment");
   assert.ok(isRecord(postCommentStep.env), "post review comment step should define env");
   assert.equal(
+    postCommentStep.env.COMMENT_TARGET,
+    "${{ needs.preflight.outputs.comment_target }}",
+  );
+  assert.equal(postCommentStep.env.TARGET_NUMBER, "${{ needs.preflight.outputs.target_number }}");
+  assert.equal(
     postCommentStep.env.REVIEWED_HEAD_SHA,
     "${{ needs.prepare.outputs.reviewed_head_sha }}",
   );
+});
+
+test("review target preflight normalizes supported targets", () => {
+  const issue = runReviewTargetPreflight({
+    RAW_TARGET_KIND: "Issue",
+    RAW_TARGET_NUMBER: "42",
+  });
+  assert.equal(issue.status, 0, issue.stderr);
+  assert.deepEqual(issue.outputs, {
+    target_kind: "issue",
+    target_number: "42",
+    target_url: "https://github.com/self-evolving/repo/issues/42",
+    comment_target: "issue",
+  });
+
+  const legacyPr = runReviewTargetPreflight({
+    RAW_PR_NUMBER: "17",
+  });
+  assert.equal(legacyPr.status, 0, legacyPr.stderr);
+  assert.deepEqual(legacyPr.outputs, {
+    target_kind: "pull_request",
+    target_number: "17",
+    target_url: "https://github.com/self-evolving/repo/pull/17",
+    comment_target: "pr",
+  });
+});
+
+test("review target preflight rejects unsupported or missing targets", () => {
+  const unsupported = runReviewTargetPreflight({
+    RAW_TARGET_KIND: "discussion",
+    RAW_TARGET_NUMBER: "42",
+  });
+  assert.notEqual(unsupported.status, 0);
+  assert.match(unsupported.stderr, /supports target_kind 'issue' or 'pull_request'/);
+
+  const missingNumber = runReviewTargetPreflight({
+    RAW_TARGET_KIND: "pull_request",
+  });
+  assert.notEqual(missingNumber.status, 0);
+  assert.match(missingNumber.stderr, /requires target_number or pr_number to be a positive integer/);
+
+  const nonPositive = runReviewTargetPreflight({
+    RAW_TARGET_KIND: "issue",
+    RAW_TARGET_NUMBER: "0",
+  });
+  assert.notEqual(nonPositive.status, 0);
+  assert.match(nonPositive.stderr, /requires target_number or pr_number to be a positive integer/);
+
+  const conflicting = runReviewTargetPreflight({
+    RAW_PR_NUMBER: "10",
+    RAW_TARGET_KIND: "pull_request",
+    RAW_TARGET_NUMBER: "11",
+  });
+  assert.notEqual(conflicting.status, 0);
+  assert.match(conflicting.stderr, /received conflicting target_number '11' and pr_number '10'/);
+});
+
+test("review route dispatch supports issues and forwards trigger metadata", () => {
+  const routerWorkflow = parseYaml(readRepoFile(".github/workflows/agent-router.yml")) as unknown;
+  assert.ok(isRecord(routerWorkflow), "agent-router workflow should parse");
+  assert.ok(isRecord(routerWorkflow.jobs), "agent-router workflow should define jobs");
+  const reviewJob = routerWorkflow.jobs.review;
+  assert.ok(isRecord(reviewJob), "agent-router should define review job");
+  assert.match(
+    String(reviewJob.if || ""),
+    /\(needs\.portal\.outputs\.target_kind == 'issue' \|\| needs\.portal\.outputs\.target_kind == 'pull_request'\)/,
+  );
+  assert.ok(isRecord(reviewJob.with), "review job should pass inputs");
+  assert.equal(reviewJob.with.target_kind, "${{ needs.portal.outputs.target_kind }}");
+  assert.equal(reviewJob.with.target_number, "${{ needs.portal.outputs.target_number }}");
+  assert.equal(reviewJob.with.request_text, "${{ needs.portal.outputs.body }}");
+  assert.equal(reviewJob.with.request_source_kind, "${{ needs.portal.outputs.source_kind }}");
+  assert.equal(reviewJob.with.request_comment_id, "${{ needs.portal.outputs.source_comment_id }}");
+  assert.equal(reviewJob.with.request_comment_url, "${{ needs.portal.outputs.source_comment_url }}");
+
+  const reviewWorkflow = parseYaml(readRepoFile(".github/workflows/agent-review.yml")) as unknown;
+  assert.ok(isRecord(reviewWorkflow), "agent-review workflow should parse");
+  assert.ok(isRecord(reviewWorkflow.on), "agent-review should define triggers");
+  const workflowCall = reviewWorkflow.on.workflow_call;
+  assert.ok(isRecord(workflowCall), "agent-review should define workflow_call");
+  assert.ok(isRecord(workflowCall.inputs), "workflow_call should define inputs");
+  assert.ok(isRecord(workflowCall.inputs.pr_number), "workflow_call should accept pr_number");
+  assert.ok(isRecord(workflowCall.inputs.target_kind), "workflow_call should accept target_kind");
+  assert.ok(isRecord(workflowCall.inputs.target_number), "workflow_call should accept target_number");
+  assert.ok(isRecord(workflowCall.inputs.request_comment_id), "workflow_call should accept request_comment_id");
+  assert.equal(workflowCall.inputs.pr_number.required, false);
+
+  const runSteps = readRunAgentTaskSteps(".github/workflows/agent-review.yml");
+  assert.ok(runSteps.length >= 2, "review workflow should run reviewers and synthesis");
+  for (const { step } of runSteps) {
+    assert.ok(isRecord(step.with), "review run-agent-task step should define inputs");
+    assert.equal(step.with.target_kind, "${{ needs.preflight.outputs.target_kind }}");
+    assert.equal(step.with.target_number, "${{ needs.preflight.outputs.target_number }}");
+    assert.equal(step.with.target_url, "${{ needs.preflight.outputs.target_url }}");
+    assert.equal(step.with.request_text, "${{ inputs.request_text }}");
+    assert.equal(step.with.request_source_kind, "${{ inputs.request_source_kind }}");
+    assert.equal(step.with.request_comment_id, "${{ inputs.request_comment_id }}");
+    assert.equal(step.with.request_comment_url, "${{ inputs.request_comment_url }}");
+  }
 });
 
 test("self-approval workflow stays opt-in and read-only until deterministic resolution", () => {
@@ -868,8 +1084,8 @@ test("review synthesis uses a shared reviews directory contract", () => {
   const configurationList = readRepoFile(".agent/docs/customization/configuration-list.md");
   const supportedWorkflows = readRepoFile(".agent/docs/usage/supported-workflows.md");
 
-  assert.match(reviewWorkflow, /review:\n\s*# Ordering-only:[\s\S]*?needs:\s*\[prepare\]\n\s*if:\s*\$\{\{\s*vars\.AGENT_ENABLED != 'false' && !cancelled\(\)\s*\}\}\n\s*# Reviewer lanes are best-effort[\s\S]*?continue-on-error:\s*true/);
-  assert.match(reviewWorkflow, /synthesize:\n\s*needs:\s*\[prepare,\s*review\]\n\s*if:\s*\$\{\{\s*vars\.AGENT_ENABLED != 'false' && !cancelled\(\)\s*\}\}/);
+  assert.match(reviewWorkflow, /review:\n\s*# Ordering-only:[\s\S]*?needs:\s*\[preflight,\s*prepare\]\n\s*if:\s*\$\{\{\s*vars\.AGENT_ENABLED != 'false' && needs\.preflight\.result == 'success' && !cancelled\(\)\s*\}\}\n\s*# Reviewer lanes are best-effort[\s\S]*?continue-on-error:\s*true/);
+  assert.match(reviewWorkflow, /synthesize:\n\s*needs:\s*\[preflight,\s*prepare,\s*review\]\n\s*if:\s*\$\{\{\s*vars\.AGENT_ENABLED != 'false' && needs\.preflight\.result == 'success' && !cancelled\(\)\s*\}\}/);
   assert.match(reviewWorkflow, /find "\$reviews_dir" -type f -name review\.md/);
   assert.match(reviewWorkflow, /REVIEWS_DIR:\s*\$\{\{\s*steps\.reviews\.outputs\.reviews_dir\s*\}\}/);
   assert.doesNotMatch(reviewWorkflow, /AGENT_INLINE_COMMENT_CLEANUP_MODE/);
@@ -2518,13 +2734,13 @@ test("agent-review permissions are scoped per-job: reviewers read-only, synthesi
   // Reviewer job keeps contents:read.
   assert.match(
     reviewWorkflow,
-    /review:\s*\n\s+# Ordering-only:[\s\S]*?needs: \[prepare\]\s*\n\s+if: \$\{\{ vars\.AGENT_ENABLED != 'false' && !cancelled\(\) \}\}\s*\n\s+# Reviewer lanes are best-effort[\s\S]*?permissions:\s*\n\s+# Reviewer jobs stay read-only[\s\S]*?contents: read/,
+    /review:\s*\n\s+# Ordering-only:[\s\S]*?needs: \[preflight, prepare\]\s*\n\s+if: \$\{\{ vars\.AGENT_ENABLED != 'false' && needs\.preflight\.result == 'success' && !cancelled\(\) \}\}\s*\n\s+# Reviewer lanes are best-effort[\s\S]*?permissions:\s*\n\s+# Reviewer jobs stay read-only[\s\S]*?contents: read/,
   );
 
   // Synthesize job upgrades to contents:write for the memory commit.
   assert.match(
     reviewWorkflow,
-    /synthesize:\s*\n\s+needs: \[prepare, review\]\s*\n\s+if: \$\{\{ vars\.AGENT_ENABLED != 'false' && !cancelled\(\) \}\}\s*\n\s+permissions:[\s\S]*?contents: write/,
+    /synthesize:\s*\n\s+needs: \[preflight, prepare, review\]\s*\n\s+if: \$\{\{ vars\.AGENT_ENABLED != 'false' && needs\.preflight\.result == 'success' && !cancelled\(\) \}\}\s*\n\s+permissions:[\s\S]*?contents: write/,
   );
 });
 

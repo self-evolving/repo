@@ -45,6 +45,18 @@ test("dispatch prompt enumerates every supported dispatch route", () => {
     .sort();
   assert.deepEqual(unionRoutes, supportedRoutes);
   assert.match(prompt, /Use `orchestrate` when/);
+  assert.match(
+    prompt,
+    /Use `review` only when the user is explicitly asking for a PR review, issue-scoped code review, or another review pass/,
+  );
+  assert.match(
+    prompt,
+    /Do not use this fallback for explicit code-review requests; those route to `review`/,
+  );
+  assert.doesNotMatch(
+    prompt,
+    /review some code.*review agent.*resolve to `answer`/s,
+  );
 });
 
 test("normalizeDispatch reads raw JSON", () => {
@@ -483,6 +495,16 @@ test("applyDispatchPolicy dispatches review on PR without approval", () => {
   assert.equal(d.needsApproval, false);
 });
 
+test("applyDispatchPolicy dispatches review on issue without approval", () => {
+  const d = applyDispatchPolicy(
+    normalizeDispatch('{"route":"review","summary":"review the issue scope"}'),
+    "issue",
+    "MEMBER",
+  );
+  assert.equal(d.route, "review");
+  assert.equal(d.needsApproval, false);
+});
+
 test("applyDispatchPolicy dispatches orchestrate on issue without approval", () => {
   const d = applyDispatchPolicy(
     normalizeDispatch('{"route":"orchestrate","summary":"orchestrate"}'),
@@ -501,10 +523,10 @@ test("applyDispatchPolicy rejects orchestrate requests outside issues and pull r
   assert.equal(d.route, "unsupported");
 });
 
-test("applyDispatchPolicy rejects review requests outside pull requests", () => {
+test("applyDispatchPolicy rejects review requests outside issues and pull requests", () => {
   const d = applyDispatchPolicy(
     normalizeDispatch('{"route":"review","summary":"review it"}'),
-    "issue",
+    "discussion",
   );
   assert.equal(d.route, "unsupported");
 });

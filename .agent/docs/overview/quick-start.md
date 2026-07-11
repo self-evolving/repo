@@ -35,7 +35,7 @@ Use an explicit slash route when you already know the action:
 | Implement | Turn an issue request into a branch and draft PR. | `@sepo-agent /implement ...` |
 | Add rubrics | Propose user/team rubric updates against `agent/rubrics`. | `@sepo-agent /add-rubrics ...` |
 | Create action | Propose a standalone scheduled agent workflow through a PR. | `@sepo-agent /create-action ...` |
-| Review | Run the dual-agent PR review flow. | `@sepo-agent /review` |
+| Review | Run PR diff review or focused issue review. | `@sepo-agent /review ...` |
 | Fix PR | Push fixes to the current PR branch. | `@sepo-agent /fix-pr` |
 | Skill | Run a repository skill from `<skill_root>/<name>/SKILL.md`. | `@sepo-agent /skill <name>` |
 | Install | Run the dedicated install route when Sepo can write to the target repository. | `@sepo-agent /install ...` |
