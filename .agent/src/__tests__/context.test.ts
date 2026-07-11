@@ -4,6 +4,7 @@ import { strict as assert } from "node:assert";
 import {
   extractEventContext,
   getAuthorAssociation,
+  getNewlyAddedEditedCommentCommandRoute,
   getRequestedBy,
   shouldSkipSender,
   shouldRespondToMention,
@@ -253,6 +254,90 @@ test("shouldRespondToMention only triggers when an edited comment adds a mention
       "@sepo-agent",
     ),
     true,
+  );
+});
+
+test("shouldRespondToMention triggers when an edited comment newly adds fix-pr", () => {
+  const payload = {
+    action: "edited",
+    comment: {
+      body: "please check @sepo-agent /fix-pr",
+    },
+    changes: {
+      body: {
+        from: "please check @sepo-agent",
+      },
+    },
+  };
+
+  assert.equal(
+    getNewlyAddedEditedCommentCommandRoute("issue_comment", payload, "@sepo-agent"),
+    "fix-pr",
+  );
+  assert.equal(shouldRespondToMention("issue_comment", payload, "@sepo-agent"), true);
+});
+
+test("edited comment command detection finds fix-pr after an earlier route", () => {
+  const payload = {
+    action: "edited",
+    comment: {
+      body: [
+        "@sepo-agent /answer please explain first",
+        "",
+        "Also @sepo-agent /fix-pr once you have enough context.",
+      ].join("\n"),
+    },
+    changes: {
+      body: {
+        from: "@sepo-agent /answer please explain first",
+      },
+    },
+  };
+
+  assert.equal(
+    getNewlyAddedEditedCommentCommandRoute("issue_comment", payload, "@sepo-agent"),
+    "fix-pr",
+  );
+  assert.equal(shouldRespondToMention("issue_comment", payload, "@sepo-agent"), true);
+});
+
+test("shouldRespondToMention suppresses repeated edited fix-pr commands", () => {
+  const payload = {
+    action: "edited",
+    comment: {
+      body: "please check @sepo-agent /fix-pr the latest review",
+    },
+    changes: {
+      body: {
+        from: "please check @sepo-agent /answer\n\nAlso @sepo-agent /fix-pr",
+      },
+    },
+  };
+
+  assert.equal(
+    getNewlyAddedEditedCommentCommandRoute("issue_comment", payload, "@sepo-agent"),
+    "",
+  );
+  assert.equal(shouldRespondToMention("issue_comment", payload, "@sepo-agent"), false);
+});
+
+test("new edited comment command detection is limited to comment events", () => {
+  const payload = {
+    action: "edited",
+    pull_request: {
+      title: "Change",
+      body: "please check @sepo-agent /fix-pr",
+    },
+    changes: {
+      body: {
+        from: "please check @sepo-agent",
+      },
+    },
+  };
+
+  assert.equal(
+    getNewlyAddedEditedCommentCommandRoute("pull_request", payload, "@sepo-agent"),
+    "",
   );
 });
 
