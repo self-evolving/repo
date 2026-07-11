@@ -105,7 +105,7 @@
 - Retry only likely transient gh/git/curl/network failures with bounded backoff; keep auth/ref/validation/lease errors terminal.
 - Review-triggered /answer uses computed ANSWER_REVIEW_CONTEXT in both fresh and resumed prompts; normal answers stay clean.
 - Implicit follow-ups are agent-label gated, answer-only, preauthorized before intent, and prefer ignore when uncertain.
-- Codex GPT-5 reasoning belongs in effective ACP model IDs like gpt-5.5/xhigh; do not rely on separate thought_level.
+- Codex defaults to gpt-5.6-sol/max; bundled reasoning is coupled to that model. [[github/self-evolving/repo/pull-459.json]]
 - Keep one-time migration/bootstrap caveats out of durable docs; put temporary update guidance in prompts or handoffs.
 - Provider model defaults stay tiny and pinned; reviewer lanes use resolve-agent-provider, with AGENT_MODEL_POLICY as the escape hatch.
 - Do not assert target root README content in tests; duplicated repos need customizable READMEs.
