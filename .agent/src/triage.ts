@@ -54,7 +54,7 @@ const STACKED_IMPLEMENT_REQUEST = new RegExp(
     String.raw`\bstack(?:ed|ing)?\s+(?:this|it)(?:\s+(?:change|work|implementation|pr|pull request))?(?:\s+(?:on|onto|above)\b)?`,
     String.raw`\bstack(?:ed|ing)?\s+the\s+(?:change|work|implementation|pr|pull request)\b`,
     String.raw`\bstack(?:ed|ing)?\s+(?:on|onto|above)\s+(?:this|the|current|source|open)\s+(?:pr|pull request|branch|change|work|implementation)\b`,
-    String.raw`\bstacked\s+(?:(?:follow[\s-]?up)\s+)?(?:pr|pull request|change|work|implementation)\b`,
+    String.raw`\b(?:create|make|open|start|build|land|implement|continue|recreate|do|use)\s+(?:(?:this|it|the\s+(?:change|work|implementation))\s+(?:(?:as|in)\s+)?(?:an?\s+)?|an?\s+)?stacked\s+(?:(?:follow[\s-]?up)\s+)?(?:pr|pull request|branch|change|work|implementation)\b`,
     String.raw`\bfollow[\s-]?up\s+(?:pr|pull request|change|work|implementation)\b`,
     String.raw`\bfollow[\s-]?up\s+(?:on|to|from)\s+(?:(?:this|the|current|source|open)\s+){1,2}(?:pr|pull request|branch|change|work|implementation)\b`,
     String.raw`\bon top of (?:this|the|current) (?:pr|pull request|branch)\b`,
@@ -205,7 +205,7 @@ function normalizeImplementIssueTitle(request: string): string {
 
 function isLocallyNegated(request: string, matchIndex: number): boolean {
   const prefix = request.slice(Math.max(0, matchIndex - 100), matchIndex);
-  const clauseStart = Math.max(
+  const punctuationStart = Math.max(
     prefix.lastIndexOf("."),
     prefix.lastIndexOf(";"),
     prefix.lastIndexOf(":"),
@@ -213,7 +213,13 @@ function isLocallyNegated(request: string, matchIndex: number): boolean {
     prefix.lastIndexOf("?"),
     prefix.lastIndexOf("\n"),
   );
-  return LOCAL_INTENT_NEGATION.test(prefix.slice(clauseStart + 1));
+  const conjunctions = [...prefix.matchAll(/\b(?:and|but|then)\b/gi)];
+  const lastConjunction = conjunctions.at(-1);
+  const conjunctionStart = lastConjunction?.index === undefined
+    ? 0
+    : lastConjunction.index + lastConjunction[0].length;
+  const clauseStart = Math.max(punctuationStart + 1, conjunctionStart);
+  return LOCAL_INTENT_NEGATION.test(prefix.slice(clauseStart));
 }
 
 function hasUnnegatedIntent(request: string, pattern: RegExp): boolean {

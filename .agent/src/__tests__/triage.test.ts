@@ -311,6 +311,28 @@ test("buildRequestedRouteDecision infers only phrase-scoped, unnegated stacked P
   assert.equal(discussion.basePr, "");
 });
 
+test("buildRequestedRouteDecision handles reproduced stacking ancestry cases", () => {
+  const context = {
+    agentMention: "@sepo-agent",
+    triggerKind: "mention",
+    sourceKind: "issue_comment",
+    targetKind: "pull_request",
+    targetNumber: "470",
+  };
+  const decide = (request: string) => buildRequestedRouteDecision(
+    "implement",
+    `@sepo-agent /implement ${request}`,
+    context,
+  );
+
+  assert.equal(decide("Document stacked PR behavior").basePr, "");
+  assert.equal(decide("Create a stacked branch for this change").basePr, "470");
+  assert.equal(
+    decide("No extra docs needed and stack this on the current PR").basePr,
+    "470",
+  );
+});
+
 test("buildRequestedRouteDecision uses label target context without parsing stale commands", () => {
   const sourceContext = [
     "Current PR body",
