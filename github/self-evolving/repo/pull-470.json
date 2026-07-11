@@ -1,0 +1,431 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "agent/implement-issue-467/codex-29134639834",
+  "body": "## Summary\n\n- derive explicit non-issue `/implement` tracking metadata in typed router code\n- preserve original requests and source links, inferring `base_pr` only for stacked or follow-up PR work\n- remove the obsolete metadata-agent prompt, session, timeout, and response plumbing\n- update focused routing tests and lifecycle documentation\n\n## Verification\n\n- `env -u GITHUB_OUTPUT npm run test:ci`\n- `npm run build && node --test dist/__tests__/triage.test.js dist/__tests__/resolve-dispatch-cli.test.js dist/__tests__/envelope.test.js`\n- `git diff --check`\n\nCloses #469\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJontWA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #470 | 3 / 40 | Dispatched |\n\nReason: implementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1783736141325 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjkxMzU2MTk3NjU6aW1wbGVtZW50OjQ2OTpyZXZpZXc6NDcwOjM -->",
+      "createdAt": "2026-07-11T02:15:41Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/470#issuecomment-4941540696",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJosIYw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 76 | PARTIAL | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Generate context-derived artifact metadata | fail | 0/7 | The title is the normalized command remainder or generic `Implement requested change`; surrounding target context does not inform it. PR-label triggers therefore receive the generic fallback unless the target body happens to contain an `/implement` command ([builder](https://github.com/self-evolving/repo/blob/e67590e824df7e04810e29f391d6b8f8fbdf56d6/.agent/src/triage.ts#L123-L194), [label extraction](https://github.com/self-evolving/repo/blob/e67590e824df7e04810e29f391d6b8f8fbdf56d6/.agent/src/cli/extract-context.ts#L202-L253)). |\n| coding_workflow / generic | Prefer explicit structured inputs | partial | 4/7 | Agent handle, target kind, and target number are separate inputs, but trigger kind and target title/context are omitted. `REQUEST_TEXT` consequently means active command text for mention triggers but target body for label triggers, without rejecting that ambiguity ([workflow handoff](https://github.com/self-evolving/repo/blob/e67590e824df7e04810e29f391d6b8f8fbdf56d6/.github/workflows/agent-router.yml#L376-L398)). |\n| coding_workflow / generic | Separate context from execution dependencies | partial | 5/7 | Closed PRs are dropped with a contextual note, and downstream code revalidates open same-repository status. However, any occurrence of `follow-up` sets `base_pr`, so unrelated wording can silently convert the source PR into an execution dependency ([inference](https://github.com/self-evolving/repo/blob/e67590e824df7e04810e29f391d6b8f8fbdf56d6/.agent/src/triage.ts#L52-L72), [state handling](https://github.com/self-evolving/repo/blob/e67590e824df7e04810e29f391d6b8f8fbdf56d6/.agent/src/cli/resolve-dispatch.ts#L54-L83), [downstream validation](https://github.com/self-evolving/repo/blob/e67590e824df7e04810e29f391d6b8f8fbdf56d6/.agent/src/implementation-base.ts#L73-L90)). |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | The resolved route still passes through access policy before outputs are emitted, and the implementation job requires `needs_approval == false` before delegating to `agent-implement.yml` ([policy path](https://github.com/self-evolving/repo/blob/e67590e824df7e04810e29f391d6b8f8fbdf56d6/.agent/src/cli/resolve-dispatch.ts#L93-L120), [job guard](https://github.com/self-evolving/repo/blob/e67590e824df7e04810e29f391d6b8f8fbdf56d6/.github/workflows/agent-router.yml#L933-L999)). |\n| communication / generic | Write audience-first documentation | pass | 7/7 | User-facing behavior is explained where readers encounter implementation and stacking behavior, while router mechanics remain in deeper lifecycle documentation ([action guide](https://github.com/self-evolving/repo/blob/e67590e824df7e04810e29f391d6b8f8fbdf56d6/.agent/docs/usage/agent-actions.md#L34-L42), [lifecycle](https://github.com/self-evolving/repo/blob/e67590e824df7e04810e29f391d6b8f8fbdf56d6/.agent/docs/architecture/request-lifecycle.md#L21-L25)). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The [10-file diff](https://github.com/self-evolving/repo/pull/470/files) is confined to typed routing, focused tests, obsolete metadata-session removal, and the documentation requested by [#469](https://github.com/self-evolving/repo/issues/469). |\n| coding_workflow / generic | Reuse existing code | partial | 6/8 | The implementation reuses the triage module, mention sanitization, PR metadata fetcher, and issue creator, but `requestWithoutImplementCommand` duplicates the existing explicit-route recognition regex instead of extending its structured result ([new parser](https://github.com/self-evolving/repo/blob/e67590e824df7e04810e29f391d6b8f8fbdf56d6/.agent/src/triage.ts#L123-L139), [existing parser](https://github.com/self-evolving/repo/blob/e67590e824df7e04810e29f391d6b8f8fbdf56d6/.agent/src/triage.ts#L211-L255)). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Lifecycle, action, and supported-workflow documentation consistently describe local metadata derivation, source links, and closed-base handling ([workflow docs](https://github.com/self-evolving/repo/blob/e67590e824df7e04810e29f391d6b8f8fbdf56d6/.agent/docs/usage/supported-workflows.md#L103-L109)). |\n\n## Notes\n\n- Current head `e67590e824df7e04810e29f391d6b8f8fbdf56d6` is cleanly stacked on PR #468, and its [Test Scripts check](https://github.com/self-evolving/repo/actions/runs/29136037358) passed runtime, workflow, documentation, shell, and diff checks.\n- The primary score deduction is rubric-specific: the latency goal is met, but the new metadata path directly copies command text, uses a generic fallback, and lacks target-context synthesis.\n- Smallest useful follow-up: add trigger kind and target title/context to the typed metadata contract, extend the existing route extractor instead of reparsing commands, make stacking inference conservative, and cover PR-label metadata plus ambiguous `follow-up` wording.\n\n## Findings\n\n- **WARNING:** The tracking-title behavior conflicts with Generate context-derived artifact metadata: slash-command text is copied after normalization, while PR-label triggers generally fall back to a generic title.\n- **WARNING:** The standalone `follow-up` keyword can incorrectly stack requests such as “add a follow-up documentation note,” contrary to Separate context from execution dependencies.\n- **INFO:** Authorization, scoped changes, documentation synchronization, and current-head CI satisfy their applicable rubrics.\n\n## Final Rubric Verdict\n\nPARTIAL\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-4`",
+      "createdAt": "2026-07-11T02:23:51Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/470#issuecomment-4941613155",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJoxIUA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: e67590e824df7e04810e29f391d6b8f8fbdf56d6 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\n[PR #470](https://github.com/self-evolving/repo/pull/470) implements the metadata slice of [#469](https://github.com/self-evolving/repo/issues/469), part of the latency milestone in [#454](https://github.com/self-evolving/repo/issues/454). It replaces the model-backed metadata session for explicit non-issue `/implement` requests with deterministic typed title, body, and `base_pr` derivation. It also removes obsolete prompt, timeout, and workflow plumbing while preserving authorization, source links, closed-PR handling, and session-fork behavior. Current head `e67590e` passes the Test Scripts check and the reviewers’ focused test runs.\n\n## Review\n\nThe refactor is well-scoped and achieves its latency goal, but the current ancestry inference can contradict explicit user intent and therefore is not ready to merge. Reviewers disagreed on severity; current code and #469’s explicit stacking requirement support treating that defect as blocking.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Stacking inference can choose the wrong base | BLOCKING | Context-free keyword matching can both stack unrelated “follow-up” features and ignore an explicit stacking request containing “independent,” silently producing the wrong branch ancestry. |\n| Label-triggered metadata is not context-safe | WARNING | `agent/implement` label events have no live slash command, so they normally receive a generic title; stale `/implement` prose in the PR body can instead be mistaken for the active request. |\n\n## Progress\n\n- The metadata agent session and obsolete response/timeout plumbing are removed cleanly.\n- Authorization remains enforced during final route resolution, and open/closed inferred bases remain validated.\n- Documentation and focused behavior tests were updated; current-head CI passes.\n- The label-trigger concern was already documented in the top-level rubric review, so it was not duplicated inline.\n- Posted one focused [inline comment](https://github.com/self-evolving/repo/pull/470#discussion_r3562940602) covering the previously unreported negated-intent ancestry case.\n\n## Issue Details\n\n<details>\n<summary>Stacking inference can choose the wrong base</summary>\n\n**Cause:** [`inferImplementBasePr`](https://github.com/self-evolving/repo/blob/e67590e824df7e04810e29f391d6b8f8fbdf56d6/.agent/src/triage.ts#L163-L173) gives any `independent` match precedence over stacking matches, while bare `follow-up` is treated as stacking intent. Thus “Do not make this independent; stack it on this PR” remains unstacked, while “Add follow-up email notifications” is stacked.\n\n**Candidate solutions:** Make matching phrase-scoped and negation-aware, or introduce a typed stacking signal. Add regression tests for both contradictory intent and domain uses of “follow-up.”\n\n**Comments:** One reviewer considered this bounded and non-blocking; another marked it blocking. Because #469 specifically requires explicit stacked requests to preserve source-PR ancestry, the demonstrated false negative is blocking.\n\n</details>\n\n<details>\n<summary>Label-triggered metadata is not context-safe</summary>\n\n**Cause:** Label routing passes the PR title/body as `REQUEST_TEXT`, but [`requestWithoutImplementCommand`](https://github.com/self-evolving/repo/blob/e67590e824df7e04810e29f391d6b8f8fbdf56d6/.agent/src/triage.ts#L123-L139) requires a live mention command. The typed context omits trigger origin and target title, leaving label text indistinguishable from slash-command text.\n\n**Candidate solutions:** Pass trigger/source kind and target title explicitly, derive label-triggered titles from that context, and reuse the existing route extraction rather than independently scanning for `/implement`. Add a PR-label regression test, including stale command prose.\n\n**Comments:** Reviewers ranged from INFO to WARNING. This remains a warning because dispatch still succeeds and the metadata is recoverable, but it regresses the prior context-derived label behavior.\n\n</details>\n\n## Recommended Next Step\n\n`FIX_PR`: Both findings have concrete, localized branch changes and regression tests suitable for an automated fix pass.\n\n## Final Verdict\n\n`NEEDS_REWORK`\n\n## Action Items\n\n- [ ] Make `base_pr` inference phrase-scoped and negation-aware, with false-positive and conflicting-intent tests.\n- [ ] Pass explicit trigger/source context into metadata derivation and add label-trigger coverage.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-3`",
+      "createdAt": "2026-07-11T02:32:07Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/470#issuecomment-4941695056",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJoxctg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #470 | 4 / 40 | Dispatched |\n\nReason: review verdict is needs_rework; dispatching fix-pr\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Make `base_pr` inference phrase-scoped and negation-aware, with false-positive and conflicting-intent tests.\n- Pass explicit trigger/source context into metadata derivation and add label-trigger coverage.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1783737150009 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjkxMzYwNDk0ODQ6cmV2aWV3OjQ3MDpmaXhfcHI6NDcwOjQ -->",
+      "createdAt": "2026-07-11T02:32:30Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/470#issuecomment-4941700278",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJo4mzw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-469/codex-29135619765`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Made `base_pr` inference phrase-scoped and negation-aware, covering unrelated follow-up wording and conflicting intent.\n- Added explicit trigger/source/target-title context so PR label metadata ignores stale commands and never infers stacking from body prose.\n- Passed `env -u GITHUB_OUTPUT npm run test:ci` and `git diff --check`.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-4`",
+      "createdAt": "2026-07-11T02:44:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/470#issuecomment-4941817551",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJo4s3w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #470 | 5 / 40 | Dispatched |\n\nReason: PR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1783737892496 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjkxMzY1MTUxNDY6Zml4X3ByOjQ3MDpyZXZpZXc6NDcwOjU -->",
+      "createdAt": "2026-07-11T02:44:53Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/470#issuecomment-4941819103",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJo7dJw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 93 | PARTIAL | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Generate context-derived artifact metadata | partial | 3/7 | Label triggers now use the target title and preserve source context, but slash-triggered titles remain the normalized command tail and fall back to `Implement requested change` even when `targetTitle` is available ([metadata builder](https://github.com/self-evolving/repo/blob/fc36dc1a1fc7e1cf42600c59b53a5f21b56bb036/.agent/src/triage.ts#L184-L204), [source selection](https://github.com/self-evolving/repo/blob/fc36dc1a1fc7e1cf42600c59b53a5f21b56bb036/.agent/src/triage.ts#L254-L272)). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Trigger kind, source kind, target kind/number/title, and agent handle are distinct context fields passed through the router instead of being inferred from one overloaded string ([typed context](https://github.com/self-evolving/repo/blob/fc36dc1a1fc7e1cf42600c59b53a5f21b56bb036/.agent/src/triage.ts#L93-L100), [workflow handoff](https://github.com/self-evolving/repo/blob/fc36dc1a1fc7e1cf42600c59b53a5f21b56bb036/.github/workflows/agent-router.yml#L378-L403)). |\n| coding_workflow / generic | Separate context from execution dependencies | pass | 7/7 | Only an active mention can infer `base_pr`; labels cannot promote body prose into a dependency, intent matching is phrase-scoped and negation-aware, and closed PRs are retained as context while the base is dropped ([inference](https://github.com/self-evolving/repo/blob/fc36dc1a1fc7e1cf42600c59b53a5f21b56bb036/.agent/src/triage.ts#L206-L247), [state validation](https://github.com/self-evolving/repo/blob/fc36dc1a1fc7e1cf42600c59b53a5f21b56bb036/.agent/src/cli/resolve-dispatch.ts#L58-L87), [regressions](https://github.com/self-evolving/repo/blob/fc36dc1a1fc7e1cf42600c59b53a5f21b56bb036/.agent/src/__tests__/triage.test.ts#L255-L332)). |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Metadata is built before the centralized access-policy decision, but delegation occurs only after policy resolution and with `needs_approval == false` ([policy resolution](https://github.com/self-evolving/repo/blob/fc36dc1a1fc7e1cf42600c59b53a5f21b56bb036/.agent/src/cli/resolve-dispatch.ts#L97-L127), [delegation guard](https://github.com/self-evolving/repo/blob/fc36dc1a1fc7e1cf42600c59b53a5f21b56bb036/.github/workflows/agent-router.yml#L938-L952)). |\n| communication / generic | Write audience-first documentation | pass | 7/7 | The action guide leads with observable stacking behavior, while detailed routing mechanics stay in lifecycle documentation ([action guide](https://github.com/self-evolving/repo/blob/fc36dc1a1fc7e1cf42600c59b53a5f21b56bb036/.agent/docs/usage/agent-actions.md#L34-L44), [lifecycle](https://github.com/self-evolving/repo/blob/fc36dc1a1fc7e1cf42600c59b53a5f21b56bb036/.agent/docs/architecture/request-lifecycle.md#L21-L25)). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The [14-file diff](https://github.com/self-evolving/repo/pull/470/files) is limited to metadata routing, removal of obsolete agent-session plumbing, focused tests, and matching documentation required by [#469](https://github.com/self-evolving/repo/issues/469). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Metadata command stripping now reuses the shared explicit-route matcher rather than maintaining a second command parser ([shared matcher](https://github.com/self-evolving/repo/blob/fc36dc1a1fc7e1cf42600c59b53a5f21b56bb036/.agent/src/triage.ts#L149-L181), [route extraction](https://github.com/self-evolving/repo/blob/fc36dc1a1fc7e1cf42600c59b53a5f21b56bb036/.agent/src/triage.ts#L303-L313)). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Lifecycle, action, and workflow documentation consistently describe deterministic metadata, label context, stacking, and closed-base behavior ([supported workflows](https://github.com/self-evolving/repo/blob/fc36dc1a1fc7e1cf42600c59b53a5f21b56bb036/.agent/docs/usage/supported-workflows.md#L103-L111)). |\n\n## Notes\n\n- Current head `fc36dc1a1fc7e1cf42600c59b53a5f21b56bb036` is stacked on PR #468’s reviewed head, is mergeable, and has a successful [Test Scripts check](https://github.com/self-evolving/repo/actions/runs/29136846496/job/86502639951). Independent verification built the head and passed all 185 focused tests.\n- Seven rubrics pass. The sole deduction reflects a real rubric-specific mismatch: the command-tail behavior satisfies #469’s local acceptance criteria but not the selected rubric’s stronger context-synthesis preference.\n- Smallest useful follow-up: use `targetTitle` for empty command-tail cases and add a context-aware title derivation or retitling path for non-empty slash requests while preserving the deterministic fast path.\n\n## Findings\n\n- **WARNING:** Explicit slash-request tracking titles still copy normalized command text, or use a generic placeholder, instead of synthesizing metadata from the request plus available target context.\n- **INFO:** The current fix resolves the earlier stale-label and contradictory-stacking findings with focused regression coverage.\n\n## Final Rubric Verdict\n\nPARTIAL\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-1`",
+      "createdAt": "2026-07-11T02:51:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/470#issuecomment-4941864231",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJpAs5w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: fc36dc1a1fc7e1cf42600c59b53a5f21b56bb036 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #470 implements #469, part of the #454 latency milestone. It replaces model-generated `/implement` metadata with deterministic typed title, body, and base-PR derivation. It preserves authorization, source links, label context, and closed-base handling while removing obsolete agent-session plumbing. The current head fixes earlier findings but still misclassifies several ordinary stacking requests.\n\n## Review\n\nThe architecture is sound, but exact execution against `fc36dc1` confirms one blocking ancestry defect. Reviewers disagreed—Claude recommended shipping while Codex found the blocker—but the reproduced current-head behavior supports rework.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Stacking matcher can select the wrong implementation base | BLOCKING | It stacks topical text, misses an explicit “stacked branch” request, and lets unrelated negation suppress a later stack command. These errors directly change implementation branch ancestry. |\n| Slash-request titles use command text only | INFO | Mention-triggered titles ignore available target context. This is a rubric-specific polish gap, but #469 explicitly permits request-derived titles and a generic fallback, so it is not required here. |\n\n## Progress\n\n- Earlier conflicting-intent and domain “follow-up” cases are fixed, and their [same-agent thread](https://github.com/self-evolving/repo/pull/470#discussion_r3562940602) was resolved.\n- Label triggers now use explicit target context and ignore stale commands in source prose.\n- CI is green; the independently rerun triage suite passes 47/47, but lacks the newly reproduced cases.\n- Posted a new [inline comment](https://github.com/self-evolving/repo/pull/470#discussion_r3562995089) covering the current blocker.\n- Reviewers differed on title quality; it remains optional because the implemented fallback satisfies the issue’s acceptance criteria.\n\n## Issue Details\n\n<details>\n<summary>Stacking matcher can select the wrong implementation base</summary>\n\n**Cause:** At `fc36dc1`, `Document stacked PR behavior` returns `base_pr=470`, while `Create a stacked branch for this change` and `No extra docs needed and stack this on the current PR` return no base. The matcher treats bare `stacked PR` as intent, omits `branch` from that explicit form, and applies a broad five-word negation window.\n\n**Candidate solutions:** Anchor stacking matches to imperative ancestry language, cover explicit branch wording, and bind negation to the matched intent or conjunction-bounded clause. Add all three reproduced requests as regressions.\n\n**Comments:** Claude’s probes did not include these forms; Codex’s finding was independently reproduced on the unchanged current head.\n\n</details>\n\n## Recommended Next Step\n\n`FIX_PR`: The remaining blocker is localized to stacking-intent detection and regression coverage, making it suitable for an automated fix pass.\n\n## Final Verdict\n\n`NEEDS_REWORK`\n\n## Action Items\n\n- [ ] Correct stacking inference for the three reproduced ancestry cases and add focused regression tests.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-6`",
+      "createdAt": "2026-07-11T03:01:21Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/470#issuecomment-4941950183",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJpA_ZQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #470 | 6 / 40 | Dispatched |\n\nReason: review verdict is needs_rework; dispatching fix-pr\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Correct stacking inference for the three reproduced ancestry cases and add focused regression tests.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1783738904015 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjkxMzY4NTUxOTU6cmV2aWV3OjQ3MDpmaXhfcHI6NDcwOjY -->",
+      "createdAt": "2026-07-11T03:01:44Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/470#issuecomment-4941954917",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJpCV5Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-469/codex-29135619765`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Anchored stacked-PR/branch matching to imperative ancestry requests, avoiding topical documentation false positives.\n- Scoped negation across conjunctions so unrelated “No extra docs” wording cannot suppress a later stack command.\n- Added all three reproduced regressions; build, 48 triage tests, 11 dispatch tests, and `git diff --check` pass.\n\n---\n`codex` | `gpt-5.6-sol` | `max` | `Macmini-runner-4`",
+      "createdAt": "2026-07-11T03:05:33Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/470#issuecomment-4941977061",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJpCazw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #470 | 7 / 40 | Dispatched |\n\nReason: PR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1783739158055 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjkxMzczMjI1MDU6Zml4X3ByOjQ3MDpyZXZpZXc6NDcwOjc -->",
+      "createdAt": "2026-07-11T03:05:58Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/470#issuecomment-4941978319",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJpDnLw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 93 | PARTIAL | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Generate context-derived artifact metadata | partial | 3/7 | Label triggers use the target title, but mention-triggered titles remain the normalized command tail or generic `Implement requested change`; available target context does not inform them ([builder](https://github.com/self-evolving/repo/blob/be09e8e5182292d0e7cf43cbc14abca82a99d061/.agent/src/triage.ts#L260-L278), [title normalization](https://github.com/self-evolving/repo/blob/be09e8e5182292d0e7cf43cbc14abca82a99d061/.agent/src/triage.ts#L184-L204)). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Trigger, source, target kind/number/title, and agent handle are distinct context fields forwarded individually to the centralized resolver ([typed context](https://github.com/self-evolving/repo/blob/be09e8e5182292d0e7cf43cbc14abca82a99d061/.agent/src/triage.ts#L93-L100), [workflow handoff](https://github.com/self-evolving/repo/blob/be09e8e5182292d0e7cf43cbc14abca82a99d061/.github/workflows/agent-router.yml#L378-L403)). |\n| coding_workflow / generic | Separate context from execution dependencies | pass | 7/7 | Only active PR mentions can infer `base_pr`; labels cannot promote body prose, intent matching is phrase-scoped and negation-aware, and closed PRs are retained as context while the dependency is dropped ([inference](https://github.com/self-evolving/repo/blob/be09e8e5182292d0e7cf43cbc14abca82a99d061/.agent/src/triage.ts#L206-L278), [state validation](https://github.com/self-evolving/repo/blob/be09e8e5182292d0e7cf43cbc14abca82a99d061/.agent/src/cli/resolve-dispatch.ts#L58-L87), [regressions](https://github.com/self-evolving/repo/blob/be09e8e5182292d0e7cf43cbc14abca82a99d061/.agent/src/__tests__/triage.test.ts#L255-L355)). |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | The centralized access policy is applied before route outputs are emitted, and implementation delegation requires an authorized implementation route with `needs_approval == false` ([policy resolution](https://github.com/self-evolving/repo/blob/be09e8e5182292d0e7cf43cbc14abca82a99d061/.agent/src/cli/resolve-dispatch.ts#L97-L127), [delegation guard](https://github.com/self-evolving/repo/blob/be09e8e5182292d0e7cf43cbc14abca82a99d061/.github/workflows/agent-router.yml#L938-L1004)). |\n| communication / generic | Write audience-first documentation | pass | 7/7 | The action guide leads with observable stacking and label behavior, while detailed routing mechanics remain in lifecycle documentation ([action guide](https://github.com/self-evolving/repo/blob/be09e8e5182292d0e7cf43cbc14abca82a99d061/.agent/docs/usage/agent-actions.md#L34-L44), [lifecycle](https://github.com/self-evolving/repo/blob/be09e8e5182292d0e7cf43cbc14abca82a99d061/.agent/docs/architecture/request-lifecycle.md#L20-L25)). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The [14-file diff](https://github.com/self-evolving/repo/pull/470/files) is confined to typed metadata routing, focused tests, obsolete metadata-session removal, and documentation required by [#469](https://github.com/self-evolving/repo/issues/469). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Command stripping and route extraction share one explicit-route matcher, while dispatch continues through the existing policy and PR metadata helpers ([shared matcher](https://github.com/self-evolving/repo/blob/be09e8e5182292d0e7cf43cbc14abca82a99d061/.agent/src/triage.ts#L149-L181), [route extraction](https://github.com/self-evolving/repo/blob/be09e8e5182292d0e7cf43cbc14abca82a99d061/.agent/src/triage.ts#L296-L319)). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Lifecycle, action, and supported-workflow documentation consistently describe deterministic metadata, label context, stacking, and closed-base behavior ([supported workflows](https://github.com/self-evolving/repo/blob/be09e8e5182292d0e7cf43cbc14abca82a99d061/.agent/docs/usage/supported-workflows.md#L103-L111)). |\n\n## Notes\n\n- Current head [`be09e8e`](https://github.com/self-evolving/repo/commit/be09e8e5182292d0e7cf43cbc14abca82a99d061) is mergeable, cleanly stacked on PR #468, and has a successful [Test Scripts check](https://github.com/self-evolving/repo/actions/runs/29137434866/job/86504271391).\n- Independent current-head verification passed all `test:ci` lanes: 757 runtime tests, 88 workflow checks, 5 documentation checks, and 21 shell checks.\n- The latest fix resolves the previously reproduced ancestry failures with focused current-head regression coverage.\n- Smallest useful follow-up: derive slash-request titles from the request plus target context, with a context-aware fallback, while preserving the deterministic fast path.\n\n## Findings\n\n- **WARNING:** Explicit slash-request tracking titles still copy normalized command text or use a generic placeholder rather than synthesizing metadata from the request and available target context. This is a rubric-specific gap; it is not a blocker against #469’s stated acceptance criteria.\n- **INFO:** Authorization, stacking eligibility, stale label context, closed-PR handling, tests, and documentation satisfy their applicable rubrics.\n\n## Final Rubric Verdict\n\nPARTIAL\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-2`",
+      "createdAt": "2026-07-11T03:12:18Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/470#issuecomment-4941997871",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJpFbMg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: be09e8e5182292d0e7cf43cbc14abca82a99d061 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\n[PR #470](https://github.com/self-evolving/repo/pull/470) implements the deterministic metadata slice of [#469](https://github.com/self-evolving/repo/issues/469), part of latency milestone [#454](https://github.com/self-evolving/repo/issues/454) and stacked on [#468](https://github.com/self-evolving/repo/pull/468). It removes the model-backed metadata session from explicit non-issue `/implement` requests and derives title, body, and `base_pr` locally. Authorization, label context, source links, and closed-base validation remain preserved. Current head `be09e8e` is green and mergeable, but direct probes confirm unresolved ancestry and title-generation defects.\n\n## Review\n\nThe architecture and policy wiring are sound, but the implementation is not ready to ship. Claude recommended SHIP after verifying earlier regressions, while Codex found additional cases; reproducing those cases on the current head supports the blocking finding below.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Follow-up intent can select the wrong implementation base | BLOCKING | Topical “Follow-up PR” text and an explicitly independent request both select `base_pr=470`, while an explicit follow-up branch request selects no base. These outcomes directly change branch ancestry. |\n| Inline-code identifiers disappear from tracking titles | WARNING | The title path removes inline-code contents, so a request to rename two backticked identifiers produces the title `Rename to`. |\n| Mention titles do not use target context | INFO | The rubric reviewer prefers request-plus-target synthesis, but #469 explicitly permits request-derived titles and a generic fallback; this remains optional scope. |\n\n## Progress\n\n- The model-backed metadata session and obsolete prompt, timeout, and response plumbing are removed cleanly.\n- Authorization, label-trigger isolation, source context, and open/closed inferred-base handling are preserved.\n- The three earlier ancestry regressions are fixed and covered; CI and all 48 focused triage tests pass.\n- Replied to the existing [same-agent ancestry thread](https://github.com/self-evolving/repo/pull/470#discussion_r3563029943) with the new current-head reproductions.\n- Posted a focused [inline comment for title loss](https://github.com/self-evolving/repo/pull/470#discussion_r3563030553). No comments were minimized and no additional threads were resolved because the ancestry issue remains active.\n\n## Issue Details\n\n<details>\n<summary>Follow-up intent can select the wrong implementation base</summary>\n\n**Cause:** The [stacking grammar](https://github.com/self-evolving/repo/blob/be09e8e5182292d0e7cf43cbc14abca82a99d061/.agent/src/triage.ts#L52-L75) accepts bare `follow-up PR` wording, omits `follow-up branch`, and recognizes independence only in narrower word orders. Current-head probes return `470` for “Rename the Follow-up PR heading in the docs” and “Make this follow-up PR independent,” but empty for “Create a follow-up branch for this work.”\n\n**Candidate solutions:** Make follow-up matching imperative or ancestry-scoped, recognize independent suffix forms and follow-up branches, and add all three requests as regressions.\n\n**Comments:** Claude verified the earlier fixed cases; Codex exercised adjacent forms that remained uncovered. Independent reproduction on the unchanged head resolves that disagreement in favor of rework.\n\n</details>\n\n<details>\n<summary>Inline-code identifiers disappear from tracking titles</summary>\n\n**Cause:** [`findExplicitRouteCommand`](https://github.com/self-evolving/repo/blob/be09e8e5182292d0e7cf43cbc14abca82a99d061/.agent/src/triage.ts#L149-L181) returns text processed by `stripNonLiveMentions`, which removes inline-code spans before title derivation. Thus renaming `AGENT_TRIAGE_MODE` to `AGENT_ROUTING_MODE` becomes `Rename to`.\n\n**Candidate solutions:** Use sanitized text only to locate the live command, then remove that command from the original request and normalize Markdown delimiters while retaining their contents. Add a focused title regression.\n\n**Comments:** The complete request remains in the issue body, limiting impact, but the required concise tracking title loses its subject.\n\n</details>\n\n## Recommended Next Step\n\n`FIX_PR`: Both defects are localized to deterministic metadata parsing and focused regression coverage, making them safe for an automated fix pass.\n\n## Final Verdict\n\nNEEDS_REWORK\n\n## Action Items\n\n- [ ] Correct follow-up and independent ancestry inference for the three reproduced requests and add regression tests.\n- [ ] Preserve inline-code contents in mention-derived tracking titles and add a focused regression test.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-5`",
+      "createdAt": "2026-07-11T03:22:39Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/470#issuecomment-4942027570",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJpFfdg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #470 | 8 / 40 | Dispatched |\n\nReason: review verdict is needs_rework; dispatching fix-pr\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Correct follow-up and independent ancestry inference for the three reproduced requests and add regression tests.\n- Preserve inline-code contents in mention-derived tracking titles and add a focused regression test.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1783740178897 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjkxMzc0NDYyMjA6cmV2aWV3OjQ3MDpmaXhfcHI6NDcwOjg -->",
+      "createdAt": "2026-07-11T03:22:59Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/470#issuecomment-4942028662",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJpGi3Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-469/codex-29135619765`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Scoped follow-up matching to ancestry requests, added follow-up branch support, and recognized suffix-form independence.\n- Preserved backticked identifiers in mention-derived titles while retaining sanitized live-command detection.\n- Added all four exact regressions; build, 50 triage tests, mention/dispatch tests, manual probes, and `git diff --check` pass.\n\n---\n`codex` | `gpt-5.6-sol` | `max` | `Macmini-runner-1`",
+      "createdAt": "2026-07-11T03:29:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/470#issuecomment-4942045917",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJpGmbA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #470 | 9 / 40 | Dispatched |\n\nReason: PR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1783740610720 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjkxMzc5MTAyOTQ6Zml4X3ByOjQ3MDpyZXZpZXc6NDcwOjk -->",
+      "createdAt": "2026-07-11T03:30:12Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/470#issuecomment-4942046828",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJpIaQg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 93 | PARTIAL | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Generate context-derived artifact metadata | partial | 3/7 | Label triggers use the target title, but mention-triggered titles remain the normalized command remainder or generic `Implement requested change`, even when target context is available ([builder](https://github.com/self-evolving/repo/blob/6058f233c175d68a3f43f717bf2223c980d1769f/.agent/src/triage.ts#L277-L296), [fallback coverage](https://github.com/self-evolving/repo/blob/6058f233c175d68a3f43f717bf2223c980d1769f/.agent/src/__tests__/triage.test.ts#L254-L265)). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Trigger, source, target kind/number/title, and agent handle are distinct context fields forwarded individually to the resolver ([typed context](https://github.com/self-evolving/repo/blob/6058f233c175d68a3f43f717bf2223c980d1769f/.agent/src/triage.ts#L95-L102), [workflow handoff](https://github.com/self-evolving/repo/blob/6058f233c175d68a3f43f717bf2223c980d1769f/.github/workflows/agent-router.yml#L378-L403)). |\n| coding_workflow / generic | Separate context from execution dependencies | pass | 7/7 | Only active PR mentions can infer `base_pr`; labels cannot promote body prose, closed PRs are retained as context rather than dependencies, and downstream resolution requires an open same-repository PR ([inference](https://github.com/self-evolving/repo/blob/6058f233c175d68a3f43f717bf2223c980d1769f/.agent/src/triage.ts#L255-L269), [closed-base handling](https://github.com/self-evolving/repo/blob/6058f233c175d68a3f43f717bf2223c980d1769f/.agent/src/cli/resolve-dispatch.ts#L58-L87), [validation](https://github.com/self-evolving/repo/blob/6058f233c175d68a3f43f717bf2223c980d1769f/.agent/src/implementation-base.ts#L73-L90)). |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | The centralized access policy still runs before route outputs, and implementation delegation requires `needs_approval == false` ([policy](https://github.com/self-evolving/repo/blob/6058f233c175d68a3f43f717bf2223c980d1769f/.agent/src/triage.ts#L577-L616), [job guard](https://github.com/self-evolving/repo/blob/6058f233c175d68a3f43f717bf2223c980d1769f/.github/workflows/agent-router.yml#L938-L953)). |\n| communication / generic | Write audience-first documentation | pass | 7/7 | The action guide leads with observable stacking and label behavior, while detailed routing and authorization mechanics remain in lifecycle documentation ([action guide](https://github.com/self-evolving/repo/blob/6058f233c175d68a3f43f717bf2223c980d1769f/.agent/docs/usage/agent-actions.md#L34-L44), [lifecycle](https://github.com/self-evolving/repo/blob/6058f233c175d68a3f43f717bf2223c980d1769f/.agent/docs/architecture/request-lifecycle.md#L13-L24)). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The [14-file diff](https://github.com/self-evolving/repo/pull/470/files) is confined to deterministic metadata routing, focused regressions, obsolete session removal, and documentation required by [#469](https://github.com/self-evolving/repo/issues/469). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Command removal and route extraction share `findExplicitRouteCommand`, while dispatch continues through the established policy and implementation-base helpers ([shared matcher](https://github.com/self-evolving/repo/blob/6058f233c175d68a3f43f717bf2223c980d1769f/.agent/src/triage.ts#L151-L191), [route extraction](https://github.com/self-evolving/repo/blob/6058f233c175d68a3f43f717bf2223c980d1769f/.agent/src/triage.ts#L327-L337)). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Lifecycle, action, and workflow documentation consistently describe deterministic metadata, label isolation, stacking, and closed-base behavior ([supported workflows](https://github.com/self-evolving/repo/blob/6058f233c175d68a3f43f717bf2223c980d1769f/.agent/docs/usage/supported-workflows.md#L103-L111)). |\n\n## Notes\n\n- Current head [`6058f23`](https://github.com/self-evolving/repo/commit/6058f233c175d68a3f43f717bf2223c980d1769f) is mergeable, correctly stacked on PR #468, and has a successful [Test Scripts check](https://github.com/self-evolving/repo/actions/runs/29138088920/job/86506173321).\n- Independent current-head verification passed all `test:ci` lanes: 759 runtime tests, 88 workflow checks, 5 documentation checks, and 21 shell checks.\n- Issue #469 explicitly permits request-derived titles and a generic fallback, so this is not a scope defect. It nevertheless remains a gap against the selected metadata rubric, which rejects literal command-tail titles and generic placeholders.\n- Smallest useful follow-up: combine the active slash request with target title/context and use a context-aware fallback while retaining the deterministic fast path.\n\n## Findings\n\n- **WARNING:** Mention-triggered tracking titles still copy normalized command text or use a generic placeholder instead of deriving metadata from both the request and available target context.\n- **INFO:** Authorization, ancestry eligibility, stale label isolation, tests, documentation, reuse, and change scope satisfy their applicable rubrics.\n\n## Final Rubric Verdict\n\nPARTIAL\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-5`",
+      "createdAt": "2026-07-11T03:38:42Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/470#issuecomment-4942076482",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-07-11T02:15:15Z",
+  "files": [
+    {
+      "path": ".agent/docs/architecture/request-lifecycle.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/agent-actions.md",
+      "additions": 8,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/supported-workflows.md",
+      "additions": 10,
+      "deletions": 9,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/context.test.ts",
+      "additions": 3,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 22,
+      "deletions": 14,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/extract-context-cli.test.ts",
+      "additions": 35,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/resolve-dispatch-cli.test.ts",
+      "additions": 35,
+      "deletions": 63,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/triage.test.ts",
+      "additions": 143,
+      "deletions": 39,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/extract-context.ts",
+      "additions": 5,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/resolve-dispatch.ts",
+      "additions": 40,
+      "deletions": 37,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/context.ts",
+      "additions": 8,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/triage.ts",
+      "additions": 212,
+      "deletions": 62,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-implement-metadata.md",
+      "additions": 0,
+      "deletions": 34,
+      "changeType": "DELETED"
+    },
+    {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 12,
+      "deletions": 67,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-469/codex-29135619765",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 470,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABFrlyLQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-07-11T02:30:43Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "e67590e824df7e04810e29f391d6b8f8fbdf56d6"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABFrqajA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-07-11T02:59:55Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "fc36dc1a1fc7e1cf42600c59b53a5f21b56bb036"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABFrs_cQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-07-11T03:20:57Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "be09e8e5182292d0e7cf43cbc14abca82a99d061"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABFrtBqw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-07-11T03:21:05Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "be09e8e5182292d0e7cf43cbc14abca82a99d061"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Derive explicit implement metadata deterministically",
+  "updatedAt": "2026-07-11T03:38:42Z",
+  "url": "https://github.com/self-evolving/repo/pull/470"
+}

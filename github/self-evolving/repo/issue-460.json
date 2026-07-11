@@ -1,0 +1,158 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "1. apparently it doesn't make sense to run the sepo tests for downstream forked repos. \n2. what's the best way to disable it? \n    - adding a repo name gate? \n    - or ...?\n\n@sepo-agent /answer ",
+  "closedAt": "2026-07-11T01:02:10Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJnKEIQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Recommended: add a fork-aware job gate to `test-scripts.yml`, not a hard `github.repository == 'self-evolving/repo'` repo-name gate.\n\nWhy:\n- [`test-scripts.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/test-scripts.yml#L3-L9) currently runs on every PR and manual dispatch.\n- The actual Sepo CI lanes are the `.agent` scripts: build, runtime tests, workflow checks, docs checks, shell checks in [`package.json`](https://github.com/self-evolving/repo/blob/main/.agent/package.json#L6-L14).\n- Docs currently say `test-scripts.yml` is normal CI and is not paused by `AGENT_ENABLED` ([supported workflows](https://github.com/self-evolving/repo/blob/main/.agent/docs/usage/supported-workflows.md#L28-L35), [configuration list](https://github.com/self-evolving/repo/blob/main/.agent/docs/customization/configuration-list.md#L10-L13)).\n- A repo-name gate is too narrow. It would prevent non-fork Sepo-derived repos from intentionally validating the copied agent stack.\n- A fork gate matches the real condition: downstream fork repos skip by default, while upstream PRs into `self-evolving/repo` still run because the workflow’s repository is the upstream repo, not the contributor fork.\n\nI’d implement this as a job-level guard before checkout:\n\n```yaml\njobs:\n  check:\n    if: >-\n      github.event_name == 'workflow_dispatch' ||\n      vars.AGENT_TEST_SCRIPTS_ENABLED == 'true' ||\n      (\n        vars.AGENT_TEST_SCRIPTS_ENABLED != 'false' &&\n        github.event.repository.fork != true\n      )\n```\n\nThat gives:\n- non-fork repos: run by default\n- fork repos: skip PR CI by default\n- fork repos that really want Sepo CI: set `AGENT_TEST_SCRIPTS_ENABLED=true`\n- any repo that wants to disable it: set `AGENT_TEST_SCRIPTS_ENABLED=false`\n- manual `workflow_dispatch`: still available for explicit debugging\n\nExecution plan:\n1. Add the job-level `if` to [`test-scripts.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/test-scripts.yml#L7-L9).\n2. Update docs where current behavior is described: [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/usage/supported-workflows.md#L28-L35) and [`configuration-list.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/customization/configuration-list.md#L10-L13).\n3. Update the workflow envelope test that currently asserts the old behavior in [`envelope.test.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/envelope.test.ts#L560-L620).\n4. Run `npm --prefix .agent run test:ci`.\n\nRecommended next step: approve an `/implement` for the fork-aware `test-scripts.yml` gate plus docs/test updates.\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — answer · 2m00s · 26 steps**\n\nLast message\n> Recommended: add a fork-aware job gate to `test-scripts.yml`, not a hard `github.repository == 'self-evolving/repo'` repo-name gate. Why: - [`test-scripts.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/test-scripts…\n\nActivity\n\n- 💬 Message \"There are already tests that encode the current behavior: packaged `agent-*.yml` workflows must have `AGENT_ENABLED` guards, and `test-scripts.yml` is intentionally excluded from that set. Any change should update that expectation instead…\"\n- 📖 Read `Read envelope.test.ts` (completed)\n- 📖 Read `Read quick-start.md` (completed)\n- 📖 Read `Read configuration-list.md` (completed)\n- 📖 Read `Read versioning.md` (completed)\n- 💬 Message \"Recommended: add a fork-aware job gate to `test-scripts.yml`, not a hard `github.repository == 'self-evolving/repo'` repo-name gate. Why: - [`test-scripts.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/test-scripts…\"\n</details>\n\n<!-- sepo-progress:run-29127476871 -->\n\n---\n`codex` | `gpt-5.5/xhigh` | `Macmini-runner-4`",
+      "createdAt": "2026-07-10T22:22:14Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/460#issuecomment-4940006433",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJnNLFQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "```\nnon-fork repos: run by default\nfork repos: skip PR CI by default\nfork repos that really want Sepo CI: set AGENT_TEST_SCRIPTS_ENABLED=true\nany repo that wants to disable it: set AGENT_TEST_SCRIPTS_ENABLED=false\nmanual workflow_dispatch: still available for explicit debugging\n```\n\n1. for repo forks: i think people use it as a template -> can they detect it? \n2. should it be automatically skipped if no files changed in .agent (can that be a simple gate?\n\nI still think we should remove this by default \n\n@sepo-agent /answer ",
+      "createdAt": "2026-07-10T22:31:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/460#issuecomment-4940057365",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJnNgaQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, that changes the recommendation: use a canonical-repository gate. The documented setup is **Use this template** ([README](https://github.com/self-evolving/repo/blob/main/README.md#L11-L14)), and template-created repositories are independent repositories, not forks. GitHub gives them unrelated histories. GitHub’s API can expose `template_repository`, but detecting ancestry is unnecessary and would miss manual copies or installer-created repos. ([GitHub template docs](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-template-repository), [repository API](https://docs.github.com/en/rest/repos/repos))\n\nI’d make automatic Sepo CI source-only, with downstream opt-in and manual debugging:\n\n```yaml\non:\n  pull_request:\n    paths:\n      - \".agent/**\"\n      - \".github/actions/**\"\n      - \".github/prompts/**\"\n      - \".github/workflows/**\"\n  workflow_dispatch:\n\njobs:\n  check:\n    if: >-\n      github.event_name == 'workflow_dispatch' ||\n      github.repository == 'self-evolving/repo' ||\n      vars.AGENT_TEST_SCRIPTS_ENABLED == 'true'\n```\n\nUsing only `.agent/**` would be incomplete. The suite also parses workflows/actions and validates prompts and action shell scripts ([validation test](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/workflow-action-validation.test.ts#L20-L27), [test scripts](https://github.com/self-evolving/repo/blob/main/.agent/package.json#L10-L14)).\n\nResult:\n\n- `self-evolving/repo`: runs automatically, only for Sepo-owned changes.\n- Forks, template repos, installed repos, and manual copies: no automatic Sepo CI.\n- Downstream Sepo developers: opt in with `AGENT_TEST_SCRIPTS_ENABLED=true`.\n- Anyone: can still run `workflow_dispatch` explicitly.\n- Fork PRs targeting `self-evolving/repo`: still run because the workflow executes in the upstream repository context.\n\nOne caveat: GitHub leaves a required check pending when its entire workflow is skipped by a `paths` filter. This repository currently does not require that check; if it becomes required, use a tiny always-running change-detection job and conditionally skip only the heavy test job. ([GitHub required-check behavior](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/collaborating-on-repositories-with-code-quality-features/troubleshooting-required-status-checks))\n\nImplementation would update `test-scripts.yml`, its envelope assertions, and the two workflow/configuration docs. Approve with `/implement` and I’ll make that change.\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — answer · 2m50s · 18 steps**\n\nLast message\n> Yes, that changes the recommendation: use a canonical-repository gate. The documented setup is **Use this template** ([README](https://github.com/self-evolving/repo/blob/main/README.md#L11-L14)), and template-created repositories are indep…\n\nActivity\n\n- 🔍 Searched `gh api repos/self-evolving/repo/rulesets --paginate --jq '.[] | {id, name, enforcement, target}'` (completed)\n- 🔧 Used tool `gh api repos/self-evolving/repo/rulesets/16854531 --jq '{name, enforcement, conditions, rules}'` (completed)\n- 🔍 Searched `Search for 'README\\.md|\\.gitignore|\\.github/prompts|\\.github/actions|\\.github/workflows|\\.agent/' in __tests__` (completed)\n- 🔍 Searched `Search for 'readRepoFile\\(\"[^\"]+\"\\)' in *.test.ts` (completed)\n- 🔍 Searched `\"find .github/actions -type f | sort; find .github/prompts -type f | sort | sed -n '1,120p'; find .agent/scripts -type…` (completed)\n- 💬 Message \"Yes, that changes the recommendation: use a canonical-repository gate. The documented setup is **Use this template** ([README](https://github.com/self-evolving/repo/blob/main/README.md#L11-L14)), and template-created repositories are indep…\"\n</details>\n\n<!-- sepo-progress:run-29127985557 -->\n\n---\n`codex` | `gpt-5.6-sol` | `max` | `Macmini-runner-3`",
+      "createdAt": "2026-07-10T22:32:49Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/460#issuecomment-4940062825",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJnxc_A",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "```\nI’d make automatic Sepo CI source-only, with downstream opt-in and manual debugging:\n\non:\n  pull_request:\n    paths:\n      - \".agent/**\"\n      - \".github/actions/**\"\n      - \".github/prompts/**\"\n      - \".github/workflows/**\"\n  workflow_dispatch:\n\njobs:\n  check:\n    if: >-\n      github.event_name == 'workflow_dispatch' ||\n      github.repository == 'self-evolving/repo' ||\n      vars.AGENT_TEST_SCRIPTS_ENABLED == 'true'\nUsing only .agent/** would be incomplete. The suite also parses workflows/actions and validates prompts and action shell scripts ([validation test](https://github.com/self-evolving/repo/blob/main/.agent/src/__tests__/workflow-action-validation.test.ts#L20-L27), [test scripts](https://github.com/self-evolving/repo/blob/main/.agent/package.json#L10-L14)).\n``` \n\ncan we do a composite condition: \n\n1. if it's sepo: track all the three paths \n2. if it is not sepo, track only .agent path \n\n@sepo-agent /answer ",
+      "createdAt": "2026-07-11T00:12:56Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/460#issuecomment-4940651772",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJnxvKQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes, for deciding whether the full test job runs. GitHub does not support repository-dependent expressions inside `pull_request.paths`; those patterns are static. ([workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#onpushpull_requestpull_request_targetpathspaths-ignore))\n\nThe composite rule is:\n\n```text\nmanual_dispatch\nOR .agent_changed\nOR (is_self_evolving_repo AND sepo_github_files_changed)\n```\n\nKeep the trigger as the union:\n\n```yaml\non:\n  pull_request:\n    paths:\n      - \".agent/**\"\n      - \".github/actions/**\"\n      - \".github/prompts/**\"\n      - \".github/workflows/**\"\n  workflow_dispatch:\n```\n\nThen add a lightweight `changes` job that lists PR files and emits `agent_changed` and `sepo_github_changed`. The test job becomes:\n\n```yaml\ncheck:\n  needs: changes\n  if: >-\n    github.event_name == 'workflow_dispatch' ||\n    needs.changes.outputs.agent_changed == 'true' ||\n    (\n      github.repository == 'self-evolving/repo' &&\n      needs.changes.outputs.sepo_github_changed == 'true'\n    )\n```\n\nThe gate can use `actions/github-script@v7` with `github.rest.pulls.listFiles`, including pagination. That API requires only pull-request read access, and the repository already uses the same `github-script` and pagination pattern in [`agent-branch-cleanup.yml`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-branch-cleanup.yml#L37-L60). ([GitHub files API](https://docs.github.com/en/rest/pulls/pulls#list-pull-requests-files))\n\nBehavior:\n\n- `self-evolving/repo`: full tests for `.agent/**` or the three Sepo `.github/**` areas.\n- Downstream repo: full tests only for `.agent/**`.\n- Manual dispatch: always runs.\n- Downstream `.github/**` change: only the cheap gate runs; npm install/build/tests are skipped.\n\nIf “track only `.agent/**`” means no workflow run whatsoever for downstream `.github/**` changes, that cannot be expressed in one shared workflow because event path filters are static. The source-only workflow would need to be excluded from downstream distributions. For the current template layout, the lightweight gate is the cleanest implementation.\n\nThe implementation plan is to add the gate, condition the existing `check` job, update envelope tests/docs, and run `npm --prefix .agent run test:ci`. Approve with `/implement` to proceed.\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — answer · 2m34s · 11 steps**\n\nLast message\n> Yes, for deciding whether the full test job runs. GitHub does not support repository-dependent expressions inside `pull_request.paths`; those patterns are static. ([workflow syntax](https://docs.github.com/en/actions/reference/workflows-an…\n\nActivity\n\n- 🔍 Searched `Web search` (completed)\n- 💬 Message \"GitHub’s `paths` list is static, so it cannot switch patterns based on `github.repository`. The clean single-workflow design is a broad static trigger plus a lightweight changed-files job; only the existing build/test job consumes runner t…\"\n- 📖 Read `Read file '/Users/shannon/projects/2604_sepo/repo/.agent/tools/local-runner/runner-1/_work/repo/repo/.github/workflows/…` (completed)\n- 📖 Read `Read file '/Users/shannon/projects/2604_sepo/repo/.agent/tools/local-runner/runner-1/_work/repo/repo/.github/workflows/…` (completed)\n- 📖 Read `Read file '/Users/shannon/projects/2604_sepo/repo/.agent/tools/local-runner/runner-1/_work/repo/repo/.agent/src/__tests…` (completed)\n- 💬 Message \"Yes, for deciding whether the full test job runs. GitHub does not support repository-dependent expressions inside `pull_request.paths`; those patterns are static. ([workflow syntax](https://docs.github.com/en/actions/reference/workflows-an…\"\n</details>\n\n<!-- sepo-progress:run-29132130048 -->\n\n---\n`codex` | `gpt-5.6-sol` | `max` | `Macmini-runner-1`",
+      "createdAt": "2026-07-11T00:13:53Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/460#issuecomment-4940656425",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJn4Hjw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "ok can we then do the simplest:\n\non:\n  pull_request:\n    paths:\n      - \".agent/**\"\n      - \".github/actions/**\"\n      - \".github/prompts/**\"\n      - \".github/workflows/**\"\n  workflow_dispatch:\n\njobs:\n  check:\n    if: >-\n      github.event_name == 'workflow_dispatch' ||\n      github.repository == 'self-evolving/repo' ||\n      vars.AGENT_TEST_SCRIPTS_ENABLED == 'true'\n\nthat's it. \n\n@sepo-agent /implement ",
+      "createdAt": "2026-07-11T00:31:45Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/460#issuecomment-4940760975",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJn4ydA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-460/codex-29132828790`\n- Pull request: https://github.com/self-evolving/repo/pull/463\n\nLimited Test Scripts pull request runs to Sepo-owned paths and gated the check to `self-evolving/repo` unless `AGENT_TEST_SCRIPTS_ENABLED=true`, while preserving manual dispatches. Documented the behavior, added regression coverage, and verified with `npm --prefix .agent run test:ci` and `git diff --check`.\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — implement · 2m51s · 22 steps**\n\nLast message\n> { \"summary\": \"Limited Test Scripts pull request runs to Sepo-owned paths and gated the check to `self-evolving/repo` unless `AGENT_TEST_SCRIPTS_ENABLED=true`, while preserving manual dispatches. Documented the behavior, added regression co…\n\nActivity\n\n- 🔧 Used tool (completed)\n- 💬 Message \"All CI lanes passed, including the new workflow contract assertion. I’m doing the final worktree and whitespace review now, then I’ll return the PR metadata JSON without committing.\"\n- 🔧 Used tool `git diff -- .github/workflows/test-scripts.yml .agent/src/__tests__/envelope.test.ts .agent/docs/usage/supported-workfl…` (completed)\n- 🔧 Used tool `git diff --check` (completed)\n- 🔧 Used tool `git status --short; git diff --stat; git diff --name-only` (completed)\n- 💬 Message \"{ \"summary\": \"Limited Test Scripts pull request runs to Sepo-owned paths and gated the check to `self-evolving/repo` unless `AGENT_TEST_SCRIPTS_ENABLED=true`, while preserving manual dispatches. Documented the behavior, added regression co…\"\n</details>\n\n<!-- sepo-progress:run-29132828790 -->\n\n---\n`codex` | `gpt-5.6-sol` | `max` | `Macmini-runner-6`",
+      "createdAt": "2026-07-11T00:33:00Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/460#issuecomment-4940771956",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-07-10T22:21:17Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 460,
+  "state": "CLOSED",
+  "title": "disable sepo tests for forked repo by default",
+  "updatedAt": "2026-07-11T01:02:10Z",
+  "url": "https://github.com/self-evolving/repo/issues/460"
+}

@@ -1,0 +1,106 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "agent/implement-issue-461/codex-29132286256",
+  "body": "## Summary\n\n- add an early REST-based eyes reaction immediately after checkout\n- derive supported reaction endpoints from the raw event payload\n- filter quoted, fenced, inline-code, and unchanged edited mentions\n- retain GraphQL fallback for failures, discussions, and PR review bodies\n- suppress duplicate reactions across authentication identities\n- add focused workflow and helper tests plus documentation\n\n## Verification\n\n- `npm --prefix .agent run build`\n- `npm --prefix .agent run check:workflow`\n- `npm --prefix .agent run check:docs`\n- `npm --prefix .agent run check:shell`\n\nCloses #465\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJoGZtw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #466 | 3 / 40 | Dispatched |\n\nReason: implementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1783732073323 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjkxMzM3MjEzNTg6aW1wbGVtZW50OjQ2NTpyZXZpZXc6NDY2OjM -->",
+      "createdAt": "2026-07-11T01:07:53Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/466#issuecomment-4940994999",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJoKLrA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Separate context from execution dependencies | pass | 7/7 | The helper selects only each event’s active title, body, or comment and reconstructs prior edited text without treating parent payload data as an active trigger ([helper](https://github.com/self-evolving/repo/blob/917e6ab1542639cd0ab3c4f6b1a23975d1a744bf/.agent/scripts/fast-reaction.cjs#L42-L153)). Tests cover inactive-parent mentions and unsupported GraphQL-only surfaces ([tests](https://github.com/self-evolving/repo/blob/917e6ab1542639cd0ab3c4f6b1a23975d1a744bf/.agent/scripts/test/fast-reaction.test.cjs#L133-L207)). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The five-file diff implements only Task 1b from [#465](https://github.com/self-evolving/repo/issues/465): the helper, focused tests, workflow wiring, and matching documentation. Concurrency, answer-first routing, approval offers, and later tasks from [#454](https://github.com/self-evolving/repo/issues/454) remain untouched. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The required pre-build CJS helper mirrors the canonical boundary and Markdown-filtering rules in [`mentions.ts`](https://github.com/self-evolving/repo/blob/917e6ab1542639cd0ab3c4f6b1a23975d1a744bf/.agent/src/mentions.ts#L1-L42), uses only Node built-ins and the existing `gh` CLI, and keeps nontrivial logic out of workflow YAML. Its tests are discovered by the existing `check:shell` lane ([package scripts](https://github.com/self-evolving/repo/blob/917e6ab1542639cd0ab3c4f6b1a23975d1a744bf/.agent/package.json#L8-L14)). |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The workflow adds one dependency-free step, one REST request, and one boolean output without adding a dependency, action, public setting, or routing layer ([workflow](https://github.com/self-evolving/repo/blob/917e6ab1542639cd0ab3c4f6b1a23975d1a744bf/.github/workflows/agent-router.yml#L146-L167)). |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Existing mentions on edited events are skipped, successful early reactions suppress both later GraphQL paths, and focused tests cover both behaviors ([helper](https://github.com/self-evolving/repo/blob/917e6ab1542639cd0ab3c4f6b1a23975d1a744bf/.agent/scripts/fast-reaction.cjs#L142-L152), [workflow](https://github.com/self-evolving/repo/blob/917e6ab1542639cd0ab3c4f6b1a23975d1a744bf/.github/workflows/agent-router.yml#L232-L241)). GitHub’s [reactions API](https://docs.github.com/en/rest/reactions/reactions) also treats an existing same-identity reaction as success. |\n| coding_workflow / generic | Bound transient retries | pass | 7/7 | The fast path makes one attempt with a 10-second timeout and performs no unbounded retry; failures leave the existing post-setup fallback available ([helper](https://github.com/self-evolving/repo/blob/917e6ab1542639cd0ab3c4f6b1a23975d1a744bf/.agent/scripts/fast-reaction.cjs#L155-L211)). |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | API and payload failures produce explicit reasons, emit `reacted=false`, and log errors while preserving route execution and fallback behavior; the failure contract has focused coverage ([implementation](https://github.com/self-evolving/repo/blob/917e6ab1542639cd0ab3c4f6b1a23975d1a744bf/.agent/scripts/fast-reaction.cjs#L162-L247), [test](https://github.com/self-evolving/repo/blob/917e6ab1542639cd0ab3c4f6b1a23975d1a744bf/.agent/scripts/test/fast-reaction.test.cjs#L209-L222)). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The usage guide documents timing, supported surfaces, token identity, filtering, duplicate suppression, and GraphQL fallback behavior ([docs](https://github.com/self-evolving/repo/blob/917e6ab1542639cd0ab3c4f6b1a23975d1a744bf/.agent/docs/usage/supported-workflows.md#L256-L264)). |\n\n## Notes\n\n- Current head `917e6ab1542639cd0ab3c4f6b1a23975d1a744bf` remains the narrowly scoped stack slice based on the reviewed PR [#462](https://github.com/self-evolving/repo/pull/462).\n- All six focused helper tests pass. The current-head [hosted check](https://github.com/self-evolving/repo/actions/runs/29134043692) also passed build, runtime, workflow, documentation, shell, and diff-hygiene validation.\n- Authorization, orchestration, merge, lifecycle, preview, setup, and configuration rubrics were not scored because this diff does not materially exercise them.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific defect found at the current head.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-1`",
+      "createdAt": "2026-07-11T01:16:46Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/466#issuecomment-4941056940",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJoMO4g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 917e6ab1542639cd0ab3c4f6b1a23975d1a744bf -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\n[PR #466](https://github.com/self-evolving/repo/pull/466) implements Task 1b of [#465](https://github.com/self-evolving/repo/issues/465), within the first-response milestone [#454](https://github.com/self-evolving/repo/issues/454). It adds a dependency-free REST helper that posts an early 👀 acknowledgment before runtime setup. Successful early reactions suppress the later GraphQL reaction, while unsupported surfaces and failures retain the existing fallback. Focused tests and documentation cover endpoint selection, mention filtering, edited events, failure behavior, and workflow ordering.\n\n## Review\n\nThe current implementation is surgical, safe, and ship-ready. Reviewers disagreed only about early 👀 reactions on `/approve` commands; the delegated specification intentionally defines the fast path using live mentions, making this non-actionable.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues | INFO | The implementation satisfies the delegated scope, preserves safe fallback behavior, and passes current-head validation. |\n\n## Progress\n\n- Verified unchanged head `917e6ab1542639cd0ab3c4f6b1a23975d1a744bf`; the PR is mergeable and the `Test Scripts` check is green.\n- Confirmed PR #462’s reviewed head is an ancestor of this stacked PR.\n- The rubric review passed 100%, and all reviewers found the core implementation safe and appropriately scoped.\n- `/approve` comments receive an early 👀 plus the approval workflow’s semantic 👍; this matches the live-mention acceptance criteria rather than duplicating the same reaction.\n- No existing inline comments or review threads required deduplication or cleanup. No comments, replies, resolutions, or minimizations were performed.\n- Tasks 1c, 2, and 3 remain intentionally out of scope.\n\n## Recommended Next Step\n\n`NO_AUTOMATED_ACTION`: No unresolved actionable review work remains on the branch.\n\n## Final Verdict\n\n`SHIP`\n\n## Action Items\n\n- [ ] None — no required branch changes remain.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-1`",
+      "createdAt": "2026-07-11T01:23:15Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/466#issuecomment-4941090530",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-07-11T01:07:27Z",
+  "files": [
+    {
+      "path": ".agent/docs/usage/supported-workflows.md",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/scripts/fast-reaction.cjs",
+      "additions": 260,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/scripts/test/fast-reaction.test.cjs",
+      "additions": 236,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 39,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 13,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-465/codex-29133721358",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 466,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "OPEN",
+  "title": "Add fast pre-runtime mention acknowledgments",
+  "updatedAt": "2026-07-11T01:23:15Z",
+  "url": "https://github.com/self-evolving/repo/pull/466"
+}

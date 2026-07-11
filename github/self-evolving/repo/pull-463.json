@@ -1,0 +1,144 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n\n- limit `Test Scripts` pull request triggers to `.agent` and Sepo-owned `.github` paths\n- run the check by default only in `self-evolving/repo`, with `AGENT_TEST_SCRIPTS_ENABLED=true` as a downstream opt-in\n- document and regression-test the workflow contract\n\n## Testing\n\n- `npm --prefix .agent run test:ci`\n- `git diff --check`\n\nCloses #460\n",
+  "closedAt": "2026-07-11T01:02:09Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJn83Gw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review ",
+      "createdAt": "2026-07-11T00:43:24Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/463#issuecomment-4940838683",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJn_NSw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The PR changes only the workflow, its contract tests, and two relevant docs—four files and no unrelated cleanup ([diff](https://github.com/self-evolving/repo/pull/463/files)). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Regression coverage reuses the existing YAML parser and `isRecord` test pattern; the workflow gate remains declarative with no new inline script or helper ([test](https://github.com/self-evolving/repo/blob/40bca3678b8e3acdb1a92a4dbfaf750347b16dd7/.agent/src/__tests__/envelope.test.ts#L605-L638)). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Both the configuration reference and supported-workflows guide document the source-only default, path scope, downstream opt-in, and manual dispatch behavior ([configuration](https://github.com/self-evolving/repo/blob/40bca3678b8e3acdb1a92a4dbfaf750347b16dd7/.agent/docs/customization/configuration-list.md#L5-L14), [workflow guide](https://github.com/self-evolving/repo/blob/40bca3678b8e3acdb1a92a4dbfaf750347b16dd7/.agent/docs/usage/supported-workflows.md#L28-L40)). |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | The implementation uses the requested minimal primitive: source-repository default, one downstream opt-in, and native manual dispatch—without adding a changed-files subsystem ([workflow](https://github.com/self-evolving/repo/blob/40bca3678b8e3acdb1a92a4dbfaf750347b16dd7/.github/workflows/test-scripts.yml#L3-L20)). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | `AGENT_TEST_SCRIPTS_ENABLED` is a dedicated single-purpose repository variable with exact `true` semantics; it does not overload another policy or introduce ambiguous precedence. |\n| coding_workflow / generic | Name config by capability | pass | 6/6 | `AGENT_TEST_SCRIPTS_ENABLED` names the exact intentionally limited capability it controls: automatic execution of `test-scripts.yml`. |\n| communication / generic | Make setup guidance actionable | pass | 7/7 | Downstream users are given the exact opt-in value, while manual dispatch is clearly identified as the no-configuration fallback ([docs](https://github.com/self-evolving/repo/blob/40bca3678b8e3acdb1a92a4dbfaf750347b16dd7/.agent/docs/usage/supported-workflows.md#L33-L40)). |\n\n## Notes\n\n- The implementation matches the requester’s final explicit “simplest” design in [issue #460](https://github.com/self-evolving/repo/issues/460#issuecomment-4940760975).\n- At reviewed head [`40bca367`](https://github.com/self-evolving/repo/commit/40bca3678b8e3acdb1a92a4dbfaf750347b16dd7), the live [GitHub check](https://github.com/self-evolving/repo/actions/runs/29132961425/job/86491774068) passed. Independent `npm run test:ci` and `git diff --check` verification also passed.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific violations found.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-2`",
+      "createdAt": "2026-07-11T00:50:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/463#issuecomment-4940877131",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJoBMEg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 40bca3678b8e3acdb1a92a4dbfaf750347b16dd7 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #463 limits automatic Test Scripts runs to Sepo-owned paths and enables them by default only in `self-evolving/repo`. Downstream repositories can opt in with `AGENT_TEST_SCRIPTS_ENABLED=true`, while manual dispatch remains available. The implementation matches the final design requested in #460 and includes documentation and contract coverage. One path-filter coverage gap remains.\n\n## Review\n\nThe authorization, gating, and manual-dispatch behavior are sound, and CI passes. However, the new path allowlist omits files already validated by the test suite.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Issue-template changes bypass Test Scripts | WARNING | [`check:workflow`](https://github.com/self-evolving/repo/blob/40bca3678b8e3acdb1a92a4dbfaf750347b16dd7/.agent/src/__tests__/envelope.test.ts#L1610-L1673) validates two issue templates, but the [new path filter](https://github.com/self-evolving/repo/blob/40bca3678b8e3acdb1a92a4dbfaf750347b16dd7/.github/workflows/test-scripts.yml#L5-L9) omits `.github/ISSUE_TEMPLATE/**`. A PR changing only those templates will skip their existing contract tests. |\n\n## Progress\n\n- The source-repository default, downstream opt-in, and manual-dispatch escape hatch match #460’s requested design.\n- Test Scripts passes at the reviewed head, and independent `test:ci` and `git diff --check` validation passed.\n- Rubric review passed with no authorization, runtime, or workflow-gate violations.\n- The required-check caveat was already acknowledged in #460 and is not active under the current ruleset.\n- Posted one deduplicated [inline comment](https://github.com/self-evolving/repo/pull/463#discussion_r3562732191); no prior inline comments or threads required cleanup.\n\n## Issue Details\n\n<details>\n<summary>Issue-template changes bypass Test Scripts</summary>\n\n**Cause:** The static `pull_request.paths` list does not include `.github/ISSUE_TEMPLATE/**`, although `envelope.test.ts` reads and asserts `install-sepo.md` and `ask-sepo.md`.\n\n**Candidate solutions:**\n\n- Add `.github/ISSUE_TEMPLATE/**` to the workflow filter.\n- Update the exact path-array assertion and supported-workflows documentation to match.\n\n**Comments:** One reviewer considered the allowlist complete and recommended shipping; another identified the omission. Inspection of the current head confirms the templates are actively validated, so the warning remains supported.\n\n</details>\n\n## Recommended Next Step\n\n`FIX_PR`: Add the missing issue-template path and synchronize the contract test and documentation; this is a small, safe automated branch change.\n\n## Final Verdict\n\n`MINOR_ISSUES`\n\n## Action Items\n\n- [ ] Add `.github/ISSUE_TEMPLATE/**` to the Test Scripts path filter and update the asserted and documented path lists.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-4`",
+      "createdAt": "2026-07-11T00:55:07Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/463#issuecomment-4940909586",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJoFgcg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #463.\n\nNo rubric changes.\n\n- The maintainer’s preference for the “simplest” design is already covered by `simple-implementation` and `minimal-defaults-native-escape-hatches`.\n- The only novel finding was [bot-authored review feedback](https://github.com/self-evolving/repo/pull/463#discussion_r3562732191), with no explicit maintainer endorsement.\n- The rubrics worktree remains clean.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-2`",
+      "createdAt": "2026-07-11T01:05:35Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/463#issuecomment-4940980338",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-07-11T00:36:13Z",
+  "files": [
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 2,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/supported-workflows.md",
+      "additions": 5,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 22,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/test-scripts.yml",
+      "additions": 9,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-460/codex-29132828790",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": "2026-07-11T01:02:09Z",
+  "number": 463,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABFrS-3g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-07-11T00:54:23Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "40bca3678b8e3acdb1a92a4dbfaf750347b16dd7"
+      }
+    }
+  ],
+  "state": "MERGED",
+  "title": "Limit Sepo test CI to source repository",
+  "updatedAt": "2026-07-11T01:05:35Z",
+  "url": "https://github.com/self-evolving/repo/pull/463"
+}

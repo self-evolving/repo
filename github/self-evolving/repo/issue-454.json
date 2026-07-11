@@ -44,6 +44,176 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/454#issuecomment-4928162974",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJnM2sQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer what do you think?",
+      "createdAt": "2026-07-10T22:30:57Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/454#issuecomment-4940052145",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJnNKyw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Overall: I’d green-light this M0, with a few revisions before implementation.** Answer-first is a cleaner product contract, and the measured bottlenecks match the current workflow.\n\n- Strengthen 1a beyond the bot guard. [`contains(toJSON(github.event), handle)`](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-entrypoint.yml#L53-L79) can match the handle elsewhere in the payload—for example, the parent issue body during an unmentioned comment. Check only the active event title/body/comment and add the bot guard. Acceptance should say “allocates no runner,” since GitHub will still create a skipped workflow run.\n\n- For 1b, put a dependency-free fast-ack helper immediately after checkout but before auth/provider/`npm ci`. That remains testable and should retain nearly all the latency win. Use `github.token`, emit `reacted=true`, and explicitly skip the later GraphQL fallback when successful. The current [`addReaction`](https://github.com/self-evolving/repo/blob/main/.agent/src/reactions.ts#L37-L55) does not deduplicate across the Actions and App identities, so “no-op if already reacted” is not currently true.\n\n- Per-comment concurrency is right, but include the event/source kind in the key. I would not add a second same-key job lock yet: [`agent-fix-pr.yml` already has workflow-level concurrency](https://github.com/self-evolving/repo/blob/main/.github/workflows/agent-fix-pr.yml#L107-L114), and GitHub documents both workflow- and job-level concurrency without saying reusable workflows ignore the former. Duplicating a group could create bad interactions. First run a two-dispatch integration probe; if necessary, **move** the lock to the job rather than duplicating it. [GitHub concurrency documentation](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency).\n\n- Make answer-first with command guidance the Task 2 default, but defer `approval-offer`. That option introduces a new structured-output and approval-materialization contract, which risks recreating routing complexity in the answer path. Commands-only delivers the main UX and latency benefit safely. `AGENT_TRIAGE_MODE=agent` should affect only uncommanded mentions; explicit routes, labels, and implicit-follow-up policy should remain independent.\n\n- Remove implement-metadata generation, but derive a reasonable tracking title deterministically instead of expecting the implement agent to retitle it. The current [implement prompt](https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-implement.md) does not request retitling, while [`triage.ts` already has a safe fallback body](https://github.com/self-evolving/repo/blob/main/.agent/src/triage.ts#L204-L220).\n\n- For Task 3, split provider CLI installation from runtime build. [`setup-agent-runtime`](https://github.com/self-evolving/repo/blob/main/.github/actions/setup-agent-runtime/action.yml#L79-L138) currently builds before context extraction and then installs the selected CLI, so the lazy-install work is not fully independent unless CLI installation becomes a separate post-route step. Also, implement dispatch is already before link-back and 👍, but the status-label write still occurs in the portal before the route job; either move that label or narrow the acceptance claim.\n\nI’d split this into five small PRs: entrypoint guard/prefilter, fast ack, answer-first, lazy CLI/metadata removal, then concurrency after the integration probe. Measure event→reaction and job-start→reaction separately at p50/p90; hosted-runner queue time makes an absolute 5–8 second end-to-end guarantee unrealistic.\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — answer · 5m14s · 16 steps**\n\nLast message\n> **Overall: I’d green-light this M0, with a few revisions before implementation.** Answer-first is a cleaner product contract, and the measured bottlenecks match the current workflow. - Strengthen 1a beyond the bot guard. [`contains(toJSON(…\n\nActivity\n\n- 📖 Read `\"nl -ba .agent/src/reactions.ts | sed -n '1,260p' && printf '%s\\\\n' IMPLEMENT_JOB && nl -ba .github/workflows/agent-rou…` (completed)\n- ✏️ Edited `\"rg -n -C 4 '\"'^concurrency:|''^ concurrency:'\"' .github/workflows -g 'agent-*.yml' && printf '%s\\\\n' ROUTE_DISPATCHES…` (completed)\n- ✏️ Edited `printf '%s\\n' BLAME_IMPLEMENT && git blame -L 1012,1084 -- .github/workflows/agent-router.yml && printf '%s\\n' BLAME_LA…` (completed)\n- ✏️ Edited `\"nl -ba .agent/src/triage.ts | sed -n '1,240p' && printf '%s\\\\n' ROUTER_TESTS && rg -n -C 6 'Generate implement issue m…` (completed)\n- 📖 Read `\"rg -n -C 6 'shouldSkipSender|event\\\\.comment|event\\\\.issue|event\\\\.pull_request|event\\\\.review|event\\\\.discussion|sour…` (completed)\n- 💬 Message \"**Overall: I’d green-light this M0, with a few revisions before implementation.** Answer-first is a cleaner product contract, and the measured bottlenecks match the current workflow. - Strengthen 1a beyond the bot guard. [`contains(toJSON(…\"\n</details>\n\n<!-- sepo-progress:run-29127941737 -->\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-1`",
+      "createdAt": "2026-07-10T22:31:52Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/454#issuecomment-4940057291",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJnxsdg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate let's stack several PRs for task 1 and 2 first ? ",
+      "createdAt": "2026-07-11T00:13:44Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/454#issuecomment-4940655734",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJnykjw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is starting a focused child task for this orchestration.\n\n| Child task | Focus | Parent issue | Status |\n| --- | --- | --- | --- |\n| #461 | entrypoint-prefilter | #454 | Running |\n\nI'll report back here when the child task finishes.\n\n<!-- sepo-sub-orchestrator-child parent:454 stage:entrypoint-prefilter child:461 -->",
+      "createdAt": "2026-07-11T00:16:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/454#issuecomment-4940670095",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJoBksw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Child task completed.\n\n| Child task | PR | Outcome | Parent round | Next step |\n| --- | --- | --- | --- | --- |\n| #461 | #462 | Ready to ship | 2 / 40 | Resuming parent orchestration |\n\nSummary: review verdict is SHIP\n\n<!-- sepo-sub-orchestrator-report child:461 resume:dispatched -->",
+      "createdAt": "2026-07-11T00:55:54Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/454#issuecomment-4940915891",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJoCRWw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is starting a focused child task for this orchestration.\n\n| Child task | Focus | Parent issue | Status |\n| --- | --- | --- | --- |\n| #465 | fast-ack | #454 | Running |\n\nI'll report back here when the child task finishes.\n\n<!-- sepo-sub-orchestrator-child parent:454 stage:fast-ack child:465 -->",
+      "createdAt": "2026-07-11T00:57:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/454#issuecomment-4940927323",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJoMUAQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Child task completed.\n\n| Child task | PR | Outcome | Parent round | Next step |\n| --- | --- | --- | --- | --- |\n| #465 | #466 | Ready to ship | 3 / 40 | Resuming parent orchestration |\n\nSummary: review verdict is SHIP\n\n<!-- sepo-sub-orchestrator-report child:465 resume:dispatched -->",
+      "createdAt": "2026-07-11T01:23:37Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/454#issuecomment-4941091841",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJoNmZQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is starting a focused child task for this orchestration.\n\n| Child task | Focus | Parent issue | Status |\n| --- | --- | --- | --- |\n| #467 | answer-first | #454 | Running |\n\nI'll report back here when the child task finishes.\n\n<!-- sepo-sub-orchestrator-child parent:454 stage:answer-first child:467 -->",
+      "createdAt": "2026-07-11T01:26:36Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/454#issuecomment-4941112933",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJocwsg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Child task completed.\n\n| Child task | PR | Outcome | Parent round | Next step |\n| --- | --- | --- | --- | --- |\n| #467 | #468 | Ready to ship | 4 / 40 | Resuming parent orchestration |\n\nSummary: review verdict is SHIP\n\n<!-- sepo-sub-orchestrator-report child:467 resume:dispatched -->",
+      "createdAt": "2026-07-11T01:57:06Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/454#issuecomment-4941361330",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJoe2gQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is starting a focused child task for this orchestration.\n\n| Child task | Focus | Parent issue | Status |\n| --- | --- | --- | --- |\n| #469 | implement-metadata | #454 | Running |\n\nI'll report back here when the child task finishes.\n\n<!-- sepo-sub-orchestrator-child parent:454 stage:implement-metadata child:469 -->",
+      "createdAt": "2026-07-11T02:00:07Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/454#issuecomment-4941395585",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-07-03T21:55:36Z",
@@ -58,6 +228,6 @@
   "number": 454,
   "state": "OPEN",
   "title": "M0: first-response groundwork — entrypoint efficiency, answer-first default, faster explicit routes",
-  "updatedAt": "2026-07-09T18:11:23Z",
+  "updatedAt": "2026-07-11T02:00:07Z",
   "url": "https://github.com/self-evolving/repo/issues/454"
 }

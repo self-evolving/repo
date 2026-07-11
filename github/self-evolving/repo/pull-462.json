@@ -1,0 +1,222 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n\n- reject bot-authored mentions before allocating a runner\n- inspect only the active event title, body, comment, or review text\n- preserve supported edited events and unmentioned follow-ups\n- document skipped runs and the bot-to-bot limitation\n- add focused workflow-envelope coverage\n\n## Verification\n\n- `npm --prefix .agent run build`\n- `npm --prefix .agent run check:workflow`\n- `npm --prefix .agent run check:docs`\n\nCloses #461\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJn2CNQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #462 | 3 / 40 | Dispatched |\n\nReason: implementation succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1783729596577 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjkxMzIyODYyNTY6aW1wbGVtZW50OjQ2MTpyZXZpZXc6NDYyOjM -->",
+      "createdAt": "2026-07-11T00:26:37Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/462#issuecomment-4940726837",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJn5BZg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 5 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Separate context from execution dependencies | pass | 7/7 | The mention branch reads only the active event’s fields while retaining the distinct labeled-follow-up path ([workflow](https://github.com/self-evolving/repo/blob/1c6c29912bbf7298378d50db2352deff605771d5/.github/workflows/agent-entrypoint.yml#L55-L123)). Tests reject handles elsewhere in the payload and cover bots and follow-ups ([tests](https://github.com/self-evolving/repo/blob/1c6c29912bbf7298378d50db2352deff605771d5/.agent/src/__tests__/envelope.test.ts#L1030-L1113)). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The three-file diff implements only Task 1a from [#461](https://github.com/self-evolving/repo/issues/461): one workflow condition, focused tests, and matching documentation. It leaves fast acknowledgement, concurrency, answer-first routing, and later tasks untouched. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The change extends the existing entrypoint and envelope test suite, reusing its YAML parser and record helpers rather than adding production helpers, actions, or configuration ([test harness](https://github.com/self-evolving/repo/blob/1c6c29912bbf7298378d50db2352deff605771d5/.agent/src/__tests__/envelope.test.ts#L24-L116)). |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation is a direct job-level condition using existing `AGENT_ENABLED`, `AGENT_HANDLE`, and follow-up settings. It introduces no additional runtime layer or public knob. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The usage guide documents active fields, skipped-job behavior, and the two-layer bot limitation ([docs](https://github.com/self-evolving/repo/blob/1c6c29912bbf7298378d50db2352deff605771d5/.agent/docs/usage/supported-workflows.md#L258-L278)). This matches [GitHub’s skipped-job contract](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-jobs-with-conditions?apiVersion=2022-11-28). |\n\n## Notes\n\n- The implementation matches the narrowly delegated first-stack slice in [#461](https://github.com/self-evolving/repo/issues/461) and the broader plan in [#454](https://github.com/self-evolving/repo/issues/454).\n- PR-head verification passed all 84 workflow checks and all 5 documentation checks; the [hosted check](https://github.com/self-evolving/repo/actions/runs/29132578954/job/86490647153) is also green.\n- Unrelated orchestration, authorization, merge, lifecycle, and configuration rubrics were not scored.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific defect found at head `1c6c29912bbf7298378d50db2352deff605771d5`.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-5`",
+      "createdAt": "2026-07-11T00:33:19Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/462#issuecomment-4940775782",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJn7Z8A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 1c6c29912bbf7298378d50db2352deff605771d5 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\n[PR #462](https://github.com/self-evolving/repo/pull/462) implements Task 1a of [#461](https://github.com/self-evolving/repo/issues/461), the first stacked slice of milestone [#454](https://github.com/self-evolving/repo/issues/454). It restricts mention detection to active event text and rejects bot senders before runner allocation. It preserves edited-event and labeled-follow-up behavior while documenting skipped runs and bot-to-bot limitations. Focused workflow-envelope tests cover the supported trigger surfaces.\n\n## Review\n\nThe production behavior is correct, narrowly scoped, and green at the current head. Reviewers disagreed only on whether the regression suite sufficiently models the motivating parent-body false positive; this synthesis retains that test gap as a WARNING.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Cover parent-body false positives in regression tests | WARNING | The inactive-handle fixture uses only `repository.description`, so it would not catch accidental scanning of parent issue, PR, or discussion bodies during comment and review events. Add cases matching the motivating regression and documented behavior. |\n\n## Progress\n\n- Verified current head `1c6c29912bbf7298378d50db2352deff605771d5`; the hosted test check is green.\n- Confirmed the production field mapping matches downstream context extraction and preserves the separate follow-up path.\n- Two reviewers found the implementation ship-ready, and the rubric review passed 100%; one reviewer identified the retained test gap.\n- Posted one [inline comment](https://github.com/self-evolving/repo/pull/462#discussion_r3562698699). No replies, minimizations, or thread resolutions were needed.\n- Edited-event idempotency and later milestone tasks remain intentionally out of scope.\n\n## Issue Details\n\n<details>\n<summary>Cover parent-body false positives in regression tests</summary>\n\n**Cause:** The “outside active trigger text” test places `@sepo-agent` only in `repository.description`. It would still pass if a future condition mistakenly inspected `issue.body`, `pull_request.body`, or `discussion.body` for comment/review events.\n\n**Candidate solutions:** Add event-specific negative cases for `issue_comment`, `pull_request_review`, `pull_request_review_comment`, and `discussion_comment`, placing the handle only in the corresponding parent body while leaving active comment/review text unmentioned.\n\n**Comments:** The production workflow already handles these cases correctly. The warning is retained because this is the exact false-positive class described by the parent task and updated documentation.\n\n</details>\n\n## Recommended Next Step\n\n`FIX_PR`: Add the focused parent-body regression cases; this is a small, deterministic test-only change suitable for an automated fix pass.\n\n## Final Verdict\n\n`MINOR_ISSUES`\n\n## Action Items\n\n- [ ] Add inactive parent-body regression cases for issue comments, PR reviews/review comments, and discussion comments.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-4`",
+      "createdAt": "2026-07-11T00:39:37Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/462#issuecomment-4940814832",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJn7h_Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #462 | 4 / 40 | Dispatched |\n\nReason: review verdict is minor_issues; dispatching fix-pr\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Add inactive parent-body regression cases for issue comments, PR reviews/review comments, and discussion comments.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1783730397508 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjkxMzI2MjExMzU6cmV2aWV3OjQ2MjpmaXhfcHI6NDYyOjQ -->",
+      "createdAt": "2026-07-11T00:39:58Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/462#issuecomment-4940816893",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJn8sXg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-461/codex-29132286256`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Added inactive parent-body regression coverage for issue comments, PR reviews/review comments, and discussion comments.\n- Verified the build, all 85 workflow checks, and `git diff --check`.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-5`",
+      "createdAt": "2026-07-11T00:42:46Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/462#issuecomment-4940835934",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJn8zWQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #462 | 5 / 40 | Dispatched |\n\nReason: PR fixes succeeded; dispatching review\n\n<!-- sepo-agent-handoff state:dispatched created:1783730591130 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MjkxMzMwODc1Njg6Zml4X3ByOjQ2MjpyZXZpZXc6NDYyOjU -->",
+      "createdAt": "2026-07-11T00:43:11Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/462#issuecomment-4940837721",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJn-F6Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 5 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Separate context from execution dependencies | pass | 7/7 | The mention branch examines only each event’s active title, body, comment, or review while preserving the distinct labeled-follow-up path ([workflow](https://github.com/self-evolving/repo/blob/9274b8ab4942f9a620befe7572a335384452f871/.github/workflows/agent-entrypoint.yml#L48-L119)). Regression cases ensure inactive parent bodies cannot become execution triggers ([tests](https://github.com/self-evolving/repo/blob/9274b8ab4942f9a620befe7572a335384452f871/.agent/src/__tests__/envelope.test.ts#L1089-L1126)). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The three-file diff implements only Task 1a from [#461](https://github.com/self-evolving/repo/issues/461): the entrypoint condition, focused tests, and matching documentation. Tasks 1b, 1c, 2, 3, and edited-event idempotency remain untouched. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The implementation extends the existing entrypoint and envelope suite, reusing the repository’s YAML parser, record helpers, workflow variables, and existing downstream validation rather than introducing another runtime component or configuration surface ([test harness](https://github.com/self-evolving/repo/blob/9274b8ab4942f9a620befe7572a335384452f871/.agent/src/__tests__/envelope.test.ts#L24-L116)). |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | A direct job-level condition rejects bot senders and maps the seven supported event types to their active fields. No new action, public knob, dependency, or routing layer was added. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The usage guide documents active-field filtering, skipped-job behavior, and the two-layer bot limitation ([docs](https://github.com/self-evolving/repo/blob/9274b8ab4942f9a620befe7572a335384452f871/.agent/docs/usage/supported-workflows.md#L257-L278)); this matches [GitHub’s job-condition contract](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-jobs-with-conditions?apiVersion=2022-11-28). |\n\n## Notes\n\n- Current head `9274b8ab4942f9a620befe7572a335384452f871` matches the narrowly delegated first stack slice in [#461](https://github.com/self-evolving/repo/issues/461) and the broader plan in [#454](https://github.com/self-evolving/repo/issues/454).\n- The current-head [hosted check](https://github.com/self-evolving/repo/actions/runs/29133188224) passed build, runtime, workflow, documentation, shell, and diff-hygiene validation.\n- Authorization, orchestration, merge, lifecycle, metadata, and setup rubrics were not scored because this diff does not materially exercise them.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** The earlier parent-body coverage warning is resolved at the current head with event-specific negative cases for issue comments, PR reviews/review comments, and discussion comments.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-5`",
+      "createdAt": "2026-07-11T00:47:42Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/462#issuecomment-4940858857",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJoBZuw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 9274b8ab4942f9a620befe7572a335384452f871 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\n[PR #462](https://github.com/self-evolving/repo/pull/462) implements Task 1a of [#461](https://github.com/self-evolving/repo/issues/461) within milestone [#454](https://github.com/self-evolving/repo/issues/454). It rejects bot-authored mentions before runner allocation and restricts mention matching to each event’s active title, body, comment, or review. The separate unmentioned-follow-up path and supported edited events remain intact. Focused tests and documentation cover the resulting behavior and limitations.\n\n## Review\n\nAll reviewer lanes agree the current implementation is correct, surgical, and ship-ready. A prior disagreement about parent-body regression coverage is resolved at the current head.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues | INFO | The current diff satisfies the delegated scope, and the previously identified regression-test gap has been fixed. |\n\n## Progress\n\n- Verified current head `9274b8ab4942f9a620befe7572a335384452f871`; the PR is mergeable and its hosted check is green.\n- Parent-body negative cases now cover issue comments, PR reviews, PR review comments, and discussion comments.\n- Resolved the addressed same-agent inline review thread.\n- Posted no new inline comments or replies and performed no minimizations.\n- Optional test-harness fidelity and custom-handle coverage notes remain non-actionable INFO.\n- Early reactions, concurrency, answer-first routing, and later milestone work remain intentionally out of scope.\n\n## Recommended Next Step\n\n`NO_AUTOMATED_ACTION`: No unresolved actionable review work remains on the branch.\n\n## Final Verdict\n\n`SHIP`\n\n## Action Items\n\n- [ ] None — no required branch changes remain.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-3`",
+      "createdAt": "2026-07-11T00:55:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/462#issuecomment-4940913083",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJoJq-g",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer\n\nI'm a bit confused. How could this make things faster? Is it effectively remove agent bot mention triggers? ",
+      "createdAt": "2026-07-11T01:14:59Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/462#issuecomment-4941048570",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJoJ7Dw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes—specifically **bot-authored mention triggers**, but those were already rejected later in processing.\n\nPreviously, Sepo could allocate a runner, spend 20–40 seconds booting, and only then reject its own comment as bot-authored. This PR moves that rejection into the job-level prefilter, before runner allocation. It also ignores `@sepo-agent` found only in inactive payload fields, such as an old parent PR body.\n\nSo:\n\n- Human `@sepo-agent` mentions still work.\n- Unmentioned follow-ups on agent-labeled threads still work.\n- Bot-to-bot mentions remain unsupported; they now fail earlier.\n- Valid human mentions are not directly faster, though eliminating no-op runs can reduce runner contention.\n\nThe measured motivation was that **32 of 39** recent entrypoint runs were no-op declines. The direct visible-latency improvements—early 👀 reactions, concurrency, and answer-first routing—are separate tasks in [#454](https://github.com/self-evolving/repo/issues/454). This PR is primarily efficiency groundwork, as reflected in the [entrypoint condition](https://github.com/self-evolving/repo/blob/9274b8ab4942f9a620befe7572a335384452f871/.github/workflows/agent-entrypoint.yml#L48-L119).\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — answer · 1m29s · 15 steps**\n\nLast message\n> Yes—specifically **bot-authored mention triggers**, but those were already rejected later in processing. Previously, Sepo could allocate a runner, spend 20–40 seconds booting, and only then reject its own comment as bot-authored. This PR m…\n\nActivity\n\n- 📖 Read `Read file '/Users/shannon/projects/2604_sepo/repo/.agent/tools/local-runner/runner-6/_work/_temp/agent-memory/daily/202…` (completed)\n- 🔧 Used tool `if [ -f /Users/shannon/projects/2604_sepo/repo/.agent/tools/local-runner/runner-6/_work/_temp/agent-memory/github/self-…` (completed)\n- 📖 Read `Read file '/Users/shannon/projects/2604_sepo/repo/.agent/tools/local-runner/runner-6/_work/repo/repo/.github/workflows/…` (completed)\n- 🔧 Used tool `git status --short && git rev-parse HEAD && git log -1 --oneline` (completed)\n- 📖 Read `gh issue view 454 --repo self-evolving/repo --json body --jq .body` (completed)\n- 💬 Message \"Yes—specifically **bot-authored mention triggers**, but those were already rejected later in processing. Previously, Sepo could allocate a runner, spend 20–40 seconds booting, and only then reject its own comment as bot-authored. This PR m…\"\n</details>\n\n<!-- sepo-progress:run-29134281688 -->\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-6`",
+      "createdAt": "2026-07-11T01:15:47Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/462#issuecomment-4941052687",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-07-11T00:25:22Z",
+  "files": [
+    {
+      "path": ".agent/docs/usage/supported-workflows.md",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 224,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-entrypoint.yml",
+      "additions": 46,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-461/codex-29132286256",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 462,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABFrO9tQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-07-11T00:38:44Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "1c6c29912bbf7298378d50db2352deff605771d5"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Prefilter entrypoint mentions by active event text",
+  "updatedAt": "2026-07-11T01:17:24Z",
+  "url": "https://github.com/self-evolving/repo/pull/462"
+}
