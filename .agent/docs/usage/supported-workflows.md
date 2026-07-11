@@ -10,7 +10,7 @@ title: "Supported workflows"
 |---|---|---|---|
 | `agent-label.yml` | `issues.labeled`, `pull_request_target.labeled` | Thin entry point for label-based activation into `agent-router.yml` | None |
 | `agent-entrypoint.yml` | `@sepo-agent` in issues, PRs, discussions, comments, reviews | Thin entry point that wires triggers, runner labels, and secrets into `agent-router.yml` | None |
-| `agent-router.yml` | `workflow_call` | Full portal for context extraction, auth gating, mention detection, dispatch triage, routing, approval requests, and response posting | Configurable |
+| `agent-router.yml` | `workflow_call` | Full portal for context extraction, auth gating, mention detection, answer-first routing, optional dispatch triage, approval requests, and response posting | Configurable |
 | `agent-approve.yml` | approval comments | Resolves pending approvals, creates issues when needed, dispatches implementation | None |
 | `agent-orchestrator.yml` | `workflow_dispatch` | Explicit orchestration route that decides whether to dispatch the next action | None in `heuristics` mode; resolved-provider planner in `agent` mode |
 | `agent-self-approve.yml` | `workflow_dispatch` | Opt-in pull request self-approval gate after trusted current-head review synthesis | Auto |
@@ -35,9 +35,10 @@ labels come from `AGENT_TEST_RUNS_ON`, then `AGENT_RUNS_ON`, then
 `["ubuntu-latest"]`.
 
 `agent-orchestrator.yml` is started explicitly through `/orchestrate` or
-`agent/orchestrate`. Dispatch triage can also select `orchestrate` for issue and
-pull request requests that ask for orchestration, follow-up automation, or
-bounded multi-step agent work. On start, it inspects the current target state and
+`agent/orchestrate`. When `AGENT_TRIAGE_MODE=agent`, dispatch triage can also
+select `orchestrate` for issue and pull request requests that ask for
+orchestration, follow-up automation, or bounded multi-step agent work. On start,
+it inspects the current target state and
 dispatches one built-in action (`implement`, `review`, `fix-pr`,
 `agent-self-approve`, or `agent-self-merge`) when useful.
 That dispatch includes explicit orchestration context; only those orchestrator
@@ -259,6 +260,8 @@ The command is attachment-specific. It accepts only `https://github.com/user-att
 
 The mention branch of the entrypoint pre-filter starts the router only when the active trigger title, body, comment, or review contains `@sepo-agent`. A handle elsewhere in the webhook payload, such as the parent issue body for an unmentioned comment, does not qualify as a mention; unless the separate unmentioned-follow-up branch below applies, no runner is allocated. Real mention validation happens in `agent-router.yml` through `extract-context.js`. That validation is boundary-aware and strips code blocks and quoted text before deciding whether a mention is live.
 
+An explicit mention without a recognized slash command routes directly to the inline `answer` path by default, making the answer agent the first model call. For change-shaped answers, the answer prompt recommends a concise command suited to the target, such as `@sepo-agent /implement ...`, `@sepo-agent /fix-pr ...`, `@sepo-agent /review`, or `@sepo-agent /orchestrate ...`; it does not start that action. Set `AGENT_TRIAGE_MODE=agent` to restore the model-backed dispatch-triage step for only these uncommanded explicit mentions. Explicit slash routes, label routes, authorization checks, and the implicit-follow-up gate do not depend on this setting.
+
 When `AGENT_FOLLOWUP_INTENT_MODE` is unset or `agent-label`, new unmentioned issue/PR comments, new PR review comments, and submitted PR reviews can also wake the router if the target already has the fixed `agent` label. The router marks these as `implicit_followup=true`, checks `answer` route authorization before the intent gate, and only continues to the inline `answer` route when the communication-rubric-aware gate returns `respond`. `ignore` posts nothing. Set `AGENT_FOLLOWUP_INTENT_MODE=disabled` or `false` to require explicit mentions only.
 
 Supported surfaces:
@@ -275,7 +278,7 @@ Supported surfaces:
 
 GitHub still records a workflow run for each configured webhook event. When the entrypoint pre-filter rejects an event, the `agent` job is marked as skipped and no runner is allocated. Bot-authored events are rejected both by this pre-filter and by context extraction, so bot-to-bot mentions are not supported; enabling them would require changing both layers deliberately.
 
-By default, the portal responds to `OWNER`, `MEMBER`, `COLLABORATOR`, and `CONTRIBUTOR` associations. `AGENT_ACCESS_POLICY` can tighten or widen access globally or for specific routes; public repositories that do not want prior contributors to trigger Sepo should remove `CONTRIBUTOR` from the allowlist. Bot authors are always skipped. Mention-based implicit route requests are triaged first and then checked against the resolved route, so denied requests get a visible unsupported reply instead of being dropped silently. Unmentioned implicit follow-ups are answer-only and are dropped silently when the answer route is not authorized. See [Trigger access policy](../customization/access-policy.md).
+By default, the portal responds to `OWNER`, `MEMBER`, `COLLABORATOR`, and `CONTRIBUTOR` associations. `AGENT_ACCESS_POLICY` can tighten or widen access globally or for specific routes; public repositories that do not want prior contributors to trigger Sepo should remove `CONTRIBUTOR` from the allowlist. Bot authors are always skipped. Uncommanded explicit mentions resolve to `answer` by default, or use dispatch triage in `AGENT_TRIAGE_MODE=agent`, and are then checked against the resolved route so denied requests get a visible unsupported reply instead of being dropped silently. Unmentioned implicit follow-ups are answer-only and are dropped silently when the answer route is not authorized. See [Trigger access policy](../customization/access-policy.md).
 
 Explicit routes are:
 

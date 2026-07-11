@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Mentions without a slash command now route directly to the inline answer path by default instead of running model-backed dispatch triage; change-shaped answers end with a copyable follow-up command (such as `/implement` or `/fix-pr`) that the user can send explicitly. Set `AGENT_TRIAGE_MODE=agent` to restore route inference for uncommanded mentions. Explicit slash routes, `agent/*` labels, access policy, and unmentioned follow-up gating are unaffected.
+- The entrypoint mention pre-filter now checks only the active trigger title, body, comment, or review text and skips bot-authored events before allocating a runner, eliminating no-op runs from quoted handles elsewhere in the payload or from the agent's own comments.
+
 ## 0.4.0 - 2026-06-26
 
 ### Added

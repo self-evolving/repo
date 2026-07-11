@@ -271,6 +271,24 @@ test("answer prompt returns content for workflow posting instead of commenting d
   assert.match(answerPrompt, /workflow will post it on the original surface/i);
 });
 
+test("answer prompt gives target-appropriate commands without starting actions", () => {
+  const answerPrompt = readRepoFile(".github/prompts/agent-answer.md");
+
+  assert.match(answerPrompt, /change-shaped work or another concrete agent action/);
+  assert.match(answerPrompt, /This is an answer-only route/);
+  assert.match(answerPrompt, /Do not edit repository files, create commits or branches, or dispatch route workflows/);
+  assert.match(answerPrompt, /ask for an explicit follow-up command before coding/);
+  assert.match(answerPrompt, /Reuse the agent handle from the request/);
+  assert.match(answerPrompt, /@sepo-agent \/implement \.\.\./);
+  assert.match(answerPrompt, /@sepo-agent \/fix-pr \.\.\./);
+  assert.match(answerPrompt, /@sepo-agent \/review/);
+  assert.match(answerPrompt, /@sepo-agent \/orchestrate \.\.\./);
+  assert.match(answerPrompt, /commands that fit the current target/);
+  assert.match(answerPrompt, /one copyable command in one short sentence or bullet/);
+  assert.match(answerPrompt, /A suggested command is not authorization/);
+  assert.match(answerPrompt, /Do not start, claim to start, or imply that you started the action/);
+});
+
 test("answer review context renders only for pull request review triggers", () => {
   assert.equal(
     buildAnswerReviewContext({
@@ -1025,6 +1043,28 @@ test("agent router bypasses dispatch triage for explicit mention slash routes", 
   assert.match(implementMetadataPrompt, /digits only, with no `#` prefix/);
   assert.doesNotMatch(extractContext, /requested_install_target_repo/);
   assert.doesNotMatch(runnerWorkflow, /requested_install_target_repo:/);
+});
+
+test("agent router reaches answer with no prior model call for default bare mentions", () => {
+  const runnerWorkflow = readRepoFile(".github/workflows/agent-router.yml");
+  const runAgentSteps = readRunAgentTaskSteps(".github/workflows/agent-router.yml");
+  const portalSteps = runAgentSteps.filter(({ jobId }) => jobId === "portal");
+  const answerSteps = runAgentSteps.filter(({ jobId }) => jobId === "answer");
+
+  assert.match(
+    runnerWorkflow,
+    /INPUT_TRIAGE_MODE:\s*\$\{\{\s*vars\.AGENT_TRIAGE_MODE \|\| 'commands'\s*\}\}/,
+  );
+  assert.deepEqual(
+    portalSteps.map(({ step }) => step.id),
+    ["triage", "followup_intent", "implement_metadata"],
+  );
+  assert.match(String(portalSteps[0].step.if), /requested_route == ''/);
+  assert.match(String(portalSteps[1].step.if), /implicit_followup == 'true'/);
+  assert.match(String(portalSteps[2].step.if), /explicit_dispatch\.outputs\.route == 'implement'/);
+  assert.equal(answerSteps.length, 1);
+  assert.equal(answerSteps[0].step.id, "answer");
+  assert.match(String(answerSteps[0].step.if), /needs\.portal\.outputs\.route == 'answer'/);
 });
 
 test("agent entrypoint routes every supported active mention surface", () => {

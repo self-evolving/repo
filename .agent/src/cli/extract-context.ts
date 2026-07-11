@@ -2,7 +2,7 @@
 // Usage: node .agent/dist/cli/extract-context.js
 // Env: GITHUB_EVENT_PATH, GITHUB_EVENT_NAME, GITHUB_REPOSITORY, INPUT_MENTION,
 //      INPUT_TRIGGER_KIND, INPUT_LABEL_NAME, INPUT_AUTHOR_ASSOCIATION,
-//      INPUT_FOLLOWUP_INTENT_MODE
+//      INPUT_FOLLOWUP_INTENT_MODE, INPUT_TRIAGE_MODE
 // Outputs: should_respond, association, body, source_kind, target_kind,
 //          target_number, target_url, reaction_subject_id, response_kind,
 //          source_comment_id, source_comment_url, review_comment_id,
@@ -31,7 +31,11 @@ import {
   parseFollowupIntentMode,
   shouldConsiderImplicitFollowup,
 } from "../followup-intent.js";
-import { extractRequestedRouteDecision, resolveRequestedLabel } from "../triage.js";
+import {
+  extractRequestedRouteDecision,
+  parseTriageMode,
+  resolveRequestedLabel,
+} from "../triage.js";
 
 const eventPath = process.env.GITHUB_EVENT_PATH;
 const eventName = process.env.GITHUB_EVENT_NAME || "";
@@ -40,6 +44,7 @@ const triggerKind = String(process.env.INPUT_TRIGGER_KIND || "mention").trim().t
 const labelName = process.env.INPUT_LABEL_NAME || "";
 const authorAssociationOverride = process.env.INPUT_AUTHOR_ASSOCIATION || "";
 const followupIntentModeRaw = process.env.INPUT_FOLLOWUP_INTENT_MODE || process.env.AGENT_FOLLOWUP_INTENT_MODE || "";
+const triageModeRaw = process.env.INPUT_TRIAGE_MODE || process.env.AGENT_TRIAGE_MODE || "";
 const repository = process.env.GITHUB_REPOSITORY || "";
 const ASSOCIATIONS_TRUSTED_WITHOUT_REFRESH = new Set([
   "OWNER",
@@ -200,8 +205,22 @@ if (!eventPath || !eventName) {
           const requestedMention = triggerKind === "label" || implicitFollowup
             ? { route: "", skill: "" }
             : extractRequestedRouteDecision(ctx.body, mention);
-          const requestedRoute = requestedLabel?.route || requestedMention.route;
+          let requestedRoute = requestedLabel?.route || requestedMention.route;
           const requestedSkill = requestedLabel?.skill || requestedMention.skill;
+
+          // Uncommanded explicit mentions answer directly by default. Parsing
+          // the mode only on this path keeps slash routes, labels, and
+          // unmentioned follow-ups independent from AGENT_TRIAGE_MODE. Invalid
+          // values throw, matching AGENT_FOLLOWUP_INTENT_MODE handling.
+          if (
+            !requestedRoute &&
+            triggerKind !== "label" &&
+            hasMentionTrigger &&
+            !implicitFollowup &&
+            parseTriageMode(triageModeRaw) === "commands"
+          ) {
+            requestedRoute = "answer";
+          }
 
           if (triggerKind === "label" && !requestedLabel) {
             setOutput("should_respond", "false");
