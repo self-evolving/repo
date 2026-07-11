@@ -1157,6 +1157,45 @@ test("entrypoint docs describe skipped runs and the bot-to-bot limitation", () =
   assert.match(docs, /bot-to-bot mentions are not supported/);
 });
 
+test("agent router fast-reacts before setup and suppresses GraphQL fallback", () => {
+  const workflow = parseYaml(readRepoFile(".github/workflows/agent-router.yml")) as unknown;
+  assert.ok(isRecord(workflow), "agent-router workflow should parse");
+  assert.ok(isRecord(workflow.jobs), "agent-router workflow should define jobs");
+  const portal = workflow.jobs.portal;
+  assert.ok(isRecord(portal), "agent-router workflow should define the portal job");
+  assert.ok(Array.isArray(portal.steps), "portal job should define steps");
+
+  const steps = portal.steps.filter(isRecord);
+  const checkoutIndex = steps.findIndex((step) => step.uses === "actions/checkout@v4");
+  const fastReactionIndex = steps.findIndex((step) => step.id === "fast_reaction");
+  const authIndex = steps.findIndex((step) => step.name === "Resolve GitHub auth");
+  const providerIndex = steps.findIndex((step) => step.name === "Resolve dispatch provider");
+  const runtimeIndex = steps.findIndex((step) => step.name === "Setup agent runtime");
+
+  assert.equal(fastReactionIndex, checkoutIndex + 1, "fast reaction should immediately follow checkout");
+  assert.ok(fastReactionIndex < authIndex, "fast reaction should run before auth resolution");
+  assert.ok(fastReactionIndex < providerIndex, "fast reaction should run before provider resolution");
+  assert.ok(fastReactionIndex < runtimeIndex, "fast reaction should run before runtime setup");
+
+  const fastReaction = steps[fastReactionIndex];
+  assert.equal(fastReaction["continue-on-error"], true);
+  assert.equal(fastReaction.run, "node .agent/scripts/fast-reaction.cjs");
+  assert.ok(isRecord(fastReaction.env), "fast reaction should define its environment");
+  assert.equal(fastReaction.env.GH_TOKEN, "${{ github.token }}");
+  assert.equal(fastReaction.env.INPUT_MENTION, "${{ inputs.agent_handle }}");
+  assert.equal(fastReaction.env.INPUT_TRIGGER_KIND, "${{ inputs.trigger_kind }}");
+
+  for (const fallbackName of ["React with eyes", "React with eyes (implicit answer)"]) {
+    const fallback = steps.find((step) => step.name === fallbackName);
+    assert.ok(fallback, `${fallbackName} should exist`);
+    assert.match(
+      String(fallback.if || ""),
+      /steps\.fast_reaction\.outputs\.reacted != 'true'/,
+      `${fallbackName} should skip after a successful fast reaction`,
+    );
+  }
+});
+
 test("agent router preauthorizes implicit follow-up answer gates", () => {
   const entrypointWorkflow = readRepoFile(".github/workflows/agent-entrypoint.yml");
   const runnerWorkflow = readRepoFile(".github/workflows/agent-router.yml");

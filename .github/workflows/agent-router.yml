@@ -148,6 +148,15 @@ jobs:
           fetch-depth: 1
           token: ${{ github.token }}
 
+      - name: React with eyes early
+        id: fast_reaction
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_MENTION: ${{ inputs.agent_handle }}
+          INPUT_TRIGGER_KIND: ${{ inputs.trigger_kind }}
+        run: node .agent/scripts/fast-reaction.cjs
+
       - name: Resolve GitHub auth
         id: auth
         uses: ./.github/actions/resolve-github-auth
@@ -223,7 +232,8 @@ jobs:
       - name: React with eyes
         if: >-
           steps.context.outputs.should_respond == 'true' &&
-          steps.context.outputs.implicit_followup != 'true'
+          steps.context.outputs.implicit_followup != 'true' &&
+          steps.fast_reaction.outputs.reacted != 'true'
         env:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           REACTION_SUBJECT_ID: ${{ steps.context.outputs.reaction_subject_id }}
@@ -450,7 +460,8 @@ jobs:
         if: >-
           steps.context.outputs.should_respond == 'true' &&
           steps.context.outputs.implicit_followup == 'true' &&
-          steps.dispatch.outputs.route == 'answer'
+          steps.dispatch.outputs.route == 'answer' &&
+          steps.fast_reaction.outputs.reacted != 'true'
         env:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           REACTION_SUBJECT_ID: ${{ steps.context.outputs.reaction_subject_id }}
