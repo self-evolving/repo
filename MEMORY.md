@@ -76,7 +76,7 @@
 - Memory GitHub mirrors live under github/<owner>/<repo>/; old flat artifacts are manual cleanup, not auto-migrated.
 - Scheduled daily summaries are disabled by default; enable agent-daily-summary.yml via AGENT_SCHEDULE_POLICY override.
 - Default orchestration max rounds is 12 across workflows and CLI fallbacks.
-- Explicit non-issue /implement creates tracking metadata from context after auth; metadata uses approve-all.
+- Explicit non-issue /implement derives tracking metadata locally; stacked/follow-up PR intent may set the source PR as base_pr.
 - Repository skills use setup.sh for simple setup; complex skill environments should customize the copied agent-router workflow.
 - track-only session bundles are debug-only: never restore; only always may upload non-restorable github-artifact-debug bundles.
 - Stacked PR /implement base_pr should flow through implement metadata, not ad hoc request-text parsing.
