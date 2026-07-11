@@ -18,6 +18,7 @@ export interface PortalEventContext {
   sourceKind: string;
   targetKind: string;
   targetNumber: string;
+  targetTitle: string;
   targetUrl: string;
   reactionSubjectId: string;
   responseKind: string;
@@ -153,6 +154,7 @@ export function extractEventContext(
       sourceKind: "issue",
       targetKind: "issue",
       targetNumber: String(payload.issue?.number || ""),
+      targetTitle: title,
       targetUrl: payload.issue?.html_url || "",
       reactionSubjectId: payload.issue?.node_id || "",
       responseKind: "issue_comment",
@@ -167,6 +169,7 @@ export function extractEventContext(
       sourceKind: "pull_request",
       targetKind: "pull_request",
       targetNumber: String(payload.pull_request?.number || ""),
+      targetTitle: title,
       targetUrl: payload.pull_request?.html_url || "",
       reactionSubjectId: payload.pull_request?.node_id || "",
       responseKind: "issue_comment",
@@ -181,6 +184,7 @@ export function extractEventContext(
       sourceCommentUrl: payload.comment?.html_url || "",
       targetKind: payload.issue?.pull_request ? "pull_request" : "issue",
       targetNumber: String(payload.issue?.number || ""),
+      targetTitle: payload.issue?.title || "",
       targetUrl: payload.issue?.html_url || "",
       reactionSubjectId: payload.comment?.node_id || "",
       responseKind: "issue_comment",
@@ -195,6 +199,7 @@ export function extractEventContext(
       sourceCommentUrl: payload.comment?.html_url || "",
       targetKind: "pull_request",
       targetNumber: String(payload.pull_request?.number || ""),
+      targetTitle: payload.pull_request?.title || "",
       targetUrl: payload.pull_request?.html_url || "",
       reactionSubjectId: payload.comment?.node_id || "",
       responseKind: "review_comment_reply",
@@ -210,6 +215,7 @@ export function extractEventContext(
       sourceCommentUrl: payload.review?.html_url || "",
       targetKind: "pull_request",
       targetNumber: String(payload.pull_request?.number || ""),
+      targetTitle: payload.pull_request?.title || "",
       targetUrl: payload.pull_request?.html_url || "",
       reactionSubjectId: payload.review?.node_id || "",
       responseKind: "issue_comment",
@@ -224,6 +230,7 @@ export function extractEventContext(
       sourceKind: "discussion",
       targetKind: "discussion",
       targetNumber: String(payload.discussion?.number || ""),
+      targetTitle: title,
       targetUrl:
         payload.discussion?.html_url || payload.discussion?.url || "",
       reactionSubjectId: payload.discussion?.node_id || "",
@@ -238,6 +245,7 @@ export function extractEventContext(
       sourceKind: "discussion_comment",
       targetKind: "discussion",
       targetNumber: String(payload.discussion?.number || ""),
+      targetTitle: payload.discussion?.title || "",
       targetUrl:
         payload.discussion?.html_url || payload.discussion?.url || "",
       reactionSubjectId: payload.comment?.node_id || "",

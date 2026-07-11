@@ -579,6 +579,41 @@ test("extract-context preserves contributor association when refreshed issue ass
   }
 });
 
+test("extract-context exposes explicit PR label metadata context", () => {
+  const outputs = runExtractContextCli({
+    eventName: "pull_request_target",
+    payload: {
+      action: "labeled",
+      sender: { login: "alice", type: "User" },
+      repository: {
+        private: true,
+        owner: { login: "alice", type: "User" },
+      },
+      pull_request: {
+        number: 6,
+        title: "Fix label-triggered implementation metadata",
+        body: "Historical example: @sepo-agent /implement Create a stacked follow-up PR",
+        html_url: "https://github.com/alice/agent/pull/6",
+        node_id: "PR_6",
+        author_association: "NONE",
+        user: { login: "bob" },
+      },
+      label: { name: "agent/implement" },
+    },
+    env: {
+      GITHUB_REPOSITORY: "alice/agent",
+      INPUT_TRIGGER_KIND: "label",
+      INPUT_LABEL_NAME: "agent/implement",
+    },
+  });
+
+  assert.equal(outputs.get("should_respond"), "true");
+  assert.equal(outputs.get("requested_route"), "implement");
+  assert.equal(outputs.get("trigger_kind"), "label");
+  assert.equal(outputs.get("source_kind"), "pull_request");
+  assert.equal(outputs.get("target_title"), "Fix label-triggered implementation metadata");
+});
+
 test("extract-context keeps label routes independent from triage mode", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-extract-context-"));
 

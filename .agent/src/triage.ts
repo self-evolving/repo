@@ -47,7 +47,43 @@ const LABEL_SKILL_PREFIX = "agent/s/";
 const VALID_SKILL_LABEL = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 export const INSTALL_ROUTE = "install";
 const DEFAULT_IMPLEMENT_ISSUE_TITLE = "Implement requested change";
+const MAX_IMPLEMENT_ISSUE_TITLE_LENGTH = 70;
 const DEFAULT_ADD_RUBRICS_ISSUE_TITLE = "Propose rubric updates";
+const ANCESTRY_CLAUSE_PREFIX = String.raw`^\s*(?:(?:please|kindly)\s+|(?:can|could|would)\s+you\s+|let['’]s\s+)?`;
+const ANCESTRY_ACTION = String.raw`(?:create|make|open|start|build|land|implement|continue|recreate|do|use|handle)`;
+const ANCESTRY_ARTIFACT = String.raw`(?:pr|pull request|branch|change|work|implementation)`;
+const ANCESTRY_TARGET = ANCESTRY_ARTIFACT;
+const ANCESTRY_SOURCE = String.raw`(?:(?:this|the|current|source|open)\s+){1,2}${ANCESTRY_ARTIFACT}`;
+const ANCESTRY_OBJECT_PREFIX = String.raw`(?:(?:(?:this|it)(?:\s+${ANCESTRY_TARGET})?|the\s+${ANCESTRY_TARGET})\s+(?:(?:as|in)\s+)?(?:an?\s+)?|an?\s+)?`;
+const ANCESTRY_INTENT_END = String.raw`(?:(?:\s+(?:on|onto|above|from)\s+${ANCESTRY_SOURCE})|(?:\s+(?:for|to)\s+.+))?\s*$`;
+const STACKED_IMPLEMENT_REQUEST = new RegExp(
+  [
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}stack(?:ed|ing)?\s+(?:this|it)(?:\s+${ANCESTRY_TARGET})?(?:\s+(?:on|onto|above)\s+${ANCESTRY_SOURCE})?${ANCESTRY_INTENT_END}`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}stack(?:ed|ing)?\s+the\s+${ANCESTRY_TARGET}(?:\s+(?:on|onto|above)\s+${ANCESTRY_SOURCE})?${ANCESTRY_INTENT_END}`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}stack(?:ed|ing)?\s+(?:on|onto|above)\s+${ANCESTRY_SOURCE}${ANCESTRY_INTENT_END}`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}${ANCESTRY_ACTION}\s+${ANCESTRY_OBJECT_PREFIX}stacked\s+(?:(?:follow[\s-]?up)\s+)?${ANCESTRY_ARTIFACT}${ANCESTRY_INTENT_END}`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}${ANCESTRY_ACTION}\s+${ANCESTRY_OBJECT_PREFIX}follow[\s-]?up\s+${ANCESTRY_ARTIFACT}${ANCESTRY_INTENT_END}`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}${ANCESTRY_ACTION}\s+${ANCESTRY_OBJECT_PREFIX}${ANCESTRY_ARTIFACT}\s+stacked\s+(?:on|onto|above)\s+${ANCESTRY_SOURCE}${ANCESTRY_INTENT_END}`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}follow[\s-]?up\s+(?:on|to|from)\s+${ANCESTRY_SOURCE}${ANCESTRY_INTENT_END}`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}(?:add|create|make|do)\s+(?:an?\s+)?follow[\s-]?up\s+(?:on|to|from)\s+${ANCESTRY_SOURCE}${ANCESTRY_INTENT_END}`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}(?:(?:build|land|implement|continue|do|stack)\s+(?:(?:this|it|the\s+${ANCESTRY_TARGET})\s+)?)?on top of\s+${ANCESTRY_SOURCE}${ANCESTRY_INTENT_END}`,
+  ].join("|"),
+  "i",
+);
+const INDEPENDENT_IMPLEMENT_REQUEST = new RegExp(
+  [
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}(?:(?:do\s+not|don['’]t|never)\s+stack(?:ed|ing)?|avoid\s+stacking)(?:\s+(?:this|it)(?:\s+${ANCESTRY_TARGET})?)?(?:\s+(?:on|onto|above)\s+${ANCESTRY_SOURCE})?${ANCESTRY_INTENT_END}`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}(?:use|start\s+from|branch\s+from)\s+(?:the\s+)?(?:repository\s+)?default\s+branch${ANCESTRY_INTENT_END}`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}(?:make|keep|leave)\s+(?:(?:this|it)(?:\s+${ANCESTRY_TARGET})?|the\s+${ANCESTRY_TARGET})\s+(?:independent|standalone|unstacked)${ANCESTRY_INTENT_END}`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}(?:implement|build|create|do|handle|land)\s+(?:this|it|the\s+${ANCESTRY_TARGET})\s+independently${ANCESTRY_INTENT_END}`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}${ANCESTRY_ACTION}\s+${ANCESTRY_OBJECT_PREFIX}independent\s+(?:(?:stacked|follow[\s-]?up)\s+)?${ANCESTRY_ARTIFACT}${ANCESTRY_INTENT_END}`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}${ANCESTRY_ACTION}\s+${ANCESTRY_OBJECT_PREFIX}(?:(?:stacked|follow[\s-]?up)\s+)?${ANCESTRY_ARTIFACT}\s+(?:(?:as|is|that\s+is|to be)\s+)?independent(?:ly)?${ANCESTRY_INTENT_END}`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}(?:work\s+)?independently\s+(?:from|of)\s+${ANCESTRY_SOURCE}${ANCESTRY_INTENT_END}`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}${ANCESTRY_ACTION}\s+${ANCESTRY_OBJECT_PREFIX}standalone\s+${ANCESTRY_ARTIFACT}${ANCESTRY_INTENT_END}`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}${ANCESTRY_ACTION}\s+${ANCESTRY_OBJECT_PREFIX}unstacked\s+${ANCESTRY_ARTIFACT}${ANCESTRY_INTENT_END}`,
+  ].join("|"),
+  "i",
+);
 
 export interface RequestedLabelDecision {
   route: string;
@@ -65,6 +101,22 @@ export interface ImplementIssueMetadata {
   basePr?: string;
 }
 
+export interface RequestedRouteContext {
+  agentMention?: string;
+  triggerKind?: string;
+  sourceKind?: string;
+  targetKind?: string;
+  targetNumber?: string;
+  targetTitle?: string;
+}
+
+interface ExplicitRouteMatch {
+  body: string;
+  commandStart: number;
+  commandEnd: number;
+  route: string;
+}
+
 export function parseTriageMode(raw: string | undefined): TriageMode {
   const normalized = String(raw || "").trim().toLowerCase();
   if (!normalized || normalized === "commands") {
@@ -78,28 +130,24 @@ export function parseTriageMode(raw: string | undefined): TriageMode {
   );
 }
 
-function normalizeOptionalBasePr(value: unknown): string {
-  if (value === undefined || value === null) {
-    return "";
-  }
+function fallbackImplementIssueBody(
+  originalRequest: string,
+  context: RequestedRouteContext,
+): string {
+  const labelTriggered = String(context.triggerKind || "").trim().toLowerCase() === "label";
+  const sourceKind = String(context.sourceKind || context.targetKind || "")
+    .trim()
+    .toLowerCase()
+    .replace(/_/g, " ");
+  const goal = labelTriggered
+    ? `Implement the requested change from the ${sourceKind || "target"} selected by the \`agent/implement\` label.`
+    : "Implement the requested change from the agent mention.";
 
-  const raw = String(value).trim();
-  if (!raw) {
-    return "";
-  }
-  if (!/^[1-9]\d*$/.test(raw)) {
-    throw new Error("Implement issue metadata base_pr must be a positive integer");
-  }
-
-  return raw;
-}
-
-function fallbackImplementIssueBody(originalRequest: string): string {
   return [
     "## Goal",
-    "Implement the requested change from the agent mention.",
+    goal,
     "",
-    "## Original request",
+    labelTriggered ? "## Source context" : "## Original request",
     originalRequest,
     "",
     "## Acceptance criteria",
@@ -107,6 +155,138 @@ function fallbackImplementIssueBody(originalRequest: string): string {
     "- Preserve existing behavior unless the request requires a change.",
     "- Update tests or validation as needed.",
   ].join("\n");
+}
+
+function findExplicitRouteCommand(body: string, mention: string): ExplicitRouteMatch | null {
+  const originalBody = String(body || "");
+  const trimmedMention = String(mention || "").trim();
+  if (!originalBody.trim() || !trimmedMention) {
+    return null;
+  }
+
+  const routePattern = EXPLICIT_ROUTE_COMMANDS.map((route) => escapeRegex(route)).join("|");
+  const explicitRegex = new RegExp(
+    `(^|[\\s(])(${escapeRegex(trimmedMention)}\\s+/(${routePattern})(?=$|[\\s.,;:!?)\\]}]))`,
+    "gim",
+  );
+  let marker = "\0sepo-route-command\0";
+  while (originalBody.includes(marker)) marker += "\0";
+
+  for (const match of originalBody.matchAll(explicitRegex)) {
+    const commandStart = (match.index || 0) + match[1].length;
+    const commandEnd = commandStart + match[2].length;
+    const markedBody = `${originalBody.slice(0, commandStart)}${marker}${originalBody.slice(commandEnd)}`;
+    if (!stripNonLiveMentions(markedBody).includes(marker)) {
+      continue;
+    }
+
+    return {
+      body: originalBody,
+      commandStart,
+      commandEnd,
+      route: match[3].toLowerCase(),
+    };
+  }
+
+  return null;
+}
+
+function requestWithoutImplementCommand(requestText: string, agentMention: string): string {
+  const match = findExplicitRouteCommand(requestText, agentMention);
+  if (!match || match.route !== "implement") {
+    return "";
+  }
+
+  return `${match.body.slice(0, match.commandStart)}${match.body.slice(match.commandEnd)}`;
+}
+
+function normalizeImplementIssueTitle(request: string): string {
+  const titleMarkdown = String(request || "")
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/~~~[\s\S]*?~~~/g, " ")
+    .split("\n")
+    .filter((line) => !line.match(/^\s*>/))
+    .join("\n")
+    .replace(/`([^`\n]*)`/g, "$1");
+  const normalized = titleMarkdown
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/[\r\n]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^[:;,\-–—]+\s*/, "")
+    .replace(/^(?:#{1,6}|[-*+])\s+/, "")
+    .trim();
+  if (!normalized) {
+    return DEFAULT_IMPLEMENT_ISSUE_TITLE;
+  }
+  if (normalized.length <= MAX_IMPLEMENT_ISSUE_TITLE_LENGTH) {
+    return normalized;
+  }
+
+  const prefix = normalized
+    .slice(0, MAX_IMPLEMENT_ISSUE_TITLE_LENGTH - 3)
+    .trimEnd();
+  return `${prefix}...`;
+}
+
+function splitAncestryClauses(request: string): string[] {
+  return String(request || "")
+    .replace(/^[ \t]*(?:[-*+]|\d+[.)])[ \t]+(?:\[[ xX]\][ \t]+)?/gm, "")
+    .split(/[.;:!?\n]+|\b(?:and|but|then)\b/gi)
+    .map((clause) => clause.trim())
+    .filter(Boolean);
+}
+
+function inferImplementBasePr(request: string, context: RequestedRouteContext): string {
+  const targetKind = String(context.targetKind || "").trim().toLowerCase();
+  const targetNumber = String(context.targetNumber || "").trim();
+  const triggerKind = String(context.triggerKind || "mention").trim().toLowerCase();
+  if (
+    triggerKind === "label" ||
+    targetKind !== "pull_request" ||
+    !/^[1-9]\d*$/.test(targetNumber)
+  ) {
+    return "";
+  }
+  let inferredBasePr = "";
+  for (const clause of splitAncestryClauses(request)) {
+    // Within one clause, explicit independence wins over stacking. Across
+    // clauses, the latest explicit ancestry instruction wins; topical clauses
+    // match neither anchored grammar and therefore cannot change the result.
+    if (INDEPENDENT_IMPLEMENT_REQUEST.test(clause)) {
+      inferredBasePr = "";
+    } else if (STACKED_IMPLEMENT_REQUEST.test(clause)) {
+      inferredBasePr = targetNumber;
+    }
+  }
+  return inferredBasePr;
+}
+
+/**
+ * Builds tracking-issue metadata for an explicit /implement request without
+ * invoking a model. Only the active request can supply title or stacking
+ * intent; source-target context supplies the eligible PR number.
+ */
+export function buildImplementIssueMetadata(
+  requestText: string,
+  context: RequestedRouteContext = {},
+): ImplementIssueMetadata {
+  const originalRequest = String(requestText || "").trim() || "No request text provided.";
+  const labelTriggered = String(context.triggerKind || "").trim().toLowerCase() === "label";
+  const request = labelTriggered
+    ? ""
+    : requestWithoutImplementCommand(
+        requestText,
+        String(context.agentMention || ""),
+      );
+  const intentRequest = labelTriggered ? "" : stripNonLiveMentions(request);
+  const titleSource = labelTriggered ? String(context.targetTitle || "") : request;
+
+  return {
+    issueTitle: normalizeImplementIssueTitle(titleSource),
+    issueBody: fallbackImplementIssueBody(originalRequest, context),
+    basePr: inferImplementBasePr(intentRequest, context),
+  };
 }
 
 function fallbackAddRubricsIssueBody(originalRequest: string): string {
@@ -122,35 +302,6 @@ function fallbackAddRubricsIssueBody(originalRequest: string): string {
     "- Add or update rubric YAML on the `agent/rubrics` branch.",
     "- Validate rubric YAML before opening the proposal PR.",
   ].join("\n");
-}
-
-export function normalizeImplementIssueMetadata(raw: string): ImplementIssueMetadata {
-  const text = (raw ?? "").trim();
-  if (!text) {
-    throw new Error("Implement issue metadata output was empty");
-  }
-
-  const jsonStr = extractJsonObject(text);
-  if (!jsonStr) {
-    throw new Error("Implement issue metadata output did not contain a JSON object");
-  }
-
-  const payload = JSON.parse(jsonStr) as Record<string, unknown>;
-  const issueTitle = String(payload.issue_title || payload.issueTitle || "")
-    .replace(/[\r\n]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  const issueBody = String(payload.issue_body || payload.issueBody || "").trim();
-  const basePr = normalizeOptionalBasePr(payload.base_pr ?? payload.basePr);
-
-  if (!issueTitle) {
-    throw new Error("Implement issue metadata output was missing issue_title");
-  }
-  if (!issueBody) {
-    throw new Error("Implement issue metadata output was missing issue_body");
-  }
-
-  return { issueTitle, issueBody, basePr };
 }
 
 /**
@@ -173,14 +324,9 @@ export function extractRequestedRouteDecision(body: string, mention: string): Re
     return { route: "", skill: "" };
   }
 
-  const routePattern = EXPLICIT_ROUTE_COMMANDS.map((route) => escapeRegex(route)).join("|");
-  const explicitRegex = new RegExp(
-    `(?:^|[\\s(])${escapeRegex(trimmedMention)}\\s+/(${routePattern})(?=$|[\\s.,;:!?)\\]}])`,
-    "im",
-  );
-  const explicitMatch = sanitized.match(explicitRegex);
+  const explicitMatch = findExplicitRouteCommand(body, trimmedMention);
   if (explicitMatch) {
-    return { route: explicitMatch[1].toLowerCase(), skill: "" };
+    return { route: explicitMatch.route, skill: "" };
   }
 
   const skillRegex = new RegExp(
@@ -205,7 +351,7 @@ export function extractRequestedRouteDecision(body: string, mention: string): Re
 export function buildRequestedRouteDecision(
   route: string,
   requestText: string,
-  implementMetadata?: ImplementIssueMetadata | null,
+  context: RequestedRouteContext = {},
 ): DispatchDecision {
   const normalizedRoute = String(route || "").trim().toLowerCase();
   if (
@@ -217,10 +363,7 @@ export function buildRequestedRouteDecision(
   }
 
   if (normalizedRoute === "implement") {
-    const originalRequest = String(requestText || "").trim() || "No request text provided.";
-    const metadata = implementMetadata?.issueTitle && implementMetadata?.issueBody
-      ? implementMetadata
-      : null;
+    const metadata = buildImplementIssueMetadata(requestText, context);
     return {
       route: "implement",
       // Explicit /implement is itself the approval, so the portal skips the
@@ -229,9 +372,9 @@ export function buildRequestedRouteDecision(
       needsApproval: false,
       confidence: "high",
       summary: "I’ll start implementing this request.",
-      issueTitle: metadata?.issueTitle || DEFAULT_IMPLEMENT_ISSUE_TITLE,
-      issueBody: metadata?.issueBody || fallbackImplementIssueBody(originalRequest),
-      basePr: metadata?.basePr || "",
+      issueTitle: metadata.issueTitle,
+      issueBody: metadata.issueBody,
+      basePr: metadata.basePr || "",
     };
   }
 

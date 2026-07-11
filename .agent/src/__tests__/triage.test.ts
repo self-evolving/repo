@@ -10,7 +10,6 @@ import {
   extractRequestedRoute,
   extractRequestedRouteDecision,
   buildRequestedRouteDecision,
-  normalizeImplementIssueMetadata,
   parseTriageMode,
   resolveRequestedLabel,
 } from "../triage.js";
@@ -224,61 +223,269 @@ test("extractRequestedRoute ignores non-route slash commands and commands withou
 });
 
 test("buildRequestedRouteDecision builds deterministic implement metadata without approval gate", () => {
+  const request = "@sepo-agent /implement Fix approval routing\nwith a focused regression test";
   const d = buildRequestedRouteDecision(
     "implement",
-    "@sepo-agent /implement add a regression test for approval routing",
+    request,
+    { agentMention: "@sepo-agent", targetKind: "discussion", targetNumber: "42" },
   );
   assert.equal(d.route, "implement");
   // Explicit /implement is self-approval; the approval gate only applies to
   // triaged implement decisions.
   assert.equal(d.needsApproval, false);
-  assert.equal(d.issueTitle, "Implement requested change");
-  assert.match(d.issueBody, /Original request/);
+  assert.equal(d.issueTitle, "Fix approval routing with a focused regression test");
+  assert.match(d.issueBody, /## Original request/);
+  assert.ok(d.issueBody.includes(request));
+  assert.doesNotMatch(d.issueTitle, /@sepo-agent|\/implement/);
 });
 
-test("buildRequestedRouteDecision falls back to generic implement title without generated metadata", () => {
-  const d = buildRequestedRouteDecision("implement", "@sepo-agent /implement");
-  assert.equal(d.issueTitle, "Implement requested change");
+test("buildRequestedRouteDecision preserves inline-code contents in implement titles", () => {
+  const request = "@sepo-agent /implement Rename `AGENT_TRIAGE_MODE` to `AGENT_ROUTING_MODE`";
+  const d = buildRequestedRouteDecision("implement", request, {
+    agentMention: "@sepo-agent",
+    targetKind: "discussion",
+    targetNumber: "42",
+  });
+
+  assert.equal(d.issueTitle, "Rename AGENT_TRIAGE_MODE to AGENT_ROUTING_MODE");
+  assert.ok(d.issueBody.includes(request));
 });
 
-test("buildRequestedRouteDecision uses generated implement issue metadata", () => {
-  const d = buildRequestedRouteDecision(
+test("buildRequestedRouteDecision falls back and safely truncates implement titles", () => {
+  const context = { agentMention: "@sepo-agent", targetKind: "discussion", targetNumber: "42" };
+  const d = buildRequestedRouteDecision("implement", "@sepo-agent /implement", context);
+  assert.equal(d.issueTitle, "Implement requested change");
+  const long = buildRequestedRouteDecision(
     "implement",
-    "Earlier prose mentions /implement add the wrong title.\n\n@sepo-agent /implement",
-    {
-      issueTitle: "Fix webhook dispatch retry handling",
-      issueBody: "## Goal\nFix webhook dispatch retry handling.\n\n## Acceptance criteria\n- Add regression coverage.",
-      basePr: "268",
-    },
+    `@sepo-agent /implement ${"a".repeat(100)}`,
+    context,
   );
-  assert.equal(d.issueTitle, "Fix webhook dispatch retry handling");
-  assert.doesNotMatch(d.issueTitle, /wrong title/);
-  assert.match(d.issueBody, /webhook dispatch retry/);
-  assert.equal(d.basePr, "268");
+  assert.equal(long.issueTitle.length, 70);
+  assert.match(long.issueTitle, /\.\.\.$/);
 });
 
-test("normalizeImplementIssueMetadata reads generated JSON metadata", () => {
-  const metadata = normalizeImplementIssueMetadata(
-    '```json\n{"issue_title":"Fix PR tracking issue titles","issue_body":"## Goal\\nGenerate title from context.","base_pr":"268"}\n```',
+test("buildRequestedRouteDecision infers only phrase-scoped, unnegated stacked PR bases", () => {
+  const context = {
+    agentMention: "@sepo-agent",
+    triggerKind: "mention",
+    sourceKind: "issue_comment",
+    targetKind: "pull_request",
+    targetNumber: "268",
+  };
+  const stacked = buildRequestedRouteDecision(
+    "implement",
+    "@sepo-agent /implement Create a stacked follow-up PR for this work",
+    context,
   );
-  assert.equal(metadata.issueTitle, "Fix PR tracking issue titles");
-  assert.match(metadata.issueBody, /Generate title from context/);
-  assert.equal(metadata.basePr, "268");
+  const independent = buildRequestedRouteDecision(
+    "implement",
+    "@sepo-agent /implement Create an independent follow-up PR",
+    context,
+  );
+  const ordinary = buildRequestedRouteDecision(
+    "implement",
+    "@sepo-agent /implement Fix stack overflow handling",
+    context,
+  );
+  const domainFollowup = buildRequestedRouteDecision(
+    "implement",
+    "@sepo-agent /implement Add follow-up email notifications",
+    context,
+  );
+  const negatedIndependent = buildRequestedRouteDecision(
+    "implement",
+    "@sepo-agent /implement Do not make this independent; stack it on this PR",
+    context,
+  );
+  const negatedStack = buildRequestedRouteDecision(
+    "implement",
+    "@sepo-agent /implement Do not create a stacked PR for this change",
+    context,
+  );
+  const avoidedStack = buildRequestedRouteDecision(
+    "implement",
+    "@sepo-agent /implement Handle this without stacking it on the source PR",
+    context,
+  );
+  const discussion = buildRequestedRouteDecision(
+    "implement",
+    "@sepo-agent /implement Create a stacked follow-up PR",
+    { ...context, targetKind: "discussion" },
+  );
+
+  assert.equal(stacked.basePr, "268");
+  assert.equal(independent.basePr, "");
+  assert.equal(ordinary.basePr, "");
+  assert.equal(domainFollowup.basePr, "");
+  assert.equal(negatedIndependent.basePr, "268");
+  assert.equal(negatedStack.basePr, "");
+  assert.equal(avoidedStack.basePr, "");
+  assert.equal(discussion.basePr, "");
 });
 
-test("normalizeImplementIssueMetadata rejects malformed generated metadata", () => {
-  assert.throws(
-    () => normalizeImplementIssueMetadata('{"issue_title":"Missing body"}'),
-    /missing issue_body/,
+test("buildRequestedRouteDecision handles reproduced stacking ancestry cases", () => {
+  const context = {
+    agentMention: "@sepo-agent",
+    triggerKind: "mention",
+    sourceKind: "issue_comment",
+    targetKind: "pull_request",
+    targetNumber: "470",
+  };
+  const decide = (request: string) => buildRequestedRouteDecision(
+    "implement",
+    `@sepo-agent /implement ${request}`,
+    context,
   );
-  assert.throws(
-    () => normalizeImplementIssueMetadata('{"issue_title":"Bad base","issue_body":"body","base_pr":"#268"}'),
-    /base_pr must be a positive integer/,
+
+  assert.equal(decide("Document stacked PR behavior").basePr, "");
+  assert.equal(decide("Create a stacked branch for this change").basePr, "470");
+  assert.equal(
+    decide("No extra docs needed and stack this on the current PR").basePr,
+    "470",
   );
-  assert.throws(
-    () => normalizeImplementIssueMetadata('{"issue_title":"Bad base","issue_body":"body","base_pr":"0"}'),
-    /base_pr must be a positive integer/,
+});
+
+test("buildRequestedRouteDecision handles reproduced follow-up ancestry cases", () => {
+  const context = {
+    agentMention: "@sepo-agent",
+    triggerKind: "mention",
+    sourceKind: "issue_comment",
+    targetKind: "pull_request",
+    targetNumber: "470",
+  };
+  const decide = (request: string) => buildRequestedRouteDecision(
+    "implement",
+    `@sepo-agent /implement ${request}`,
+    context,
   );
+
+  assert.equal(decide("Rename the Follow-up PR heading in the docs").basePr, "");
+  assert.equal(decide("Make this follow-up PR independent").basePr, "");
+  assert.equal(decide("Create a follow-up branch for this work").basePr, "470");
+});
+
+test("buildRequestedRouteDecision scopes ancestry inference to explicit clauses", () => {
+  const context = {
+    agentMention: "@sepo-agent",
+    triggerKind: "mention",
+    sourceKind: "issue_comment",
+    targetKind: "pull_request",
+    targetNumber: "470",
+  };
+  const decide = (request: string) => buildRequestedRouteDecision(
+    "implement",
+    `@sepo-agent /implement ${request}`,
+    context,
+  );
+
+  assert.equal(
+    decide("No extra docs needed and create a stacked branch for this change").basePr,
+    "470",
+  );
+  assert.equal(
+    decide("Do not make this independent; create a stacked PR for this change").basePr,
+    "470",
+  );
+  assert.equal(decide("Add stacked PR documentation").basePr, "");
+  assert.equal(decide("Document how to stack this PR").basePr, "");
+  assert.equal(
+    decide("Rename the independent PR section, then stack this change on the current PR").basePr,
+    "470",
+  );
+});
+
+test("buildRequestedRouteDecision handles remaining ancestry grammar cases", () => {
+  const context = {
+    agentMention: "@sepo-agent",
+    triggerKind: "mention",
+    sourceKind: "issue_comment",
+    targetKind: "pull_request",
+    targetNumber: "470",
+  };
+  const decide = (request: string) => buildRequestedRouteDecision(
+    "implement",
+    `@sepo-agent /implement ${request}`,
+    context,
+  );
+
+  assert.equal(decide("Create a PR stacked on this PR").basePr, "470");
+  assert.equal(decide("- Create a stacked PR for this change").basePr, "470");
+  assert.equal(decide("Create a follow-up PR that is independent").basePr, "");
+  assert.equal(decide("Implement stacked change tracking UI").basePr, "");
+});
+
+test("buildRequestedRouteDecision requires complete ancestry intent", () => {
+  const context = {
+    agentMention: "@sepo-agent",
+    triggerKind: "mention",
+    sourceKind: "issue_comment",
+    targetKind: "pull_request",
+    targetNumber: "470",
+  };
+  const decide = (request: string) => buildRequestedRouteDecision(
+    "implement",
+    `@sepo-agent /implement ${request}`,
+    context,
+  );
+
+  assert.equal(decide("Implement a stacked PR viewer").basePr, "");
+  assert.equal(decide("Build follow-up PR notifications").basePr, "");
+  assert.equal(decide("Create stacked PR documentation").basePr, "");
+  assert.equal(decide("Implement this as a stacked change").basePr, "470");
+  assert.equal(decide("Create this work as a stacked PR").basePr, "470");
+});
+
+test("buildRequestedRouteDecision lets later unstacking intent clear the base", () => {
+  const context = {
+    agentMention: "@sepo-agent",
+    triggerKind: "mention",
+    sourceKind: "issue_comment",
+    targetKind: "pull_request",
+    targetNumber: "470",
+  };
+  const decide = (request: string) => buildRequestedRouteDecision(
+    "implement",
+    `@sepo-agent /implement ${request}`,
+    context,
+  );
+
+  assert.equal(
+    decide("Create a follow-up PR for this change, but do not stack it on this PR").basePr,
+    "",
+  );
+  assert.equal(
+    decide("Create a follow-up PR for this change, but use the default branch").basePr,
+    "",
+  );
+  assert.equal(
+    decide("Create a follow-up PR for this change, but keep it standalone").basePr,
+    "",
+  );
+  assert.equal(
+    decide("Create a follow-up PR for this change, but leave it unstacked").basePr,
+    "",
+  );
+});
+
+test("buildRequestedRouteDecision uses label target context without parsing stale commands", () => {
+  const sourceContext = [
+    "Current PR body",
+    "",
+    "Historical example: @sepo-agent /implement Create a stacked follow-up PR",
+  ].join("\n");
+  const d = buildRequestedRouteDecision("implement", sourceContext, {
+    agentMention: "@sepo-agent",
+    triggerKind: "label",
+    sourceKind: "pull_request",
+    targetKind: "pull_request",
+    targetNumber: "268",
+    targetTitle: "Fix label-triggered implementation metadata",
+  });
+
+  assert.equal(d.issueTitle, "Fix label-triggered implementation metadata");
+  assert.match(d.issueBody, /## Source context/);
+  assert.ok(d.issueBody.includes(sourceContext));
+  assert.equal(d.basePr, "");
 });
 
 test("buildRequestedRouteDecision builds deterministic review metadata", () => {

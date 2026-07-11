@@ -23,7 +23,7 @@ function writeFakePrViewGh(tempDir: string): void {
   writeFileSync(join(tempDir, "gh"), `#!/usr/bin/env bash
 set -euo pipefail
 if [ "\${1-}" = "pr" ] && [ "\${2-}" = "view" ]; then
-  printf '{"headRefName":"agent/source","headRefOid":"abc123","isCrossRepository":false,"state":"%s"}\\n' "\${FAKE_PR_STATE-OPEN}"
+  printf '{"headRefName":"agent/source","headRefOid":"abc123","isCrossRepository":%s,"state":"%s"}\\n' "\${FAKE_PR_CROSS_REPOSITORY-false}" "\${FAKE_PR_STATE-OPEN}"
   exit 0
 fi
 printf 'unexpected gh args: %s\\n' "$*" >&2
@@ -66,18 +66,8 @@ test("resolve-dispatch keeps open inferred base PR metadata", () => {
 
   try {
     const outputPath = join(tempDir, "github-output.txt");
-    const metadataPath = join(tempDir, "metadata.json");
     writeFileSync(outputPath, "", "utf8");
     writeFakePrViewGh(tempDir);
-    writeFileSync(
-      metadataPath,
-      JSON.stringify({
-        issue_title: "Add follow-up on open PR",
-        issue_body: "## Goal\nCreate a follow-up stacked on the open PR.",
-        base_pr: "268",
-      }),
-      "utf8",
-    );
 
     const result = spawnSync("node", [".agent/dist/cli/resolve-dispatch.js"], {
       cwd: repoRoot,
@@ -86,9 +76,9 @@ test("resolve-dispatch keeps open inferred base PR metadata", () => {
         PATH: `${tempDir}:${process.env.PATH || ""}`,
         FAKE_PR_STATE: "OPEN",
         GITHUB_OUTPUT: outputPath,
-        RESPONSE_FILE: metadataPath,
+        AGENT_HANDLE: "@sepo-agent",
         REQUESTED_ROUTE: "implement",
-        REQUEST_TEXT: "@sepo-agent /implement create a stacked follow-up",
+        REQUEST_TEXT: "@sepo-agent /implement Add a follow-up on the open PR",
         TARGET_KIND: "pull_request",
         TARGET_NUMBER: "268",
         GITHUB_REPOSITORY: "self-evolving/repo",
@@ -103,6 +93,7 @@ test("resolve-dispatch keeps open inferred base PR metadata", () => {
     assert.doesNotMatch(result.stderr, /Dropping inferred base_pr/);
     const outputs = parseGithubOutput(outputPath);
     assert.equal(outputs.get("base_pr"), "268");
+    assert.equal(outputs.get("issue_title"), "Add a follow-up on the open PR");
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
@@ -113,18 +104,8 @@ test("resolve-dispatch drops closed inferred base PR metadata", () => {
 
   try {
     const outputPath = join(tempDir, "github-output.txt");
-    const metadataPath = join(tempDir, "metadata.json");
     writeFileSync(outputPath, "", "utf8");
     writeFakePrViewGh(tempDir);
-    writeFileSync(
-      metadataPath,
-      JSON.stringify({
-        issue_title: "Recreate closed PR work",
-        issue_body: "## Goal\nRecreate the useful change from the closed PR.",
-        base_pr: "293",
-      }),
-      "utf8",
-    );
 
     const result = spawnSync("node", [".agent/dist/cli/resolve-dispatch.js"], {
       cwd: repoRoot,
@@ -133,9 +114,9 @@ test("resolve-dispatch drops closed inferred base PR metadata", () => {
         PATH: `${tempDir}:${process.env.PATH || ""}`,
         FAKE_PR_STATE: "CLOSED",
         GITHUB_OUTPUT: outputPath,
-        RESPONSE_FILE: metadataPath,
+        AGENT_HANDLE: "@sepo-agent",
         REQUESTED_ROUTE: "implement",
-        REQUEST_TEXT: "@sepo-agent /implement try making this again",
+        REQUEST_TEXT: "@sepo-agent /implement Recreate this as a stacked follow-up PR",
         TARGET_KIND: "pull_request",
         TARGET_NUMBER: "293",
         GITHUB_REPOSITORY: "self-evolving/repo",
@@ -157,32 +138,64 @@ test("resolve-dispatch drops closed inferred base PR metadata", () => {
   }
 });
 
-test("resolve-dispatch uses generated metadata for explicit implement tracking issues", () => {
+test("resolve-dispatch drops open fork inferred base PR metadata", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-resolve-dispatch-"));
 
   try {
     const outputPath = join(tempDir, "github-output.txt");
-    const metadataPath = join(tempDir, "metadata.json");
     writeFileSync(outputPath, "", "utf8");
-    writeFileSync(
-      metadataPath,
-      JSON.stringify({
-        issue_title: "Fix explicit implement issue titles",
-        issue_body: "## Goal\nGenerate titles from PR context.\n\n## Acceptance criteria\n- Ignore earlier prose command mentions.",
-        base_pr: "268",
-      }),
-      "utf8",
-    );
+    writeFakePrViewGh(tempDir);
+
+    const result = spawnSync("node", [".agent/dist/cli/resolve-dispatch.js"], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        PATH: `${tempDir}:${process.env.PATH || ""}`,
+        FAKE_PR_CROSS_REPOSITORY: "true",
+        FAKE_PR_STATE: "OPEN",
+        GITHUB_OUTPUT: outputPath,
+        AGENT_HANDLE: "@sepo-agent",
+        REQUESTED_ROUTE: "implement",
+        REQUEST_TEXT: "@sepo-agent /implement Create a stacked PR for this change",
+        TARGET_KIND: "pull_request",
+        TARGET_NUMBER: "294",
+        GITHUB_REPOSITORY: "self-evolving/repo",
+        AUTHOR_ASSOCIATION: "MEMBER",
+        ACCESS_POLICY: "",
+        REPOSITORY_PRIVATE: "true",
+      },
+      encoding: "utf8",
+    });
+
+    assert.equal(result.status, 0);
+    assert.match(result.stderr, /Dropping inferred base_pr #294 because source PR is from a fork/);
+    const outputs = parseGithubOutput(outputPath);
+    assert.equal(outputs.get("base_pr"), "");
+    assert.match(outputs.get("issue_body") || "", /PR #294 is from a fork/);
+    assert.match(outputs.get("issue_body") || "", /keeping that PR as context/);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("resolve-dispatch derives explicit implement tracking metadata locally", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-resolve-dispatch-"));
+
+  try {
+    const outputPath = join(tempDir, "github-output.txt");
+    writeFileSync(outputPath, "", "utf8");
+    const request = "@custom-agent /implement Fix explicit implement issue titles";
 
     const result = spawnSync("node", [".agent/dist/cli/resolve-dispatch.js"], {
       cwd: repoRoot,
       env: {
         ...process.env,
         GITHUB_OUTPUT: outputPath,
-        RESPONSE_FILE: metadataPath,
+        AGENT_HANDLE: "@custom-agent",
         REQUESTED_ROUTE: "implement",
-        REQUEST_TEXT: "Earlier prose mentions /implement with stale wording.\n\n@sepo-agent /implement",
-        TARGET_KIND: "pull_request",
+        REQUEST_TEXT: request,
+        TARGET_KIND: "discussion",
+        TARGET_NUMBER: "41",
         AUTHOR_ASSOCIATION: "MEMBER",
         ACCESS_POLICY: "",
         REPOSITORY_PRIVATE: "true",
@@ -195,76 +208,31 @@ test("resolve-dispatch uses generated metadata for explicit implement tracking i
     assert.equal(outputs.get("route"), "implement");
     assert.equal(outputs.get("needs_approval"), "false");
     assert.equal(outputs.get("issue_title"), "Fix explicit implement issue titles");
-    assert.doesNotMatch(outputs.get("issue_title") || "", /stale wording/);
-    assert.match(outputs.get("issue_body") || "", /Generate titles from PR context/);
-    assert.equal(outputs.get("base_pr"), "268");
-  } finally {
-    rmSync(tempDir, { recursive: true, force: true });
-  }
-});
-
-test("resolve-dispatch falls back when generated implement metadata is invalid", () => {
-  const tempDir = mkdtempSync(join(tmpdir(), "agent-resolve-dispatch-"));
-
-  try {
-    const outputPath = join(tempDir, "github-output.txt");
-    const metadataPath = join(tempDir, "metadata.json");
-    writeFileSync(outputPath, "", "utf8");
-    writeFileSync(metadataPath, '{"issue_title":"Missing body"}', "utf8");
-
-    const result = spawnSync("node", [".agent/dist/cli/resolve-dispatch.js"], {
-      cwd: repoRoot,
-      env: {
-        ...process.env,
-        GITHUB_OUTPUT: outputPath,
-        RESPONSE_FILE: metadataPath,
-        REQUESTED_ROUTE: "implement",
-        REQUEST_TEXT: "@sepo-agent /implement",
-        TARGET_KIND: "pull_request",
-        AUTHOR_ASSOCIATION: "MEMBER",
-        ACCESS_POLICY: "",
-        REPOSITORY_PRIVATE: "true",
-      },
-      encoding: "utf8",
-    });
-
-    assert.equal(result.status, 0);
-    assert.match(result.stderr, /using fallback metadata/);
-    const outputs = parseGithubOutput(outputPath);
-    assert.equal(outputs.get("issue_title"), "Implement requested change");
-    assert.match(outputs.get("issue_body") || "", /Original request/);
+    assert.doesNotMatch(outputs.get("issue_title") || "", /@custom-agent|\/implement/);
+    assert.ok((outputs.get("issue_body") || "").includes(request));
     assert.equal(outputs.get("base_pr"), "");
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
 
-test("resolve-dispatch rejects invalid implement base PR metadata", () => {
+test("resolve-dispatch keeps independent PR implementation requests unstacked", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-resolve-dispatch-"));
 
   try {
     const outputPath = join(tempDir, "github-output.txt");
-    const metadataPath = join(tempDir, "metadata.json");
     writeFileSync(outputPath, "", "utf8");
-    writeFileSync(
-      metadataPath,
-      JSON.stringify({
-        issue_title: "Stack follow-up work",
-        issue_body: "## Goal\nCreate a stacked follow-up PR.",
-        base_pr: "#268",
-      }),
-      "utf8",
-    );
 
     const result = spawnSync("node", [".agent/dist/cli/resolve-dispatch.js"], {
       cwd: repoRoot,
       env: {
         ...process.env,
         GITHUB_OUTPUT: outputPath,
-        RESPONSE_FILE: metadataPath,
+        AGENT_HANDLE: "@sepo-agent",
         REQUESTED_ROUTE: "implement",
-        REQUEST_TEXT: "@sepo-agent /implement work on this as a stacked PR?",
+        REQUEST_TEXT: "@sepo-agent /implement Create an independent follow-up PR",
         TARGET_KIND: "pull_request",
+        TARGET_NUMBER: "268",
         AUTHOR_ASSOCIATION: "MEMBER",
         ACCESS_POLICY: "",
         REPOSITORY_PRIVATE: "true",
@@ -273,8 +241,52 @@ test("resolve-dispatch rejects invalid implement base PR metadata", () => {
     });
 
     assert.equal(result.status, 0);
-    assert.match(result.stderr, /base_pr must be a positive integer/);
     const outputs = parseGithubOutput(outputPath);
+    assert.equal(outputs.get("issue_title"), "Create an independent follow-up PR");
+    assert.equal(outputs.get("base_pr"), "");
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("resolve-dispatch derives PR label metadata from explicit source context", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-resolve-dispatch-"));
+
+  try {
+    const outputPath = join(tempDir, "github-output.txt");
+    writeFileSync(outputPath, "", "utf8");
+    const sourceContext = [
+      "PR body with historical guidance",
+      "",
+      "Earlier: @sepo-agent /implement Create a stacked follow-up PR",
+    ].join("\n");
+
+    const result = spawnSync("node", [".agent/dist/cli/resolve-dispatch.js"], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        GITHUB_OUTPUT: outputPath,
+        AGENT_HANDLE: "@sepo-agent",
+        REQUESTED_ROUTE: "implement",
+        REQUEST_TEXT: sourceContext,
+        TRIGGER_KIND: "label",
+        SOURCE_KIND: "pull_request",
+        TARGET_KIND: "pull_request",
+        TARGET_NUMBER: "268",
+        TARGET_TITLE: "Fix label-triggered implementation metadata",
+        GITHUB_REPOSITORY: "self-evolving/repo",
+        AUTHOR_ASSOCIATION: "MEMBER",
+        ACCESS_POLICY: "",
+        REPOSITORY_PRIVATE: "true",
+      },
+      encoding: "utf8",
+    });
+
+    assert.equal(result.status, 0);
+    const outputs = parseGithubOutput(outputPath);
+    assert.equal(outputs.get("issue_title"), "Fix label-triggered implementation metadata");
+    assert.match(outputs.get("issue_body") || "", /## Source context/);
+    assert.ok((outputs.get("issue_body") || "").includes(sourceContext));
     assert.equal(outputs.get("base_pr"), "");
   } finally {
     rmSync(tempDir, { recursive: true, force: true });

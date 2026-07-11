@@ -107,8 +107,8 @@ permissions:
   id-token: write # required for GitHub Actions OIDC broker exchange
   # Note: workflow-level permissions are the union of all jobs. Individual
   # agent invocations use route-specific acpx permission modes, with
-  # optional dispatch triage, explicit implement metadata generation, answer,
-  # implement, and fix-pr all currently using approve-all.
+  # optional dispatch triage, answer, implement, and fix-pr all currently
+  # using approve-all.
 
 jobs:
   # --- Portal: extract context, triage, resolve route ---
@@ -119,9 +119,11 @@ jobs:
       should_respond: ${{ steps.context.outputs.should_respond }}
       association: ${{ steps.context.outputs.association }}
       body: ${{ steps.context.outputs.body }}
+      trigger_kind: ${{ steps.context.outputs.trigger_kind }}
       source_kind: ${{ steps.context.outputs.source_kind }}
       target_kind: ${{ steps.context.outputs.target_kind }}
       target_number: ${{ steps.context.outputs.target_number }}
+      target_title: ${{ steps.context.outputs.target_title }}
       target_url: ${{ steps.context.outputs.target_url }}
       reaction_subject_id: ${{ steps.context.outputs.reaction_subject_id }}
       response_kind: ${{ steps.context.outputs.response_kind }}
@@ -241,22 +243,6 @@ jobs:
           REACTION_CONTENT: EYES
         run: node .agent/dist/cli/add-reaction.js
 
-      - name: Resolve explicit route authorization
-        if: >-
-          steps.context.outputs.should_respond == 'true' &&
-          steps.context.outputs.requested_route == 'implement' &&
-          steps.context.outputs.target_kind != 'issue'
-        id: explicit_dispatch
-        env:
-          REQUESTED_ROUTE: ${{ steps.context.outputs.requested_route }}
-          REQUESTED_SKILL: ${{ steps.context.outputs.requested_skill }}
-          REQUEST_TEXT: ${{ steps.context.outputs.body }}
-          TARGET_KIND: ${{ steps.context.outputs.target_kind }}
-          AUTHOR_ASSOCIATION: ${{ steps.context.outputs.association }}
-          ACCESS_POLICY: ${{ inputs.access_policy }}
-          REPOSITORY_PRIVATE: ${{ github.event.repository.private && 'true' || 'false' }}
-        run: node .agent/dist/cli/resolve-dispatch.js
-
       - name: Authorize implicit follow-up answer
         if: >-
           steps.context.outputs.should_respond == 'true' &&
@@ -305,19 +291,10 @@ jobs:
       - name: Resolve task timeout
         if: >-
           steps.context.outputs.should_respond == 'true' &&
+          steps.context.outputs.requested_route == '' &&
           (
-            (
-              steps.context.outputs.requested_route == '' &&
-              (
-                steps.context.outputs.implicit_followup != 'true' ||
-                steps.followup_authorization.outputs.route == 'answer'
-              )
-            ) ||
-            (
-              steps.explicit_dispatch.outputs.route == 'implement' &&
-              steps.context.outputs.target_kind != 'issue' &&
-              steps.provider.outputs.provider != ''
-            )
+            steps.context.outputs.implicit_followup != 'true' ||
+            steps.followup_authorization.outputs.route == 'answer'
           )
         id: task_timeout
         env:
@@ -398,42 +375,6 @@ jobs:
           reasoning_effort: ${{ steps.followup_provider.outputs.reasoning_effort || 'medium' }}
           workflow: agent-router.yml
 
-      - name: Generate implement issue metadata
-        if: >-
-          steps.context.outputs.should_respond == 'true' &&
-          steps.explicit_dispatch.outputs.route == 'implement' &&
-          steps.context.outputs.target_kind != 'issue' &&
-          steps.provider.outputs.provider != ''
-        id: implement_metadata
-        continue-on-error: true
-        timeout-minutes: ${{ fromJson(steps.task_timeout.outputs.minutes || '30') }}
-        uses: ./.github/actions/run-agent-task
-        with:
-          agent: ${{ steps.provider.outputs.provider }}
-          github_token: ${{ steps.auth.outputs.token }}
-          secondary_github_token: ${{ secrets.AGENT_SECONDARY_GITHUB_TOKEN }}
-          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
-          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          model: ${{ steps.provider.outputs.model }}
-          display_model: ${{ vars.AGENT_DISPLAY_MODEL || '' }}
-          permission_mode: approve-all
-          prompt: agent-implement-metadata
-          route: dispatch
-          memory_ref: ${{ vars.AGENT_MEMORY_REF || 'agent/memory' }}
-          memory_policy: ${{ vars.AGENT_MEMORY_POLICY || '' }}
-          progress_policy: ${{ vars.AGENT_PROGRESS_POLICY || '' }}
-          session_bundle_mode: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
-          session_policy: none
-          request_text: ${{ steps.context.outputs.body }}
-          requested_by: ${{ steps.context.outputs.requested_by }}
-          source_kind: ${{ steps.context.outputs.source_kind }}
-          target_kind: ${{ steps.context.outputs.target_kind }}
-          target_number: ${{ steps.context.outputs.target_number }}
-          target_url: ${{ steps.context.outputs.target_url }}
-          reasoning_effort: ${{ steps.provider.outputs.reasoning_effort || 'medium' }}
-          workflow: agent-router.yml
-
       - name: Resolve route
         if: >-
           steps.context.outputs.should_respond == 'true' &&
@@ -443,13 +384,17 @@ jobs:
           )
         id: dispatch
         env:
-          RESPONSE_FILE: ${{ steps.followup_intent.outputs.response_file || steps.triage.outputs.response_file || steps.implement_metadata.outputs.response_file }}
+          RESPONSE_FILE: ${{ steps.followup_intent.outputs.response_file || steps.triage.outputs.response_file }}
+          AGENT_HANDLE: ${{ inputs.agent_handle }}
           REQUESTED_ROUTE: ${{ steps.context.outputs.requested_route }}
           REQUESTED_SKILL: ${{ steps.context.outputs.requested_skill }}
           REQUEST_TEXT: ${{ steps.context.outputs.body }}
           IMPLICIT_FOLLOWUP: ${{ steps.context.outputs.implicit_followup }}
+          TRIGGER_KIND: ${{ steps.context.outputs.trigger_kind }}
+          SOURCE_KIND: ${{ steps.context.outputs.source_kind }}
           TARGET_KIND: ${{ steps.context.outputs.target_kind }}
           TARGET_NUMBER: ${{ steps.context.outputs.target_number }}
+          TARGET_TITLE: ${{ steps.context.outputs.target_title }}
           AUTHOR_ASSOCIATION: ${{ steps.context.outputs.association }}
           ACCESS_POLICY: ${{ inputs.access_policy }}
           REPOSITORY_PRIVATE: ${{ github.event.repository.private && 'true' || 'false' }}
