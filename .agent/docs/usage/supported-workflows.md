@@ -100,14 +100,13 @@ route, Sepo keeps the default-branch runtime checkout in the main workspace and
 runs the agent in a separate rubrics worktree so the proposal PR can target the
 data-only `agent/rubrics` branch.
 
-For explicit `/implement` requests from pull requests, the router's
-metadata-only prompt may emit `base_pr` when the current user request asks for a
-stacked or follow-up PR. The portal validates that value as a positive integer
-and passes it through to `agent-implement.yml`; the implementation workflow then
-verifies the PR is open and same-repository before using its head branch. If
-the inferred source PR is closed or merged, the router omits `base_pr` before
-dispatch and leaves the closed PR link in the tracking issue context so the run
-starts from the default branch.
+For explicit `/implement` requests from pull requests, deterministic router
+logic sets `base_pr` to the source PR when the active request asks for a stacked
+or follow-up PR. Independent requests leave `base_pr` empty. The implementation
+workflow verifies that the PR is open and same-repository before using its head
+branch. If the inferred source PR is closed or merged, the router omits
+`base_pr` before dispatch and leaves the closed PR link in the tracking issue
+context so the run starts from the default branch.
 
 When a new review synthesis, rubrics review, `fix-pr` status comment, or
 orchestrator handoff marker is posted, the workflows minimize prior visible
@@ -294,7 +293,7 @@ Explicit routes are:
 - `@sepo-agent /install ...`
 
 Explicit routes skip dispatch triage and resolve locally, but still go through the same route policy checks afterward.
-When an explicit `/implement` request on a pull request or discussion creates a tracking issue, the router runs a metadata-only agent prompt to synthesize the issue title and body from the request plus target context. The slash command approves the route; it is not copied into the title. Pull request metadata can also include `base_pr` for stacked or follow-up implementation requests. If metadata generation is unavailable or invalid, the issue falls back to `Implement requested change`.
+When an explicit `/implement` request on a pull request or discussion creates a tracking issue, the router derives its metadata locally without an additional agent session. It removes the mention and route command from the active request to build a normalized title of at most 70 characters, uses `Implement requested change` when no task text remains, preserves the original request in the body, and appends a source link. Pull request requests for stacked or follow-up work also carry the source PR as `base_pr`; independent requests do not.
 
 Mention-based skill requests normalize the skill name to lowercase and run
 `<skill_root>/<name>/SKILL.md` inline through the same `skill` route used by

@@ -1,7 +1,7 @@
 // CLI: apply dispatch policy to agent triage output.
 // Usage: node .agent/dist/cli/resolve-dispatch.js
 // Env: RESPONSE_FILE, TARGET_KIND, TARGET_NUMBER, AUTHOR_ASSOCIATION,
-//      REQUESTED_ROUTE, REQUEST_TEXT, REQUESTED_SKILL, ACCESS_POLICY,
+//      REQUESTED_ROUTE, REQUEST_TEXT, REQUESTED_SKILL, AGENT_HANDLE, ACCESS_POLICY,
 //      REPOSITORY_PRIVATE, GITHUB_REPOSITORY, GH_TOKEN, IMPLICIT_FOLLOWUP
 // Outputs: route, needs_approval, confidence, summary, issue_title, issue_body,
 //          skill, base_pr
@@ -12,11 +12,10 @@ import { fetchPrMeta } from "../github.js";
 import { setOutput } from "../output.js";
 import { normalizeFollowupIntent } from "../followup-intent.js";
 import {
-  type ImplementIssueMetadata,
+  type DispatchDecision,
   normalizeDispatch,
   applyDispatchPolicy,
   buildRequestedRouteDecision,
-  normalizeImplementIssueMetadata,
 } from "../triage.js";
 
 const responseFile = process.env.RESPONSE_FILE || "";
@@ -26,6 +25,7 @@ const authorAssociation = process.env.AUTHOR_ASSOCIATION || "";
 const requestedRoute = String(process.env.REQUESTED_ROUTE || "").trim().toLowerCase();
 const requestedSkill = String(process.env.REQUESTED_SKILL || "").trim();
 const requestText = process.env.REQUEST_TEXT || "";
+const agentHandle = process.env.AGENT_HANDLE || "";
 const isPublicRepo = String(process.env.REPOSITORY_PRIVATE || "").trim().toLowerCase() === "false";
 const repo = process.env.GITHUB_REPOSITORY || "";
 const implicitFollowup = String(process.env.IMPLICIT_FOLLOWUP || "").trim().toLowerCase() === "true";
@@ -51,35 +51,35 @@ function appendClosedInferredBaseNote(body: string, basePr: string, state: strin
   return `${trimmed}\n\n${note}`;
 }
 
-function normalizeInferredImplementBase(metadata: ImplementIssueMetadata | null): ImplementIssueMetadata | null {
+function normalizeInferredImplementBase(decision: DispatchDecision): DispatchDecision {
   if (
-    !metadata?.basePr ||
+    !decision.basePr ||
     targetKind !== "pull_request" ||
-    metadata.basePr !== targetNumber ||
+    decision.basePr !== targetNumber ||
     !repo
   ) {
-    return metadata;
+    return decision;
   }
 
   try {
-    const meta = fetchPrMeta(Number.parseInt(metadata.basePr, 10), repo);
+    const meta = fetchPrMeta(Number.parseInt(decision.basePr, 10), repo);
     const state = String(meta.state || "").trim().toUpperCase();
     if (!state || state === "OPEN") {
-      return metadata;
+      return decision;
     }
 
     console.warn(
-      `Dropping inferred base_pr #${metadata.basePr} because source PR is ${state.toLowerCase()}; using the default branch instead.`,
+      `Dropping inferred base_pr #${decision.basePr} because source PR is ${state.toLowerCase()}; using the default branch instead.`,
     );
     return {
-      ...metadata,
+      ...decision,
       basePr: "",
-      issueBody: appendClosedInferredBaseNote(metadata.issueBody, metadata.basePr, state),
+      issueBody: appendClosedInferredBaseNote(decision.issueBody, decision.basePr, state),
     };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.warn(`Could not verify inferred base_pr #${metadata.basePr}; keeping it for implementation base resolution: ${msg}`);
-    return metadata;
+    console.warn(`Could not verify inferred base_pr #${decision.basePr}; keeping it for implementation base resolution: ${msg}`);
+    return decision;
   }
 }
 
@@ -91,19 +91,12 @@ function emitDecision(accessPolicy: AccessPolicy): void {
     }
 
     const isExplicit = Boolean(requestedRoute);
-    const implementMetadata = isExplicit && requestedRoute === "implement" && raw.trim()
-      ? (() => {
-          try {
-            return normalizeInferredImplementBase(normalizeImplementIssueMetadata(raw));
-          } catch (err: unknown) {
-            const msg = err instanceof Error ? err.message : String(err);
-            console.error(`Implement issue metadata was invalid; using fallback metadata: ${msg}`);
-            return null;
-          }
-        })()
-      : null;
     const decision = isExplicit
-      ? buildRequestedRouteDecision(requestedRoute, requestText, implementMetadata)
+      ? buildRequestedRouteDecision(requestedRoute, requestText, {
+          agentMention: agentHandle,
+          targetKind,
+          targetNumber,
+        })
       : normalizeDispatch(raw);
     const result = applyDispatchPolicy(
       decision,
@@ -113,15 +106,18 @@ function emitDecision(accessPolicy: AccessPolicy): void {
       isPublicRepo,
       isExplicit,
     );
+    const resolvedResult = isExplicit && result.route === "implement"
+      ? normalizeInferredImplementBase(result)
+      : result;
 
-    setOutput("route", result.route);
-    setOutput("needs_approval", String(result.needsApproval));
-    setOutput("confidence", result.confidence);
-    setOutput("summary", result.summary);
-    setOutput("issue_title", result.issueTitle);
-    setOutput("issue_body", result.issueBody);
-    setOutput("skill", result.route === "skill" ? requestedSkill : "");
-    setOutput("base_pr", result.route === "implement" ? result.basePr || "" : "");
+    setOutput("route", resolvedResult.route);
+    setOutput("needs_approval", String(resolvedResult.needsApproval));
+    setOutput("confidence", resolvedResult.confidence);
+    setOutput("summary", resolvedResult.summary);
+    setOutput("issue_title", resolvedResult.issueTitle);
+    setOutput("issue_body", resolvedResult.issueBody);
+    setOutput("skill", resolvedResult.route === "skill" ? requestedSkill : "");
+    setOutput("base_pr", resolvedResult.route === "implement" ? resolvedResult.basePr || "" : "");
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`Dispatch resolution failed: ${msg}`);

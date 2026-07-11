@@ -1009,11 +1009,14 @@ test("review synthesis uses a shared reviews directory contract", () => {
   assert.doesNotMatch(runSource, /PROMPT_VAR_MEMORY_/);
 });
 
-test("agent router bypasses dispatch triage for explicit mention slash routes", () => {
+test("agent router derives explicit implement metadata without an agent session", () => {
   const runnerWorkflow = readRepoFile(".github/workflows/agent-router.yml");
   const extractContext = readRepoFile(".agent/src/cli/extract-context.ts");
   const resolveDispatch = readRepoFile(".agent/src/cli/resolve-dispatch.ts");
-  const implementMetadataPrompt = readRepoFile(".github/prompts/agent-implement-metadata.md");
+  const triage = readRepoFile(".agent/src/triage.ts");
+  const createIssue = readRepoFile(".agent/src/cli/create-issue.ts");
+  const portalAgentSteps = readRunAgentTaskSteps(".github/workflows/agent-router.yml")
+    .filter(({ jobId }) => jobId === "portal");
 
   assert.match(extractContext, /setOutput\("requested_route", requestedRoute\)/);
   assert.match(
@@ -1022,25 +1025,27 @@ test("agent router bypasses dispatch triage for explicit mention slash routes", 
   );
   assert.match(
     runnerWorkflow,
-    /- name: Resolve explicit route authorization[\s\S]*steps\.context\.outputs\.requested_route == 'implement'[\s\S]*steps\.context\.outputs\.target_kind != 'issue'[\s\S]*id:\s*explicit_dispatch[\s\S]*node \.agent\/dist\/cli\/resolve-dispatch\.js/,
+    /- name: Resolve route[\s\S]*AGENT_HANDLE:\s*\$\{\{\s*inputs\.agent_handle\s*\}\}[\s\S]*REQUESTED_ROUTE:\s*\$\{\{\s*steps\.context\.outputs\.requested_route\s*\}\}[\s\S]*TARGET_KIND:\s*\$\{\{\s*steps\.context\.outputs\.target_kind\s*\}\}[\s\S]*TARGET_NUMBER:\s*\$\{\{\s*steps\.context\.outputs\.target_number\s*\}\}/,
   );
   assert.match(
     runnerWorkflow,
-    /- name: Generate implement issue metadata[\s\S]*steps\.explicit_dispatch\.outputs\.route == 'implement'[\s\S]*steps\.context\.outputs\.target_kind != 'issue'[\s\S]*continue-on-error:\s*true[\s\S]*permission_mode:\s*approve-all[\s\S]*prompt:\s*agent-implement-metadata/,
+    /RESPONSE_FILE:\s*\$\{\{\s*steps\.followup_intent\.outputs\.response_file \|\| steps\.triage\.outputs\.response_file\s*\}\}/,
   );
-  assert.match(
-    runnerWorkflow,
-    /RESPONSE_FILE:\s*\$\{\{\s*steps\.followup_intent\.outputs\.response_file \|\| steps\.triage\.outputs\.response_file \|\| steps\.implement_metadata\.outputs\.response_file\s*\}\}/,
+  assert.deepEqual(
+    portalAgentSteps.map(({ step }) => step.id),
+    ["triage", "followup_intent"],
   );
-  assert.match(runnerWorkflow, /REQUESTED_ROUTE:\s*\$\{\{\s*steps\.context\.outputs\.requested_route\s*\}\}/);
+  assert.doesNotMatch(runnerWorkflow, /Generate implement issue metadata|implement_metadata|agent-implement-metadata|explicit_dispatch/);
   assert.match(runnerWorkflow, /base_pr:\s*\$\{\{\s*steps\.dispatch\.outputs\.base_pr\s*\}\}/);
   assert.match(resolveDispatch, /buildRequestedRouteDecision/);
-  assert.match(resolveDispatch, /normalizeImplementIssueMetadata/);
-  assert.match(implementMetadataPrompt, /Do not derive the title by copying the literal text after `\/implement`/);
-  assert.match(implementMetadataPrompt, /Ignore earlier prose mentions of `\/implement`/);
-  assert.match(implementMetadataPrompt, /Omit `base_pr` unless `TARGET_KIND` is `pull_request`/);
-  assert.match(implementMetadataPrompt, /If the current target pull request is closed or merged, omit `base_pr`/);
-  assert.match(implementMetadataPrompt, /digits only, with no `#` prefix/);
+  assert.match(resolveDispatch, /normalizeInferredImplementBase/);
+  assert.match(triage, /buildImplementIssueMetadata/);
+  assert.match(triage, /MAX_IMPLEMENT_ISSUE_TITLE_LENGTH = 70/);
+  assert.match(
+    runnerWorkflow,
+    /- name: Create implementation issue[\s\S]*SOURCE_KIND:\s*\$\{\{\s*needs\.portal\.outputs\.source_kind\s*\}\}[\s\S]*TARGET_URL:\s*\$\{\{\s*needs\.portal\.outputs\.target_url\s*\}\}/,
+  );
+  assert.match(createIssue, /Requested via \$\{sourceKind \|\| "mention"\} at \$\{targetUrl\}/);
   assert.doesNotMatch(extractContext, /requested_install_target_repo/);
   assert.doesNotMatch(runnerWorkflow, /requested_install_target_repo:/);
 });
@@ -1057,11 +1062,10 @@ test("agent router reaches answer with no prior model call for default bare ment
   );
   assert.deepEqual(
     portalSteps.map(({ step }) => step.id),
-    ["triage", "followup_intent", "implement_metadata"],
+    ["triage", "followup_intent"],
   );
   assert.match(String(portalSteps[0].step.if), /requested_route == ''/);
   assert.match(String(portalSteps[1].step.if), /implicit_followup == 'true'/);
-  assert.match(String(portalSteps[2].step.if), /explicit_dispatch\.outputs\.route == 'implement'/);
   assert.equal(answerSteps.length, 1);
   assert.equal(answerSteps[0].step.id, "answer");
   assert.match(String(answerSteps[0].step.if), /needs\.portal\.outputs\.route == 'answer'/);

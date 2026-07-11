@@ -10,7 +10,6 @@ import {
   extractRequestedRoute,
   extractRequestedRouteDecision,
   buildRequestedRouteDecision,
-  normalizeImplementIssueMetadata,
   parseTriageMode,
   resolveRequestedLabel,
 } from "../triage.js";
@@ -224,61 +223,66 @@ test("extractRequestedRoute ignores non-route slash commands and commands withou
 });
 
 test("buildRequestedRouteDecision builds deterministic implement metadata without approval gate", () => {
+  const request = "@sepo-agent /implement Fix approval routing\nwith a focused regression test";
   const d = buildRequestedRouteDecision(
     "implement",
-    "@sepo-agent /implement add a regression test for approval routing",
+    request,
+    { agentMention: "@sepo-agent", targetKind: "discussion", targetNumber: "42" },
   );
   assert.equal(d.route, "implement");
   // Explicit /implement is self-approval; the approval gate only applies to
   // triaged implement decisions.
   assert.equal(d.needsApproval, false);
-  assert.equal(d.issueTitle, "Implement requested change");
-  assert.match(d.issueBody, /Original request/);
+  assert.equal(d.issueTitle, "Fix approval routing with a focused regression test");
+  assert.match(d.issueBody, /## Original request/);
+  assert.ok(d.issueBody.includes(request));
+  assert.doesNotMatch(d.issueTitle, /@sepo-agent|\/implement/);
 });
 
-test("buildRequestedRouteDecision falls back to generic implement title without generated metadata", () => {
-  const d = buildRequestedRouteDecision("implement", "@sepo-agent /implement");
+test("buildRequestedRouteDecision falls back and safely truncates implement titles", () => {
+  const context = { agentMention: "@sepo-agent", targetKind: "discussion", targetNumber: "42" };
+  const d = buildRequestedRouteDecision("implement", "@sepo-agent /implement", context);
   assert.equal(d.issueTitle, "Implement requested change");
-});
-
-test("buildRequestedRouteDecision uses generated implement issue metadata", () => {
-  const d = buildRequestedRouteDecision(
+  const long = buildRequestedRouteDecision(
     "implement",
-    "Earlier prose mentions /implement add the wrong title.\n\n@sepo-agent /implement",
-    {
-      issueTitle: "Fix webhook dispatch retry handling",
-      issueBody: "## Goal\nFix webhook dispatch retry handling.\n\n## Acceptance criteria\n- Add regression coverage.",
-      basePr: "268",
-    },
+    `@sepo-agent /implement ${"a".repeat(100)}`,
+    context,
   );
-  assert.equal(d.issueTitle, "Fix webhook dispatch retry handling");
-  assert.doesNotMatch(d.issueTitle, /wrong title/);
-  assert.match(d.issueBody, /webhook dispatch retry/);
-  assert.equal(d.basePr, "268");
+  assert.equal(long.issueTitle.length, 70);
+  assert.match(long.issueTitle, /\.\.\.$/);
 });
 
-test("normalizeImplementIssueMetadata reads generated JSON metadata", () => {
-  const metadata = normalizeImplementIssueMetadata(
-    '```json\n{"issue_title":"Fix PR tracking issue titles","issue_body":"## Goal\\nGenerate title from context.","base_pr":"268"}\n```',
+test("buildRequestedRouteDecision infers only explicit stacked PR bases", () => {
+  const context = {
+    agentMention: "@sepo-agent",
+    targetKind: "pull_request",
+    targetNumber: "268",
+  };
+  const stacked = buildRequestedRouteDecision(
+    "implement",
+    "@sepo-agent /implement Create a stacked follow-up PR for this work",
+    context,
   );
-  assert.equal(metadata.issueTitle, "Fix PR tracking issue titles");
-  assert.match(metadata.issueBody, /Generate title from context/);
-  assert.equal(metadata.basePr, "268");
-});
+  const independent = buildRequestedRouteDecision(
+    "implement",
+    "@sepo-agent /implement Create an independent follow-up PR",
+    context,
+  );
+  const ordinary = buildRequestedRouteDecision(
+    "implement",
+    "@sepo-agent /implement Fix stack overflow handling",
+    context,
+  );
+  const discussion = buildRequestedRouteDecision(
+    "implement",
+    "@sepo-agent /implement Create a stacked follow-up PR",
+    { ...context, targetKind: "discussion" },
+  );
 
-test("normalizeImplementIssueMetadata rejects malformed generated metadata", () => {
-  assert.throws(
-    () => normalizeImplementIssueMetadata('{"issue_title":"Missing body"}'),
-    /missing issue_body/,
-  );
-  assert.throws(
-    () => normalizeImplementIssueMetadata('{"issue_title":"Bad base","issue_body":"body","base_pr":"#268"}'),
-    /base_pr must be a positive integer/,
-  );
-  assert.throws(
-    () => normalizeImplementIssueMetadata('{"issue_title":"Bad base","issue_body":"body","base_pr":"0"}'),
-    /base_pr must be a positive integer/,
-  );
+  assert.equal(stacked.basePr, "268");
+  assert.equal(independent.basePr, "");
+  assert.equal(ordinary.basePr, "");
+  assert.equal(discussion.basePr, "");
 });
 
 test("buildRequestedRouteDecision builds deterministic review metadata", () => {

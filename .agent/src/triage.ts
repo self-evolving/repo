@@ -47,7 +47,28 @@ const LABEL_SKILL_PREFIX = "agent/s/";
 const VALID_SKILL_LABEL = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 export const INSTALL_ROUTE = "install";
 const DEFAULT_IMPLEMENT_ISSUE_TITLE = "Implement requested change";
+const MAX_IMPLEMENT_ISSUE_TITLE_LENGTH = 70;
 const DEFAULT_ADD_RUBRICS_ISSUE_TITLE = "Propose rubric updates";
+const STACKED_IMPLEMENT_REQUEST = new RegExp(
+  [
+    String.raw`\bfollow[\s-]?up\b`,
+    String.raw`\bstack(?:ed|ing)?\s+(?:this|it|the\s+(?:change|work|implementation|pr|pull request))\b`,
+    String.raw`\bstack(?:ed|ing)?\s+(?:on|onto|above)\b`,
+    String.raw`\bstacked\s+(?:pr|pull request|change|work|implementation)\b`,
+    String.raw`\bon top of (?:this|the|current) (?:pr|pull request|branch)\b`,
+  ].join("|"),
+  "i",
+);
+const INDEPENDENT_IMPLEMENT_REQUEST = new RegExp(
+  [
+    String.raw`\bindependent(?:ly)?\b`,
+    String.raw`\bstandalone\s+(?:pr|pull request|change|branch|implementation)\b`,
+    String.raw`\bunstacked\b`,
+    String.raw`\b(?:do not|don't|not to)\s+stack\b`,
+    String.raw`\bnot\s+(?:a\s+)?(?:stacked|follow[\s-]?up)\b`,
+  ].join("|"),
+  "i",
+);
 
 export interface RequestedLabelDecision {
   route: string;
@@ -65,6 +86,12 @@ export interface ImplementIssueMetadata {
   basePr?: string;
 }
 
+export interface RequestedRouteContext {
+  agentMention?: string;
+  targetKind?: string;
+  targetNumber?: string;
+}
+
 export function parseTriageMode(raw: string | undefined): TriageMode {
   const normalized = String(raw || "").trim().toLowerCase();
   if (!normalized || normalized === "commands") {
@@ -76,22 +103,6 @@ export function parseTriageMode(raw: string | undefined): TriageMode {
   throw new Error(
     `AGENT_TRIAGE_MODE must be one of: commands, agent; got ${normalized}`,
   );
-}
-
-function normalizeOptionalBasePr(value: unknown): string {
-  if (value === undefined || value === null) {
-    return "";
-  }
-
-  const raw = String(value).trim();
-  if (!raw) {
-    return "";
-  }
-  if (!/^[1-9]\d*$/.test(raw)) {
-    throw new Error("Implement issue metadata base_pr must be a positive integer");
-  }
-
-  return raw;
 }
 
 function fallbackImplementIssueBody(originalRequest: string): string {
@@ -109,6 +120,80 @@ function fallbackImplementIssueBody(originalRequest: string): string {
   ].join("\n");
 }
 
+function requestWithoutImplementCommand(requestText: string, agentMention: string): string {
+  const sanitized = stripNonLiveMentions(String(requestText || ""));
+  const mention = String(agentMention || "").trim();
+  if (!sanitized.trim() || !mention) {
+    return "";
+  }
+
+  const command = new RegExp(
+    `(^|[\\s(])${escapeRegex(mention)}\\s+/implement(?=$|[\\s.,;:!?)\\]}])`,
+    "im",
+  );
+  if (!command.test(sanitized)) {
+    return "";
+  }
+
+  return sanitized.replace(command, "$1");
+}
+
+function normalizeImplementIssueTitle(request: string): string {
+  const normalized = String(request || "")
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/[\r\n]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^[:;,\-–—]+\s*/, "")
+    .replace(/^(?:#{1,6}|[-*+])\s+/, "")
+    .trim();
+  if (!normalized) {
+    return DEFAULT_IMPLEMENT_ISSUE_TITLE;
+  }
+  if (normalized.length <= MAX_IMPLEMENT_ISSUE_TITLE_LENGTH) {
+    return normalized;
+  }
+
+  const prefix = normalized
+    .slice(0, MAX_IMPLEMENT_ISSUE_TITLE_LENGTH - 3)
+    .trimEnd();
+  return `${prefix}...`;
+}
+
+function inferImplementBasePr(request: string, context: RequestedRouteContext): string {
+  const targetKind = String(context.targetKind || "").trim().toLowerCase();
+  const targetNumber = String(context.targetNumber || "").trim();
+  if (targetKind !== "pull_request" || !/^[1-9]\d*$/.test(targetNumber)) {
+    return "";
+  }
+  if (INDEPENDENT_IMPLEMENT_REQUEST.test(request)) {
+    return "";
+  }
+  return STACKED_IMPLEMENT_REQUEST.test(request) ? targetNumber : "";
+}
+
+/**
+ * Builds tracking-issue metadata for an explicit /implement request without
+ * invoking a model. Only the active request can supply title or stacking
+ * intent; source-target context supplies the eligible PR number.
+ */
+export function buildImplementIssueMetadata(
+  requestText: string,
+  context: RequestedRouteContext = {},
+): ImplementIssueMetadata {
+  const originalRequest = String(requestText || "").trim() || "No request text provided.";
+  const request = requestWithoutImplementCommand(
+    requestText,
+    String(context.agentMention || ""),
+  );
+
+  return {
+    issueTitle: normalizeImplementIssueTitle(request),
+    issueBody: fallbackImplementIssueBody(originalRequest),
+    basePr: inferImplementBasePr(request, context),
+  };
+}
+
 function fallbackAddRubricsIssueBody(originalRequest: string): string {
   return [
     "## Goal",
@@ -122,35 +207,6 @@ function fallbackAddRubricsIssueBody(originalRequest: string): string {
     "- Add or update rubric YAML on the `agent/rubrics` branch.",
     "- Validate rubric YAML before opening the proposal PR.",
   ].join("\n");
-}
-
-export function normalizeImplementIssueMetadata(raw: string): ImplementIssueMetadata {
-  const text = (raw ?? "").trim();
-  if (!text) {
-    throw new Error("Implement issue metadata output was empty");
-  }
-
-  const jsonStr = extractJsonObject(text);
-  if (!jsonStr) {
-    throw new Error("Implement issue metadata output did not contain a JSON object");
-  }
-
-  const payload = JSON.parse(jsonStr) as Record<string, unknown>;
-  const issueTitle = String(payload.issue_title || payload.issueTitle || "")
-    .replace(/[\r\n]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  const issueBody = String(payload.issue_body || payload.issueBody || "").trim();
-  const basePr = normalizeOptionalBasePr(payload.base_pr ?? payload.basePr);
-
-  if (!issueTitle) {
-    throw new Error("Implement issue metadata output was missing issue_title");
-  }
-  if (!issueBody) {
-    throw new Error("Implement issue metadata output was missing issue_body");
-  }
-
-  return { issueTitle, issueBody, basePr };
 }
 
 /**
@@ -205,7 +261,7 @@ export function extractRequestedRouteDecision(body: string, mention: string): Re
 export function buildRequestedRouteDecision(
   route: string,
   requestText: string,
-  implementMetadata?: ImplementIssueMetadata | null,
+  context: RequestedRouteContext = {},
 ): DispatchDecision {
   const normalizedRoute = String(route || "").trim().toLowerCase();
   if (
@@ -217,10 +273,7 @@ export function buildRequestedRouteDecision(
   }
 
   if (normalizedRoute === "implement") {
-    const originalRequest = String(requestText || "").trim() || "No request text provided.";
-    const metadata = implementMetadata?.issueTitle && implementMetadata?.issueBody
-      ? implementMetadata
-      : null;
+    const metadata = buildImplementIssueMetadata(requestText, context);
     return {
       route: "implement",
       // Explicit /implement is itself the approval, so the portal skips the
@@ -229,9 +282,9 @@ export function buildRequestedRouteDecision(
       needsApproval: false,
       confidence: "high",
       summary: "I’ll start implementing this request.",
-      issueTitle: metadata?.issueTitle || DEFAULT_IMPLEMENT_ISSUE_TITLE,
-      issueBody: metadata?.issueBody || fallbackImplementIssueBody(originalRequest),
-      basePr: metadata?.basePr || "",
+      issueTitle: metadata.issueTitle,
+      issueBody: metadata.issueBody,
+      basePr: metadata.basePr || "",
     };
   }
 
