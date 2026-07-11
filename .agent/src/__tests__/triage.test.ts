@@ -394,6 +394,26 @@ test("buildRequestedRouteDecision scopes ancestry inference to explicit clauses"
   );
 });
 
+test("buildRequestedRouteDecision handles remaining ancestry grammar cases", () => {
+  const context = {
+    agentMention: "@sepo-agent",
+    triggerKind: "mention",
+    sourceKind: "issue_comment",
+    targetKind: "pull_request",
+    targetNumber: "470",
+  };
+  const decide = (request: string) => buildRequestedRouteDecision(
+    "implement",
+    `@sepo-agent /implement ${request}`,
+    context,
+  );
+
+  assert.equal(decide("Create a PR stacked on this PR").basePr, "470");
+  assert.equal(decide("- Create a stacked PR for this change").basePr, "470");
+  assert.equal(decide("Create a follow-up PR that is independent").basePr, "");
+  assert.equal(decide("Implement stacked change tracking UI").basePr, "");
+});
+
 test("buildRequestedRouteDecision uses label target context without parsing stale commands", () => {
   const sourceContext = [
     "Current PR body",
