@@ -31,13 +31,14 @@ Check [Install into an existing repository](setup/install-existing-repository.md
 
 ## What You Can Ask It To Do
 
-### In any GitHub text input (issues, PRs, discussions), call the agent to execute tasks
+### In any GitHub text input (issues, PRs, discussions), ask the agent a question or run a task
 
 ```python
-# Use a free-form mention when you want the router to infer the best route:
+# Use a free-form mention when you want an answer or advice.
+# Change-shaped answers suggest a copyable command for the next step.
 @sepo-agent can you explain how review synthesis works?
 
-# Use an explicit slash route when you already know the action
+# Use an explicit slash route when you want Sepo to run an action.
 @sepo-agent /implement implement issue #2
 
 # Propose user/team rubric updates against agent/rubrics
@@ -85,7 +86,7 @@ You can run Sepo on a schedule to handle recurring maintenance, triage, or monit
 
 ## How It Works
 
-Every trigger converges on `agent-router.yml`, which extracts GitHub context, applies access policy, optionally triages free-form requests with a model, and dispatches to a specialized route. Agent sessions are persisted across runs with git refs and GitHub Actions artifacts, so a later mention can continue from prior context.
+Every trigger converges on `agent-router.yml`, which extracts GitHub context, applies access policy, and dispatches to a specialized route. A mention without a slash command goes directly to the answer route by default; when the answer identifies concrete follow-up work, it can suggest a copyable command without starting that action. Explicit slash commands and `agent/*` labels select action routes directly. Repositories that prefer model-backed route inference for uncommanded mentions can set `AGENT_TRIAGE_MODE=agent`. Agent sessions are persisted across runs with git refs and GitHub Actions artifacts, so a later mention can continue from prior context.
 
 Durable context lives in two repository-owned branches:
 
