@@ -49,13 +49,14 @@ export const INSTALL_ROUTE = "install";
 const DEFAULT_IMPLEMENT_ISSUE_TITLE = "Implement requested change";
 const MAX_IMPLEMENT_ISSUE_TITLE_LENGTH = 70;
 const DEFAULT_ADD_RUBRICS_ISSUE_TITLE = "Propose rubric updates";
+const IMPERATIVE_ANCESTRY_REQUEST = String.raw`(?:^|[.;:!?\n]|\b(?:and|but|then)\b)\s*(?:(?:please|kindly)\s+|(?:can|could|would)\s+you\s+|let['’]s\s+)?(?:create|make|open|start|build|land|implement|continue|recreate|do|use|add)`;
 const STACKED_IMPLEMENT_REQUEST = new RegExp(
   [
     String.raw`\bstack(?:ed|ing)?\s+(?:this|it)(?:\s+(?:change|work|implementation|pr|pull request))?(?:\s+(?:on|onto|above)\b)?`,
     String.raw`\bstack(?:ed|ing)?\s+the\s+(?:change|work|implementation|pr|pull request)\b`,
     String.raw`\bstack(?:ed|ing)?\s+(?:on|onto|above)\s+(?:this|the|current|source|open)\s+(?:pr|pull request|branch|change|work|implementation)\b`,
-    String.raw`\b(?:create|make|open|start|build|land|implement|continue|recreate|do|use)\s+(?:(?:this|it|the\s+(?:change|work|implementation))\s+(?:(?:as|in)\s+)?(?:an?\s+)?|an?\s+)?stacked\s+(?:(?:follow[\s-]?up)\s+)?(?:pr|pull request|branch|change|work|implementation)\b`,
-    String.raw`\bfollow[\s-]?up\s+(?:pr|pull request|change|work|implementation)\b`,
+    String.raw`${IMPERATIVE_ANCESTRY_REQUEST}\s+(?:(?:this|it|the\s+(?:change|work|implementation))\s+(?:(?:as|in)\s+)?(?:an?\s+)?|an?\s+)?stacked\s+(?:(?:follow[\s-]?up)\s+)?(?:pr|pull request|branch|change|work|implementation)\b`,
+    String.raw`${IMPERATIVE_ANCESTRY_REQUEST}\s+(?:(?:this|it|the\s+(?:change|work|implementation))\s+(?:(?:as|in)\s+)?(?:an?\s+)?|an?\s+)?follow[\s-]?up\s+(?:pr|pull request|branch|change|work|implementation)\b`,
     String.raw`\bfollow[\s-]?up\s+(?:on|to|from)\s+(?:(?:this|the|current|source|open)\s+){1,2}(?:pr|pull request|branch|change|work|implementation)\b`,
     String.raw`\bon top of (?:this|the|current) (?:pr|pull request|branch)\b`,
   ].join("|"),
@@ -66,6 +67,7 @@ const INDEPENDENT_IMPLEMENT_REQUEST = new RegExp(
     String.raw`\b(?:make|keep|leave)\s+(?:this|it|the\s+(?:change|work|implementation|pr|pull request))\s+independent\b`,
     String.raw`\b(?:implement|build|create|do|handle|land)\s+(?:this|it|the\s+(?:change|work|implementation))\s+independently\b`,
     String.raw`\bindependent\s+(?:(?:stacked|follow[\s-]?up)\s+)?(?:pr|pull request|change|branch|implementation|work)\b`,
+    String.raw`\b(?:stacked|follow[\s-]?up)\s+(?:pr|pull request|branch|change|work|implementation)\s+(?:(?:as|is|to be)\s+)?independent(?:ly)?\b`,
     String.raw`\bindependently\s+(?:from|of)\s+(?:this|the|current|source)\s+(?:pr|pull request|branch|change|work|implementation)\b`,
     String.raw`\bstandalone\s+(?:pr|pull request|change|branch|implementation)\b`,
     String.raw`\bunstacked\s+(?:pr|pull request|change|branch|implementation|work)\b`,
@@ -147,29 +149,37 @@ function fallbackImplementIssueBody(
 }
 
 function findExplicitRouteCommand(body: string, mention: string): ExplicitRouteMatch | null {
-  const sanitized = stripNonLiveMentions(String(body || ""));
+  const originalBody = String(body || "");
   const trimmedMention = String(mention || "").trim();
-  if (!sanitized.trim() || !trimmedMention) {
+  if (!originalBody.trim() || !trimmedMention) {
     return null;
   }
 
   const routePattern = EXPLICIT_ROUTE_COMMANDS.map((route) => escapeRegex(route)).join("|");
   const explicitRegex = new RegExp(
     `(^|[\\s(])(${escapeRegex(trimmedMention)}\\s+/(${routePattern})(?=$|[\\s.,;:!?)\\]}]))`,
-    "im",
+    "gim",
   );
-  const match = explicitRegex.exec(sanitized);
-  if (!match) {
-    return null;
+  let marker = "\0sepo-route-command\0";
+  while (originalBody.includes(marker)) marker += "\0";
+
+  for (const match of originalBody.matchAll(explicitRegex)) {
+    const commandStart = (match.index || 0) + match[1].length;
+    const commandEnd = commandStart + match[2].length;
+    const markedBody = `${originalBody.slice(0, commandStart)}${marker}${originalBody.slice(commandEnd)}`;
+    if (!stripNonLiveMentions(markedBody).includes(marker)) {
+      continue;
+    }
+
+    return {
+      body: originalBody,
+      commandStart,
+      commandEnd,
+      route: match[3].toLowerCase(),
+    };
   }
 
-  const commandStart = (match.index || 0) + match[1].length;
-  return {
-    body: sanitized,
-    commandStart,
-    commandEnd: commandStart + match[2].length,
-    route: match[3].toLowerCase(),
-  };
+  return null;
 }
 
 function requestWithoutImplementCommand(requestText: string, agentMention: string): string {
@@ -182,7 +192,14 @@ function requestWithoutImplementCommand(requestText: string, agentMention: strin
 }
 
 function normalizeImplementIssueTitle(request: string): string {
-  const normalized = String(request || "")
+  const titleMarkdown = String(request || "")
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/~~~[\s\S]*?~~~/g, " ")
+    .split("\n")
+    .filter((line) => !line.match(/^\s*>/))
+    .join("\n")
+    .replace(/`([^`\n]*)`/g, "$1");
+  const normalized = titleMarkdown
     .replace(/<!--[\s\S]*?-->/g, " ")
     .replace(/[\r\n]+/g, " ")
     .replace(/\s+/g, " ")
@@ -269,12 +286,13 @@ export function buildImplementIssueMetadata(
         requestText,
         String(context.agentMention || ""),
       );
+  const intentRequest = labelTriggered ? "" : stripNonLiveMentions(request);
   const titleSource = labelTriggered ? String(context.targetTitle || "") : request;
 
   return {
     issueTitle: normalizeImplementIssueTitle(titleSource),
     issueBody: fallbackImplementIssueBody(originalRequest, context),
-    basePr: inferImplementBasePr(request, context),
+    basePr: inferImplementBasePr(intentRequest, context),
   };
 }
 
@@ -313,7 +331,7 @@ export function extractRequestedRouteDecision(body: string, mention: string): Re
     return { route: "", skill: "" };
   }
 
-  const explicitMatch = findExplicitRouteCommand(sanitized, trimmedMention);
+  const explicitMatch = findExplicitRouteCommand(body, trimmedMention);
   if (explicitMatch) {
     return { route: explicitMatch.route, skill: "" };
   }

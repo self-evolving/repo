@@ -239,6 +239,18 @@ test("buildRequestedRouteDecision builds deterministic implement metadata withou
   assert.doesNotMatch(d.issueTitle, /@sepo-agent|\/implement/);
 });
 
+test("buildRequestedRouteDecision preserves inline-code contents in implement titles", () => {
+  const request = "@sepo-agent /implement Rename `AGENT_TRIAGE_MODE` to `AGENT_ROUTING_MODE`";
+  const d = buildRequestedRouteDecision("implement", request, {
+    agentMention: "@sepo-agent",
+    targetKind: "discussion",
+    targetNumber: "42",
+  });
+
+  assert.equal(d.issueTitle, "Rename AGENT_TRIAGE_MODE to AGENT_ROUTING_MODE");
+  assert.ok(d.issueBody.includes(request));
+});
+
 test("buildRequestedRouteDecision falls back and safely truncates implement titles", () => {
   const context = { agentMention: "@sepo-agent", targetKind: "discussion", targetNumber: "42" };
   const d = buildRequestedRouteDecision("implement", "@sepo-agent /implement", context);
@@ -331,6 +343,25 @@ test("buildRequestedRouteDecision handles reproduced stacking ancestry cases", (
     decide("No extra docs needed and stack this on the current PR").basePr,
     "470",
   );
+});
+
+test("buildRequestedRouteDecision handles reproduced follow-up ancestry cases", () => {
+  const context = {
+    agentMention: "@sepo-agent",
+    triggerKind: "mention",
+    sourceKind: "issue_comment",
+    targetKind: "pull_request",
+    targetNumber: "470",
+  };
+  const decide = (request: string) => buildRequestedRouteDecision(
+    "implement",
+    `@sepo-agent /implement ${request}`,
+    context,
+  );
+
+  assert.equal(decide("Rename the Follow-up PR heading in the docs").basePr, "");
+  assert.equal(decide("Make this follow-up PR independent").basePr, "");
+  assert.equal(decide("Create a follow-up branch for this work").basePr, "470");
 });
 
 test("buildRequestedRouteDecision uses label target context without parsing stale commands", () => {
