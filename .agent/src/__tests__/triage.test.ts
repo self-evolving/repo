@@ -435,6 +435,38 @@ test("buildRequestedRouteDecision requires complete ancestry intent", () => {
   assert.equal(decide("Create this work as a stacked PR").basePr, "470");
 });
 
+test("buildRequestedRouteDecision lets later unstacking intent clear the base", () => {
+  const context = {
+    agentMention: "@sepo-agent",
+    triggerKind: "mention",
+    sourceKind: "issue_comment",
+    targetKind: "pull_request",
+    targetNumber: "470",
+  };
+  const decide = (request: string) => buildRequestedRouteDecision(
+    "implement",
+    `@sepo-agent /implement ${request}`,
+    context,
+  );
+
+  assert.equal(
+    decide("Create a follow-up PR for this change, but do not stack it on this PR").basePr,
+    "",
+  );
+  assert.equal(
+    decide("Create a follow-up PR for this change, but use the default branch").basePr,
+    "",
+  );
+  assert.equal(
+    decide("Create a follow-up PR for this change, but keep it standalone").basePr,
+    "",
+  );
+  assert.equal(
+    decide("Create a follow-up PR for this change, but leave it unstacked").basePr,
+    "",
+  );
+});
+
 test("buildRequestedRouteDecision uses label target context without parsing stale commands", () => {
   const sourceContext = [
     "Current PR body",

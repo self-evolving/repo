@@ -72,7 +72,9 @@ const STACKED_IMPLEMENT_REQUEST = new RegExp(
 );
 const INDEPENDENT_IMPLEMENT_REQUEST = new RegExp(
   [
-    String.raw`${ANCESTRY_CLAUSE_PREFIX}(?:make|keep|leave)\s+(?:this|it|the\s+${ANCESTRY_TARGET})\s+independent${ANCESTRY_INTENT_END}`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}(?:(?:do\s+not|don['’]t|never)\s+stack(?:ed|ing)?|avoid\s+stacking)(?:\s+(?:this|it)(?:\s+${ANCESTRY_TARGET})?)?(?:\s+(?:on|onto|above)\s+${ANCESTRY_SOURCE})?${ANCESTRY_INTENT_END}`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}(?:use|start\s+from|branch\s+from)\s+(?:the\s+)?(?:repository\s+)?default\s+branch${ANCESTRY_INTENT_END}`,
+    String.raw`${ANCESTRY_CLAUSE_PREFIX}(?:make|keep|leave)\s+(?:(?:this|it)(?:\s+${ANCESTRY_TARGET})?|the\s+${ANCESTRY_TARGET})\s+(?:independent|standalone|unstacked)${ANCESTRY_INTENT_END}`,
     String.raw`${ANCESTRY_CLAUSE_PREFIX}(?:implement|build|create|do|handle|land)\s+(?:this|it|the\s+${ANCESTRY_TARGET})\s+independently${ANCESTRY_INTENT_END}`,
     String.raw`${ANCESTRY_CLAUSE_PREFIX}${ANCESTRY_ACTION}\s+${ANCESTRY_OBJECT_PREFIX}independent\s+(?:(?:stacked|follow[\s-]?up)\s+)?${ANCESTRY_ARTIFACT}${ANCESTRY_INTENT_END}`,
     String.raw`${ANCESTRY_CLAUSE_PREFIX}${ANCESTRY_ACTION}\s+${ANCESTRY_OBJECT_PREFIX}(?:(?:stacked|follow[\s-]?up)\s+)?${ANCESTRY_ARTIFACT}\s+(?:(?:as|is|that\s+is|to be)\s+)?independent(?:ly)?${ANCESTRY_INTENT_END}`,
