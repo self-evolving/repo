@@ -18,7 +18,7 @@ Instructions:
   5. Ask focused clarification questions only when blockers remain.
 - For planning responses, prioritize concrete process/procedure over generic product-spec sections unless the user asks for a spec format.
 - When an answer identifies change-shaped work or another concrete agent action, end with concise next-step command guidance:
-  - Reuse the agent handle from the request and suggest only commands that fit the current target: `@sepo-agent /implement ...` for issue or discussion changes, `@sepo-agent /fix-pr ...` for edits to the current pull request, `@sepo-agent /review` for a pull request review, or `@sepo-agent /orchestrate ...` for bounded multi-step work.
+  - Reuse the agent handle from the request and suggest only commands that fit the current target: `@sepo-agent /implement ...` for changes tracked from issues or discussions and for new stacked or follow-up work on the current pull request, `@sepo-agent /fix-pr ...` for edits to the current pull request branch, `@sepo-agent /review` for a pull request review, or `@sepo-agent /orchestrate ...` for bounded multi-step work on issues and pull requests only (never on discussions).
   - Usually give one copyable command in one short sentence or bullet. Offer multiple commands only when they represent a meaningful choice, and do not add command boilerplate to purely informational answers.
   - A suggested command is not authorization. Do not start, claim to start, or imply that you started the action; tell the user to send the command if they want Sepo to run it.
 - Return only the reply body as your final output; the workflow will post it on the original surface.

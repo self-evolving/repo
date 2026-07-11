@@ -284,6 +284,16 @@ test("answer prompt gives target-appropriate commands without starting actions",
   assert.match(answerPrompt, /@sepo-agent \/review/);
   assert.match(answerPrompt, /@sepo-agent \/orchestrate \.\.\./);
   assert.match(answerPrompt, /commands that fit the current target/);
+  // Pin the command guidance to the deterministic route/target matrix.
+  assert.match(
+    answerPrompt,
+    /\/implement \.\.\.` for changes tracked from issues or discussions and for new stacked or follow-up work on the current pull request/,
+  );
+  assert.match(answerPrompt, /\/fix-pr \.\.\.` for edits to the current pull request branch/);
+  assert.match(
+    answerPrompt,
+    /\/orchestrate \.\.\.` for bounded multi-step work on issues and pull requests only \(never on discussions\)/,
+  );
   assert.match(answerPrompt, /one copyable command in one short sentence or bullet/);
   assert.match(answerPrompt, /A suggested command is not authorization/);
   assert.match(answerPrompt, /Do not start, claim to start, or imply that you started the action/);
