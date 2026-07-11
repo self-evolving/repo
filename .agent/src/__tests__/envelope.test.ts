@@ -1086,6 +1086,45 @@ test("agent entrypoint ignores handles outside the active trigger text", () => {
   }
 });
 
+test("agent entrypoint ignores handles in inactive parent bodies", () => {
+  const cases = [
+    { name: "issue comment", eventName: "issue_comment", parentObject: "issue" },
+    {
+      name: "pull request review comment",
+      eventName: "pull_request_review_comment",
+      parentObject: "pull_request",
+    },
+    {
+      name: "pull request review",
+      eventName: "pull_request_review",
+      parentObject: "pull_request",
+    },
+    {
+      name: "discussion comment",
+      eventName: "discussion_comment",
+      parentObject: "discussion",
+    },
+  ] as const;
+
+  for (const { name, eventName, parentObject } of cases) {
+    const mentionCase = ENTRYPOINT_MENTION_CASES.find(
+      (candidate) => candidate.eventName === eventName,
+    );
+    assert.ok(mentionCase, `${name} should have an active mention fixture`);
+
+    const payload = buildEntrypointPayload(mentionCase, "No live mention here");
+    const parent = payload[parentObject];
+    assert.ok(isRecord(parent), `${name} should have a parent payload`);
+    parent.body = "Earlier request for @sepo-agent";
+
+    assert.equal(
+      evaluateEntrypointJobCondition({ eventName, payload }),
+      false,
+      `${name} should ignore a handle in the inactive parent body`,
+    );
+  }
+});
+
 test("agent entrypoint preserves the separate unmentioned follow-up branch", () => {
   const payload = {
     action: "created",
