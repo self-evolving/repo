@@ -1,5 +1,5 @@
 <p align="center">
-  <img src=".agent/docs/assets/sepo-overview.png" alt="Sepo — mention @sepo-agent on a GitHub issue, pull request, or discussion; the agent works in GitHub Actions and reports back in the thread" width="820" />
+  <img src=".github/assets/sepo-headline.png" alt="Sepo — the self-evolving repo" width="575" />
 </p>
 
 <p align="center">
