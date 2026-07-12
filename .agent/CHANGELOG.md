@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Added
+
+- The portal now posts the initial 👀 reaction as its first step, before checkout and runtime setup, via a dependency-free REST call on issue/PR bodies and issue, PR, and review comments; a successful early reaction suppresses the later resolved-identity reaction. Discussions, PR review bodies, and edited events keep the post-setup path.
+
+### Fixed
+
+- Bot-sender events (such as Sepo's own progress-comment edits) and non-`agent/*` label events now run in throwaway concurrency groups, so they can no longer evict a queued human-triggered run — previously any such event could silently cancel a pending mention on the same issue. Human mentions now key concurrency on the triggering comment, so mentions in different comments run concurrently, and `agent-fix-pr.yml` gained a job-level per-PR lock covering the `workflow_call` path where workflow-level concurrency is not applied.
+
 ### Changed
 
 - Mentions without a slash command now route directly to the inline answer path by default instead of running model-backed dispatch triage; change-shaped answers end with a copyable follow-up command (such as `/implement` or `/fix-pr`) that the user can send explicitly. Set `AGENT_TRIAGE_MODE=agent` to restore route inference for uncommanded mentions. Explicit slash routes, `agent/*` labels, access policy, and unmentioned follow-up gating are unaffected.

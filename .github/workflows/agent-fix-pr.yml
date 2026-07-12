@@ -111,6 +111,13 @@ concurrency:
 jobs:
   fix-pr:
     if: vars.AGENT_ENABLED != 'false'
+    # Workflow-level concurrency is not applied when this workflow runs via
+    # workflow_call, so the per-PR push lock must live on the job. The group
+    # name differs from the workflow-level one above; sharing it would
+    # deadlock standalone workflow_dispatch runs against themselves.
+    concurrency:
+      group: agent-fix-pr-job-${{ inputs.pr_number }}
+      cancel-in-progress: false
     runs-on: ${{ fromJson(inputs.runs_on || vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
     env:
       MODEL_REASONING_EFFORT: xhigh

@@ -2903,3 +2903,65 @@ test("memory and rubric guidance live in dedicated conditional prompt fragments"
   assert.match(runSource, /vars\.RUBRICS_AVAILABLE === "true"/);
   assert.match(runSource, /base \+ memory \+ rubrics \+ template/);
 });
+
+test("noise events divert to throwaway concurrency groups", () => {
+  const entrypoint = parseYaml(readRepoFile(".github/workflows/agent-entrypoint.yml")) as Record<string, unknown>;
+  assert.ok(isRecord(entrypoint) && isRecord(entrypoint.concurrency), "entrypoint should define concurrency");
+  const entrypointConcurrency = entrypoint.concurrency as Record<string, unknown>;
+  const entrypointGroup = String(entrypointConcurrency.group);
+  assert.match(entrypointGroup, /github\.event\.sender\.type == 'Bot'/);
+  assert.match(entrypointGroup, /agent-noise-/);
+  assert.match(entrypointGroup, /github\.event\.comment\.id/);
+  assert.match(entrypointGroup, /github\.event\.review\.id/);
+  assert.equal(entrypointConcurrency["cancel-in-progress"], false);
+
+  const label = parseYaml(readRepoFile(".github/workflows/agent-label.yml")) as Record<string, unknown>;
+  assert.ok(isRecord(label) && isRecord(label.concurrency), "label workflow should define concurrency");
+  const labelGroup = String((label.concurrency as Record<string, unknown>).group);
+  assert.match(labelGroup, /github\.event\.sender\.type == 'Bot'/);
+  assert.match(labelGroup, /startsWith\(github\.event\.label\.name, 'agent\/'\)/);
+  assert.match(labelGroup, /agent-noise-/);
+});
+
+test("fix-pr carries a job-level per-PR lock distinct from the workflow-level group", () => {
+  const workflow = parseYaml(readRepoFile(".github/workflows/agent-fix-pr.yml")) as Record<string, unknown>;
+  assert.ok(isRecord(workflow) && isRecord(workflow.concurrency), "fix-pr should keep workflow-level concurrency");
+  const workflowGroup = String((workflow.concurrency as Record<string, unknown>).group);
+  assert.ok(isRecord(workflow.jobs), "fix-pr should define jobs");
+  const job = (workflow.jobs as Record<string, unknown>)["fix-pr"];
+  assert.ok(isRecord(job) && isRecord(job.concurrency), "fix-pr job should define concurrency");
+  const jobConcurrency = job.concurrency as Record<string, unknown>;
+  const jobGroup = String(jobConcurrency.group);
+  assert.match(jobGroup, /^agent-fix-pr-job-/);
+  assert.notEqual(jobGroup, workflowGroup);
+  assert.equal(jobConcurrency["cancel-in-progress"], false);
+});
+
+test("portal fast acknowledgement runs before checkout and suppresses the late reaction", () => {
+  const workflow = parseYaml(readRepoFile(".github/workflows/agent-router.yml")) as Record<string, unknown>;
+  assert.ok(isRecord(workflow) && isRecord(workflow.jobs), "router should define jobs");
+  const portal = (workflow.jobs as Record<string, unknown>).portal;
+  assert.ok(isRecord(portal) && Array.isArray(portal.steps), "portal should define steps");
+  const steps = portal.steps as Array<Record<string, unknown>>;
+
+  const fastIndex = steps.findIndex((step) => step.id === "fast_ack");
+  const checkoutIndex = steps.findIndex(
+    (step) => typeof step.uses === "string" && step.uses.startsWith("actions/checkout"),
+  );
+  assert.ok(fastIndex >= 0, "portal should define the fast_ack step");
+  assert.ok(checkoutIndex > fastIndex, "fast_ack should run before checkout");
+
+  const fastAck = steps[fastIndex];
+  assert.equal(fastAck["continue-on-error"], true);
+  const condition = String(fastAck.if);
+  assert.match(condition, /inputs\.trigger_kind == 'mention'/);
+  assert.match(condition, /github\.event\.sender\.type != 'Bot'/);
+  assert.match(condition, /github\.event\.action != 'edited'/);
+  const script = String(fastAck.run);
+  assert.match(script, /content=eyes/);
+  assert.doesNotMatch(script, /@sepo-agent/);
+
+  const react = steps.find((step) => step.name === "React with eyes");
+  assert.ok(react, "portal should keep the post-setup reaction step");
+  assert.match(String(react.if), /steps\.fast_ack\.outputs\.reacted != 'true'/);
+});

@@ -14,16 +14,30 @@ permissions:
   pull-requests: write
   id-token: write # required for GitHub Actions OIDC broker exchange
 
+# Only human-applied agent/* trigger labels enter the shared per-target group
+# (serializing with mention runs on the same target). Everything else — bot
+# labelers such as Sepo's own status label, and unrelated labels that the
+# agent job will skip anyway — gets a unique throwaway group so a pending
+# human-triggered run can never be evicted by label noise. See
+# agent-entrypoint.yml for the pending-run cancellation semantics.
 concurrency:
   group: >-
-    agent-${{ github.repository }}-${{
-      github.event.issue && 'issue' ||
-      github.event.pull_request && 'pull_request' ||
-      github.event_name
-    }}-${{
-      github.event.issue.number ||
-      github.event.pull_request.number ||
-      github.run_id
+    ${{
+      (
+        github.event.sender.type == 'Bot' ||
+        !startsWith(github.event.label.name, 'agent/')
+      ) &&
+      format('agent-noise-{0}', github.run_id) ||
+      format(
+        'agent-{0}-{1}-{2}',
+        github.repository,
+        (github.event.issue && 'issue') ||
+        (github.event.pull_request && 'pull_request') ||
+        github.event_name,
+        github.event.issue.number ||
+        github.event.pull_request.number ||
+        github.run_id
+      )
     }}
   cancel-in-progress: false
 

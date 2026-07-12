@@ -28,18 +28,33 @@ permissions:
   pull-requests: write
   id-token: write # required for GitHub Actions OIDC broker exchange
 
+# GitHub keeps at most one pending run per concurrency group and cancels the
+# previously pending run whenever a newer one queues. Bot-sender events (for
+# example Sepo's own progress-comment edits) therefore get a unique throwaway
+# group so they can never evict a queued human-triggered run, and human events
+# key on the triggering comment or review when one exists so mentions in
+# different comments do not contend. Comment-less surfaces (issue and PR
+# bodies, discussions) keep per-target serialization, where a newer edit
+# replacing a pending run for the same surface is the intended dedupe.
 concurrency:
   group: >-
-    agent-${{ github.repository }}-${{
-      github.event.issue && 'issue' ||
-      github.event.pull_request && 'pull_request' ||
-      github.event.discussion && 'discussion' ||
-      github.event_name
-    }}-${{
-      github.event.issue.number ||
-      github.event.pull_request.number ||
-      github.event.discussion.number ||
-      github.run_id
+    ${{
+      github.event.sender.type == 'Bot' &&
+      format('agent-noise-{0}', github.run_id) ||
+      format(
+        'agent-{0}-{1}-{2}',
+        github.repository,
+        (github.event.issue && 'issue') ||
+        (github.event.pull_request && 'pull_request') ||
+        (github.event.discussion && 'discussion') ||
+        github.event_name,
+        github.event.comment.id ||
+        github.event.review.id ||
+        github.event.issue.number ||
+        github.event.pull_request.number ||
+        github.event.discussion.number ||
+        github.run_id
+      )
     }}
   cancel-in-progress: false
 

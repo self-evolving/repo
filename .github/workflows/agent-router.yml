@@ -143,6 +143,66 @@ jobs:
       skill: ${{ steps.dispatch.outputs.skill }}
       base_pr: ${{ steps.dispatch.outputs.base_pr }}
     steps:
+      # Best-effort early acknowledgement before checkout and runtime setup.
+      # Uses only jq + gh on raw payload fields, so it needs no repository
+      # files. The sed/grep pair approximates the boundary-aware live-mention
+      # check in .agent/src/mentions.ts (fenced code, inline code, and quoted
+      # lines are ignored); extract-context remains the authoritative
+      # validator. Covers surfaces with REST reaction endpoints; discussions
+      # and PR review bodies are GraphQL-only and keep the post-setup path,
+      # as do edited events, which need new-mention validation first.
+      - name: Fast acknowledgement
+        id: fast_ack
+        if: >-
+          inputs.trigger_kind == 'mention' &&
+          github.event.sender.type != 'Bot' &&
+          github.event.action != 'edited'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AGENT_HANDLE: ${{ inputs.agent_handle }}
+        run: |
+          set -euo pipefail
+          reacted=false
+          id=""
+          endpoint=""
+          text=""
+          case "${GITHUB_EVENT_NAME}" in
+            issues)
+              text="$(jq -r '(.issue.title // "") + "\n\n" + (.issue.body // "")' "${GITHUB_EVENT_PATH}")"
+              id="$(jq -r '.issue.number // empty' "${GITHUB_EVENT_PATH}")"
+              endpoint="repos/${GITHUB_REPOSITORY}/issues/${id}/reactions"
+              ;;
+            pull_request)
+              text="$(jq -r '(.pull_request.title // "") + "\n\n" + (.pull_request.body // "")' "${GITHUB_EVENT_PATH}")"
+              id="$(jq -r '.pull_request.number // empty' "${GITHUB_EVENT_PATH}")"
+              endpoint="repos/${GITHUB_REPOSITORY}/issues/${id}/reactions"
+              ;;
+            issue_comment)
+              text="$(jq -r '.comment.body // ""' "${GITHUB_EVENT_PATH}")"
+              id="$(jq -r '.comment.id // empty' "${GITHUB_EVENT_PATH}")"
+              endpoint="repos/${GITHUB_REPOSITORY}/issues/comments/${id}/reactions"
+              ;;
+            pull_request_review_comment)
+              text="$(jq -r '.comment.body // ""' "${GITHUB_EVENT_PATH}")"
+              id="$(jq -r '.comment.id // empty' "${GITHUB_EVENT_PATH}")"
+              endpoint="repos/${GITHUB_REPOSITORY}/pulls/comments/${id}/reactions"
+              ;;
+          esac
+          if [ -n "${id}" ]; then
+            live="$(printf '%s\n' "${text}" \
+              | sed -e '/^[[:space:]]*```/,/^[[:space:]]*```/d' \
+                    -e '/^[[:space:]]*~~~/,/^[[:space:]]*~~~/d' \
+                    -e 's/`[^`]*`//g' \
+                    -e '/^[[:space:]]*>/d')"
+            if printf '%s' "${live}" | grep -qF "${AGENT_HANDLE}"; then
+              if gh api --method POST "${endpoint}" -f content=eyes >/dev/null 2>&1; then
+                reacted=true
+              fi
+            fi
+          fi
+          echo "reacted=${reacted}" >> "${GITHUB_OUTPUT}"
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
@@ -224,7 +284,8 @@ jobs:
       - name: React with eyes
         if: >-
           steps.context.outputs.should_respond == 'true' &&
-          steps.context.outputs.implicit_followup != 'true'
+          steps.context.outputs.implicit_followup != 'true' &&
+          steps.fast_ack.outputs.reacted != 'true'
         env:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           REACTION_SUBJECT_ID: ${{ steps.context.outputs.reaction_subject_id }}
