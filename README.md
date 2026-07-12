@@ -21,6 +21,9 @@
 
 The full documentation lives in [`.agent/docs`](.agent/docs/index.md) and is published at [docs.sepo.sh](https://docs.sepo.sh).
 
+> [!TIP]
+> Starting a project from this template? This README is yours — replace it with your project's own. Sepo's documentation and tooling live under [`.agent/`](.agent/README.md), and Sepo's update workflow never touches your root README.
+
 ## License
 
 Licensed under the [MIT License](LICENSE).
