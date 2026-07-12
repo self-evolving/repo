@@ -61,8 +61,8 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 90447ca3c49525dfed3910bcdf1566028b376972 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #474 follows #473 and implements Tasks 1b/1c of #454. It adds a pre-checkout 👀 reaction using raw webhook data, diverts noise events into unique concurrency groups, and keys human comments independently. It also adds a job-level fix-PR lock for reusable-workflow calls. The goal is faster acknowledgement without allowing noise events to evict legitimate queued work.\n\n## Review\n\nThe noise diversion and distinct fix-PR lock are directionally correct, but the current head introduces a concrete race for mutating routes. The fast acknowledgement and queue handling also need tightening before merge.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Unlocked mutating routes can race | BLOCKING | [Per-comment grouping](https://github.com/self-evolving/repo/blob/90447ca3c49525dfed3910bcdf1566028b376972/.github/workflows/agent-entrypoint.yml#L39-L59) releases the previous target lock before routing, while `/install` and mutation-capable `skill` runs have no replacement. Concurrent installs can publish the fixed `agent/install-agent-infra` branch and race or fail non-fast-forward. |\n| Fast acknowledgement overmatches invalid handles | WARNING | [`grep -qF`](https://github.com/self-evolving/repo/blob/90447ca3c49525dfed3910bcdf1566028b376972/.github/workflows/agent-router.yml#L193-L202) accepts strings such as `@sepo-agentic`, unlike the canonical boundary-aware parser. This posts a misleading 👀 before authoritative validation declines the trigger. |\n| Serialized write queues can still drop requests | WARNING | The new fix-PR lock and existing implement lock retain the single-pending default, so a third request replaces the second. GitHub now supports non-lossy `queue: max` groups of up to 100 pending runs. [GitHub concurrency documentation](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency) |\n| Fast API call lacks an explicit duration bound | WARNING | The first [`gh api` call](https://github.com/self-evolving/repo/blob/90447ca3c49525dfed3910bcdf1566028b376972/.github/workflows/agent-router.yml#L198-L204) has no step or subprocess timeout and suppresses diagnostics. `continue-on-error` preserves fallback only after the command terminates. |\n\n## Progress\n\n- Current head `90447ca3c49525dfed3910bcdf1566028b376972` is mergeable, [Test Scripts passes](https://github.com/self-evolving/repo/actions/runs/29184101259), and `git diff --check` is clean.\n- Documentation, changelog coverage, noise diversion, and distinct fix-PR workflow/job group names are already present.\n- The matcher and single-pending queue findings were already covered by the existing rubrics comment, so no duplicate inline feedback was posted.\n- Posted one new inline comment for the unlocked install race: [discussion_r3565897639](https://github.com/self-evolving/repo/pull/474#discussion_r3565897639). No comments were replied to, minimized, or resolved.\n- The proposed association-gating finding was not carried forward: all standard GitHub associations are accepted by context extraction, and the existing late reaction already precedes route-level access-policy resolution.\n\n## Issue Details\n\n<details>\n<summary>Unlocked mutating routes can race</summary>\n\n**Cause:** `/install` runs directly inside the router without concurrency protection and publishes through an ordinary push to a fixed branch. Repository skills also run with write-capable credentials and `approve-all`.\n\n**Candidate solutions:** Add a `queue: max` job lock keyed by the source target for `/install`, and either similarly serialize `skill` runs or explicitly constrain them to read-only behavior.\n\n**Comments:** One reviewer considered the concurrency work ship-ready; an independent route audit found this regression, and the current code confirms it.\n\n</details>\n\n<details>\n<summary>Fast acknowledgement overmatches invalid handles</summary>\n\n**Cause:** The fast path uses literal substring matching while `mentions.ts` requires leading and trailing token boundaries. The new tests inspect workflow text but never execute the matcher.\n\n**Candidate solutions:** Implement a literal-safe boundary matcher and add executable fixtures for valid/invalid boundaries, code and quote stripping, supported endpoints, API failure, and fallback.\n\n**Comments:** Reviewers disagreed on severity. This synthesis uses WARNING because authoritative validation still prevents route execution; the impact is a misleading reaction rather than an unauthorized action.\n\n</details>\n\n<details>\n<summary>Serialized write queues can still drop requests</summary>\n\n**Cause:** `cancel-in-progress: false` does not change the default `queue: single`; only one pending request is retained.\n\n**Candidate solutions:** Add `queue: max` to both fix-PR locks, the implement lock, and any new install/skill mutation locks. Extend envelope tests to assert this invariant.\n\n**Comments:** Reviewers rated this between WARNING and BLOCKING. It requires three overlapping requests, but silently losing accepted work warrants correction.\n\n</details>\n\n<details>\n<summary>Fast API call lacks an explicit duration bound</summary>\n\n**Cause:** The best-effort API request has neither a step timeout nor a bounded subprocess wrapper, and stderr is discarded.\n\n**Candidate solutions:** Add a short explicit timeout, preserve a concise failure diagnostic, and verify that timeout/failure leaves `reacted=false` so the established reaction path remains available.\n\n</details>\n\n## Recommended Next Step\n\n`FIX_PR`: The blocking route-lock regression and remaining fast-path and queue issues are concrete, localized branch changes suitable for an automated fix pass.\n\n## Final Verdict\n\nNEEDS_REWORK\n\n## Action Items\n\n- [ ] Add non-lossy per-target serialization for `/install` and audit/lock mutation-capable `skill` runs.\n- [ ] Enforce canonical mention boundaries and add executable fast-ack regression tests.\n- [ ] Add `queue: max` to both fix-PR locks, `agent-implement`, and the new mutation locks.\n- [ ] Bound the fast acknowledgement API call while preserving fallback behavior and concise diagnostics.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-2`",
       "createdAt": "2026-07-12T07:49:21Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/474#issuecomment-4950427446",
       "viewerDidAuthor": true
@@ -124,6 +124,21 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/474#issuecomment-4950488808",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJxMmjg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: ad3ce0206355127394e60a259a73d7928a1bf004 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #474 follows the queue-eviction behavior observed in #473 and implements Tasks 1b/1c of #454. It moves the 👀 acknowledgement before checkout, isolates noise events, keys human comments independently, and adds non-lossy locks for mutating routes. At current head `ad3ce02`, the previous handle-boundary, queue-depth, and timeout findings are fixed with executable coverage. Two localized correctness gaps remain in install serialization and Markdown-fence handling.\n\n## Review\n\nThe overall design is sound, the required check passes, and the PR is mergeable. The remaining findings are warnings rather than blockers, but both warrant small branch changes.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Install lock keys the source thread, not the external target | WARNING | The [install concurrency group](https://github.com/self-evolving/repo/blob/ad3ce0206355127394e60a259a73d7928a1bf004/.github/workflows/agent-router.yml#L882-L888) differs across source issues, even when both runs target and push the same external repository branch. One push can consequently fail non-fast-forward and be misreported as a permission failure. |\n| List-nested fences can produce false acknowledgements | WARNING | The [fast matcher](https://github.com/self-evolving/repo/blob/ad3ce0206355127394e60a259a73d7928a1bf004/.github/workflows/agent-router.yml#L194-L198) only opens fenced ranges when the delimiter begins the line, unlike the canonical parser. Mentions inside list-nested backtick or tilde fences therefore receive 👀 before authoritative validation rejects them. |\n\n## Progress\n\n- Current head `ad3ce0206355127394e60a259a73d7928a1bf004` is mergeable and the `check` workflow succeeds.\n- The prior suffix-boundary, single-pending queue, mutation-lock, and unbounded-request findings are substantially addressed.\n- Current [GitHub documentation](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency) explicitly supports `queue: max` for jobs and workflow runs, resolving the reviewer concern about job-level schema support.\n- Added a [same-agent reply](https://github.com/self-evolving/repo/pull/474#discussion_r3565954435) clarifying the residual install race and opened a [new inline comment](https://github.com/self-evolving/repo/pull/474#discussion_r3565954454) for nested fences. No comments were minimized and no threads were resolved.\n- The stale “`jq + gh`” source comment and label-workflow wording are optional INFO nits and are intentionally excluded from required action items.\n\n## Issue Details\n\n<details>\n<summary>Install lock keys the source thread, not the external target</summary>\n\n**Cause:** The lock uses the source issue/PR kind and number, while `/install` later resolves an external repository and pushes its fixed `agent/install-agent-infra` branch. Different source issues can therefore receive different locks while sharing the protected branch.\n\n**Candidate solutions:** Key concurrency on the normalized external target, or conservatively serialize all install jobs. Add coverage for two source issues requesting the same external repository.\n\n**Comments:** Reviewers disagreed because the new lock restores the previous same-source serialization. The current helper confirms that cross-source requests can still converge on the same branch, so this remains a narrower WARNING.\n\n</details>\n\n<details>\n<summary>List-nested fences can produce false acknowledgements</summary>\n\n**Cause:** Fence deletion requires leading whitespace before the delimiter, while `stripNonLiveMentions()` removes paired triple-backtick and tilde fences wherever they occur. Executing the current matcher against list-nested fixtures produced `fast=true` and `canonical=false`.\n\n**Candidate solutions:** Make the fast fence filter conservative for delimiters anywhere on a line and add list-nested backtick and tilde fixtures to `fast-ack.test.cjs`.\n\n**Comments:** One reviewer considered this cosmetic and rare; another demonstrated the parity failure. Authoritative extraction prevents route execution, limiting the impact to misleading acknowledgement.\n\n</details>\n\n## Recommended Next Step\n\n`FIX_PR`: Both warnings are concrete, localized workflow-and-test changes suitable for an automated fix-pr pass.\n\n## Final Verdict\n\nMINOR_ISSUES\n\n## Action Items\n\n- [ ] Key `/install` serialization to the external target resource, or serialize all install jobs, with a cross-source regression invariant.\n- [ ] Align fast fence stripping conservatively with the canonical parser and add list-nested backtick and tilde fixtures.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-4`",
+      "createdAt": "2026-07-12T08:31:25Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/474#issuecomment-4950533774",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-07-12T07:21:07Z",
@@ -142,13 +157,13 @@
     },
     {
       "path": ".agent/scripts/test/fast-ack.test.cjs",
-      "additions": 189,
+      "additions": 204,
       "deletions": 0,
       "changeType": "ADDED"
     },
     {
       "path": ".agent/src/__tests__/envelope.test.ts",
-      "additions": 86,
+      "additions": 97,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
@@ -178,7 +193,7 @@
     },
     {
       "path": ".github/workflows/agent-router.yml",
-      "additions": 91,
+      "additions": 97,
       "deletions": 1,
       "changeType": "MODIFIED"
     }
@@ -255,10 +270,40 @@
       "commit": {
         "oid": "ad3ce0206355127394e60a259a73d7928a1bf004"
       }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABFu60tw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "",
+      "submittedAt": "2026-07-12T08:34:23Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "b6669c05a41a4761bc208c069028deec785a353a"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABFu60zg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "",
+      "submittedAt": "2026-07-12T08:34:24Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "b6669c05a41a4761bc208c069028deec785a353a"
+      }
     }
   ],
   "state": "OPEN",
   "title": "Fast pre-checkout acknowledgement and eviction-safe concurrency groups",
-  "updatedAt": "2026-07-12T08:29:51Z",
+  "updatedAt": "2026-07-12T08:34:23Z",
   "url": "https://github.com/self-evolving/repo/pull/474"
 }
