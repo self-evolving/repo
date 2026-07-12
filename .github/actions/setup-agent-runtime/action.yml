@@ -26,6 +26,19 @@ inputs:
     description: Optional Claude Code version to install when the CLI is missing.
     required: false
     default: ""
+  cache_mode:
+    description: >-
+      Runtime setup caching: "off" preserves today's unconditional
+      npm ci + build; "modules" restores .agent/node_modules keyed by the
+      manifest and lockfile hashes and skips npm ci on an exact hit;
+      "full" additionally restores .agent/dist keyed by the source tree,
+      tsconfig, and manifest hashes and skips the TypeScript build on an
+      exact hit. Exact-key hits only — any source, manifest, or lockfile
+      change (including script-only package.json edits) falls back to the
+      uncached path. Only "off", "modules", and "full" are recognized;
+      unrecognized values behave like "modules".
+    required: false
+    default: "off"
 
 runs:
   using: composite
@@ -76,15 +89,69 @@ runs:
         echo "$HOME/.local/bin" >> "$GITHUB_PATH"
         echo "NODE_PATH=$GITHUB_WORKSPACE/.agent/node_modules${NODE_PATH:+:$NODE_PATH}" >> "$GITHUB_ENV"
 
+    - name: Compute runtime cache keys
+      if: ${{ inputs.cache_mode != 'off' }}
+      id: keys
+      shell: bash
+      env:
+        # Interpolating caller-supplied inputs directly into run: text is a
+        # script-injection surface; pass through env instead. runner.* and
+        # hashFiles() are runner-controlled context, safe to interpolate.
+        NODE_VERSION_INPUT: ${{ inputs.node_version }}
+      run: |
+        echo "modules=sepo-runtime-modules-${{ runner.os }}-${{ runner.arch }}-node${NODE_VERSION_INPUT}-${{ hashFiles('.agent/package.json', '.agent/package-lock.json') }}" >> "$GITHUB_OUTPUT"
+        echo "dist=sepo-runtime-dist-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.agent/src/**', '.agent/tsconfig.json', '.agent/package.json', '.agent/package-lock.json') }}" >> "$GITHUB_OUTPUT"
+
+    # restore/save are split deliberately: the combined actions/cache action
+    # saves in a post step at job completion, by which point write-capable
+    # callers (implement, fix-pr) have switched the workspace to a mutable
+    # branch that an approve-all agent may have rebuilt — archiving
+    # branch-derived artifacts under a key computed from the default-branch
+    # tree. Saving explicitly right after npm ci / build, before control
+    # returns to the caller, closes that window.
+    - name: Restore runtime dependency cache
+      if: ${{ inputs.cache_mode != 'off' }}
+      id: cache_modules
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      with:
+        path: .agent/node_modules
+        key: ${{ steps.keys.outputs.modules }}
+
+    - name: Restore built runtime cache
+      if: ${{ inputs.cache_mode == 'full' }}
+      id: cache_dist
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      with:
+        path: .agent/dist
+        key: ${{ steps.keys.outputs.dist }}
+
     - name: Install runtime dependencies
+      if: ${{ inputs.cache_mode == 'off' || steps.cache_modules.outputs.cache-hit != 'true' }}
       shell: bash
       working-directory: .agent
       run: npm ci
 
+    - name: Save runtime dependency cache
+      if: ${{ inputs.cache_mode != 'off' && steps.cache_modules.outputs.cache-hit != 'true' }}
+      continue-on-error: true
+      uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      with:
+        path: .agent/node_modules
+        key: ${{ steps.keys.outputs.modules }}
+
     - name: Build runtime
+      if: ${{ inputs.cache_mode != 'full' || steps.cache_dist.outputs.cache-hit != 'true' }}
       shell: bash
       working-directory: .agent
       run: npm run build
+
+    - name: Save built runtime cache
+      if: ${{ inputs.cache_mode == 'full' && steps.cache_dist.outputs.cache-hit != 'true' }}
+      continue-on-error: true
+      uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      with:
+        path: .agent/dist
+        key: ${{ steps.keys.outputs.dist }}
 
     - name: Verify base runner tools
       shell: bash
