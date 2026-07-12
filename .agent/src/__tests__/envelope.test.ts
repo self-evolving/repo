@@ -21,6 +21,100 @@ function readRepoFile(relativePath: string): string {
   return readFileSync(path.join(repoRoot, relativePath), "utf8");
 }
 
+function readEntrypointJobCondition(): string {
+  const workflow = parseYaml(readRepoFile(".github/workflows/agent-entrypoint.yml")) as unknown;
+  assert.ok(isRecord(workflow), "agent-entrypoint workflow should parse");
+  assert.ok(isRecord(workflow.jobs), "agent-entrypoint workflow should define jobs");
+  const agentJob = workflow.jobs.agent;
+  assert.ok(isRecord(agentJob), "agent-entrypoint workflow should define the agent job");
+  if (typeof agentJob.if !== "string") {
+    assert.fail("agent-entrypoint agent job should define a condition");
+  }
+  return agentJob.if;
+}
+
+function evaluateEntrypointJobCondition(args: {
+  eventName: string;
+  payload: Record<string, unknown>;
+  vars?: Record<string, unknown>;
+}): boolean {
+  const condition = readEntrypointJobCondition().replace(
+    /(github\.event\.(?:issue|pull_request)\.labels)\.\*\.name/g,
+    "project($1, 'name')",
+  );
+  const evaluate = new Function(
+    "github",
+    "vars",
+    "contains",
+    "project",
+    "toJSON",
+    `"use strict"; return Boolean(${condition});`,
+  );
+  const contains = (search: unknown, item: unknown): boolean => {
+    const needle = String(item ?? "").toLowerCase();
+    if (Array.isArray(search)) {
+      return search.some((value) => String(value ?? "").toLowerCase() === needle);
+    }
+    return String(search ?? "").toLowerCase().includes(needle);
+  };
+  const project = (items: unknown, key: string): unknown[] =>
+    Array.isArray(items)
+      ? items.map((item) => (isRecord(item) ? item[key] : undefined))
+      : [];
+
+  return Boolean(
+    evaluate(
+      { event_name: args.eventName, event: args.payload },
+      {
+        AGENT_ENABLED: "true",
+        ...args.vars,
+      },
+      contains,
+      project,
+      JSON.stringify,
+    ),
+  );
+}
+
+type EntrypointMentionCase = {
+  name: string;
+  eventName: string;
+  action: string;
+  object: "issue" | "pull_request" | "discussion" | "comment" | "review";
+  field: "title" | "body";
+};
+
+const ENTRYPOINT_MENTION_CASES: EntrypointMentionCase[] = [
+  { name: "issue title", eventName: "issues", action: "opened", object: "issue", field: "title" },
+  { name: "issue body", eventName: "issues", action: "opened", object: "issue", field: "body" },
+  { name: "issue comment", eventName: "issue_comment", action: "created", object: "comment", field: "body" },
+  { name: "pull request title", eventName: "pull_request", action: "opened", object: "pull_request", field: "title" },
+  { name: "pull request body", eventName: "pull_request", action: "opened", object: "pull_request", field: "body" },
+  { name: "pull request review comment", eventName: "pull_request_review_comment", action: "created", object: "comment", field: "body" },
+  { name: "pull request review", eventName: "pull_request_review", action: "submitted", object: "review", field: "body" },
+  { name: "discussion title", eventName: "discussion", action: "created", object: "discussion", field: "title" },
+  { name: "discussion body", eventName: "discussion", action: "created", object: "discussion", field: "body" },
+  { name: "discussion comment", eventName: "discussion_comment", action: "created", object: "comment", field: "body" },
+];
+
+function buildEntrypointPayload(
+  mentionCase: EntrypointMentionCase,
+  text: string,
+): Record<string, unknown> {
+  const payload = {
+    action: mentionCase.action,
+    sender: { type: "User" },
+    issue: { title: "No mention here", body: "No mention here", labels: [] },
+    pull_request: { title: "No mention here", body: "No mention here", labels: [] },
+    discussion: { title: "No mention here", body: "No mention here" },
+    comment: { body: "No mention here" },
+    review: { body: "No mention here" },
+  };
+  const activeObject = payload[mentionCase.object] as Record<string, unknown>;
+  activeObject[mentionCase.field] = text;
+  return payload;
+}
+
 function readSupplementalPromptVarNames(runSource: string): Set<string> {
   const match = runSource.match(/const SUPPLEMENTAL_PROMPT_VAR_NAMES = \[([\s\S]*?)\] as const;/);
   assert.ok(match, "run.ts should define SUPPLEMENTAL_PROMPT_VAR_NAMES");
@@ -952,6 +1046,136 @@ test("agent router bypasses dispatch triage for explicit mention slash routes", 
   assert.match(implementMetadataPrompt, /digits only, with no `#` prefix/);
   assert.doesNotMatch(extractContext, /requested_install_target_repo/);
   assert.doesNotMatch(runnerWorkflow, /requested_install_target_repo:/);
+});
+
+test("agent entrypoint routes every supported active mention surface", () => {
+  const condition = readEntrypointJobCondition();
+  assert.doesNotMatch(condition, /toJSON\(github\.event\)/);
+
+  for (const mentionCase of ENTRYPOINT_MENTION_CASES) {
+    const payload = buildEntrypointPayload(mentionCase, "@sepo-agent please help");
+    assert.equal(
+      evaluateEntrypointJobCondition({
+        eventName: mentionCase.eventName,
+        payload,
+      }),
+      true,
+      `${mentionCase.name} should enter the router`,
+    );
+    if (mentionCase.action !== "submitted") {
+      assert.equal(
+        evaluateEntrypointJobCondition({
+          eventName: mentionCase.eventName,
+          payload: { ...payload, action: "edited" },
+        }),
+        true,
+        `edited ${mentionCase.name} should still enter the router`,
+      );
+    }
+  }
+});
+
+test("agent entrypoint skips bot-authored mentions before runner allocation", () => {
+  for (const mentionCase of ENTRYPOINT_MENTION_CASES) {
+    const payload = buildEntrypointPayload(mentionCase, "@sepo-agent please help");
+    assert.equal(
+      evaluateEntrypointJobCondition({
+        eventName: mentionCase.eventName,
+        payload: { ...payload, sender: { type: "Bot" } },
+      }),
+      false,
+      `${mentionCase.name} from a bot should skip the router job`,
+    );
+  }
+});
+
+test("agent entrypoint ignores handles outside the active trigger text", () => {
+  for (const mentionCase of ENTRYPOINT_MENTION_CASES) {
+    const payload = {
+      ...buildEntrypointPayload(mentionCase, "No live mention here"),
+      repository: { description: "Managed by @sepo-agent" },
+    };
+    assert.match(JSON.stringify(payload), /@sepo-agent/);
+    assert.equal(
+      evaluateEntrypointJobCondition({
+        eventName: mentionCase.eventName,
+        payload,
+      }),
+      false,
+      `${mentionCase.name} should ignore a handle elsewhere in the payload`,
+    );
+  }
+});
+
+test("agent entrypoint ignores handles in inactive parent bodies", () => {
+  const cases = [
+    { name: "issue comment", eventName: "issue_comment", parentObject: "issue" },
+    {
+      name: "pull request review comment",
+      eventName: "pull_request_review_comment",
+      parentObject: "pull_request",
+    },
+    {
+      name: "pull request review",
+      eventName: "pull_request_review",
+      parentObject: "pull_request",
+    },
+    {
+      name: "discussion comment",
+      eventName: "discussion_comment",
+      parentObject: "discussion",
+    },
+  ] as const;
+
+  for (const { name, eventName, parentObject } of cases) {
+    const mentionCase = ENTRYPOINT_MENTION_CASES.find(
+      (candidate) => candidate.eventName === eventName,
+    );
+    assert.ok(mentionCase, `${name} should have an active mention fixture`);
+
+    const payload = buildEntrypointPayload(mentionCase, "No live mention here");
+    const parent = payload[parentObject];
+    assert.ok(isRecord(parent), `${name} should have a parent payload`);
+    parent.body = "Earlier request for @sepo-agent";
+
+    assert.equal(
+      evaluateEntrypointJobCondition({ eventName, payload }),
+      false,
+      `${name} should ignore a handle in the inactive parent body`,
+    );
+  }
+});
+
+test("agent entrypoint preserves the separate unmentioned follow-up branch", () => {
+  const payload = {
+    action: "created",
+    sender: { type: "User" },
+    issue: { labels: [{ name: "agent" }] },
+    comment: { body: "Can you clarify the last response?" },
+  };
+
+  assert.equal(
+    evaluateEntrypointJobCondition({
+      eventName: "issue_comment",
+      payload,
+      vars: { AGENT_FOLLOWUP_INTENT_MODE: "agent-label" },
+    }),
+    true,
+  );
+  assert.equal(
+    evaluateEntrypointJobCondition({
+      eventName: "issue_comment",
+      payload: { ...payload, sender: { type: "Bot" } },
+      vars: { AGENT_FOLLOWUP_INTENT_MODE: "agent-label" },
+    }),
+    false,
+  );
+});
+
+test("entrypoint docs describe skipped runs and the bot-to-bot limitation", () => {
+  const docs = readRepoFile(".agent/docs/usage/supported-workflows.md");
+  assert.match(docs, /the `agent` job is marked as skipped and no runner is allocated/);
+  assert.match(docs, /bot-to-bot mentions are not supported/);
 });
 
 test("agent router preauthorizes implicit follow-up answer gates", () => {
