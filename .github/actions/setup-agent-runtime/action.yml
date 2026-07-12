@@ -93,8 +93,13 @@ runs:
       if: ${{ inputs.cache_mode != 'off' }}
       id: keys
       shell: bash
+      env:
+        # Interpolating caller-supplied inputs directly into run: text is a
+        # script-injection surface; pass through env instead. runner.* and
+        # hashFiles() are runner-controlled context, safe to interpolate.
+        NODE_VERSION_INPUT: ${{ inputs.node_version }}
       run: |
-        echo "modules=sepo-runtime-modules-${{ runner.os }}-${{ runner.arch }}-node${{ inputs.node_version }}-${{ hashFiles('.agent/package.json', '.agent/package-lock.json') }}" >> "$GITHUB_OUTPUT"
+        echo "modules=sepo-runtime-modules-${{ runner.os }}-${{ runner.arch }}-node${NODE_VERSION_INPUT}-${{ hashFiles('.agent/package.json', '.agent/package-lock.json') }}" >> "$GITHUB_OUTPUT"
         echo "dist=sepo-runtime-dist-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.agent/src/**', '.agent/tsconfig.json', '.agent/package.json', '.agent/package-lock.json') }}" >> "$GITHUB_OUTPUT"
 
     # restore/save are split deliberately: the combined actions/cache action
