@@ -579,7 +579,7 @@ test("extract-context preserves contributor association when refreshed issue ass
   }
 });
 
-test("extract-context resolves label actors as OWNER for personal repositories", () => {
+test("extract-context keeps label routes independent from triage mode", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-extract-context-"));
 
   try {
@@ -620,6 +620,7 @@ test("extract-context resolves label actors as OWNER for personal repositories",
         GITHUB_REPOSITORY: "alice/agent",
         INPUT_TRIGGER_KIND: "label",
         INPUT_LABEL_NAME: "agent/review",
+        INPUT_TRIAGE_MODE: "agent",
       },
       stdio: "pipe",
     });
@@ -1037,7 +1038,7 @@ test("extract-context responds when an edited review comment adds a mention", ()
   }
 });
 
-test("extract-context lets public contributor mentions reach dispatch triage", () => {
+test("extract-context routes uncommanded public contributor mentions to answer by default", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-extract-context-"));
 
   try {
@@ -1082,10 +1083,40 @@ test("extract-context lets public contributor mentions reach dispatch triage", (
     const outputs = parseGithubOutput(outputPath);
     assert.equal(outputs.get("should_respond"), "true");
     assert.equal(outputs.get("association"), "CONTRIBUTOR");
-    assert.equal(outputs.get("requested_route"), "");
+    assert.equal(outputs.get("requested_route"), "answer");
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
+});
+
+test("extract-context leaves uncommanded mentions for dispatch triage in agent mode", () => {
+  const outputs = runExtractContextCli({
+    eventName: "issue_comment",
+    payload: {
+      action: "created",
+      sender: { login: "alice", type: "User" },
+      repository: { private: false },
+      comment: {
+        id: 205,
+        node_id: "IC_205",
+        html_url: "https://github.com/self-evolving/repo/issues/270#issuecomment-205",
+        body: "@sepo-agent please fix this",
+        author_association: "CONTRIBUTOR",
+        user: { login: "alice" },
+      },
+      issue: {
+        number: 270,
+        html_url: "https://github.com/self-evolving/repo/issues/270",
+      },
+    },
+    env: {
+      INPUT_TRIAGE_MODE: "agent",
+    },
+  });
+
+  assert.equal(outputs.get("should_respond"), "true");
+  assert.equal(outputs.get("requested_route"), "");
+  assert.equal(outputs.get("implicit_followup"), "false");
 });
 
 test("extract-context preserves explicit routes for later policy checks", () => {
@@ -1104,7 +1135,7 @@ test("extract-context preserves explicit routes for later policy checks", () => 
           id: 106,
           node_id: "IC_106",
           html_url: "https://github.com/self-evolving/repo/issues/171#issuecomment-106",
-          body: "@sepo-agent /answer please check this",
+          body: "@sepo-agent /implement please fix this",
           author_association: "CONTRIBUTOR",
           user: { login: "alice" },
         },
@@ -1126,13 +1157,14 @@ test("extract-context preserves explicit routes for later policy checks", () => 
         GITHUB_OUTPUT: outputPath,
         INPUT_MENTION: "@sepo-agent",
         INPUT_TRIGGER_KIND: "mention",
+        INPUT_TRIAGE_MODE: "agent",
       },
       stdio: "pipe",
     });
 
     const outputs = parseGithubOutput(outputPath);
     assert.equal(outputs.get("should_respond"), "true");
-    assert.equal(outputs.get("requested_route"), "answer");
+    assert.equal(outputs.get("requested_route"), "implement");
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
@@ -1234,6 +1266,9 @@ test("extract-context marks unmentioned questions on agent-labeled issues as imp
         labels: [{ name: "agent" }],
         html_url: "https://github.com/self-evolving/repo/issues/302",
       },
+    },
+    env: {
+      INPUT_TRIAGE_MODE: "agent",
     },
   });
 

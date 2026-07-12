@@ -107,7 +107,7 @@ permissions:
   id-token: write # required for GitHub Actions OIDC broker exchange
   # Note: workflow-level permissions are the union of all jobs. Individual
   # agent invocations use route-specific acpx permission modes, with
-  # dispatch triage, explicit implement metadata generation, answer,
+  # optional dispatch triage, explicit implement metadata generation, answer,
   # implement, and fix-pr all currently using approve-all.
 
 jobs:
@@ -218,6 +218,7 @@ jobs:
           INPUT_LABEL_NAME: ${{ inputs.label_name }}
           INPUT_AUTHOR_ASSOCIATION: ${{ inputs.author_association }}
           INPUT_FOLLOWUP_INTENT_MODE: ${{ inputs.followup_intent_mode || vars.AGENT_FOLLOWUP_INTENT_MODE || 'agent-label' }}
+          INPUT_TRIAGE_MODE: ${{ vars.AGENT_TRIAGE_MODE || 'commands' }}
         run: node .agent/dist/cli/extract-context.js
 
       - name: React with eyes

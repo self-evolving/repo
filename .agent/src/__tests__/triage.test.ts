@@ -11,6 +11,7 @@ import {
   extractRequestedRouteDecision,
   buildRequestedRouteDecision,
   normalizeImplementIssueMetadata,
+  parseTriageMode,
   resolveRequestedLabel,
 } from "../triage.js";
 import {
@@ -45,6 +46,13 @@ test("dispatch prompt enumerates every supported dispatch route", () => {
     .sort();
   assert.deepEqual(unionRoutes, supportedRoutes);
   assert.match(prompt, /Use `orchestrate` when/);
+});
+
+test("parseTriageMode defaults to commands and validates the agent opt-in", () => {
+  assert.equal(parseTriageMode(""), "commands");
+  assert.equal(parseTriageMode("commands"), "commands");
+  assert.equal(parseTriageMode(" AGENT "), "agent");
+  assert.throws(() => parseTriageMode("disabled"), /AGENT_TRIAGE_MODE/);
 });
 
 test("normalizeDispatch reads raw JSON", () => {

@@ -24,20 +24,31 @@ The first half of the portal flow decides whether the trigger should run at all 
 flowchart LR
     trigger["@sepo-agent mention or agent/* label"]
     gate{Bot or\nunauthorized?}
+    label{agent/* label\ntrigger?}
+    label_react["React with 👀"]
     mention{Live mention\nafter stripping\ncode/quotes?}
     react["React with 👀"]
     explicit{Explicit slash\nroute command?}
+    triage_mode{AGENT_TRIAGE_MODE\nis agent?}
+    default_answer["Default answer route"]
     triage["Dispatch triage\n(approve-all, medium effort)"]
     route{Route?}
 
     trigger --> gate
     gate -- yes --> skip(["Skip"])
-    gate -- no --> mention
+    gate -- no --> label
+    label -- yes --> label_react --> route
+    label -- no --> mention
     mention -- no --> skip
     mention -- yes --> react --> explicit
     explicit -- yes --> route
-    explicit -- no --> triage --> route
+    explicit -- no --> triage_mode
+    triage_mode -- no --> default_answer --> route
+    triage_mode -- yes --> triage --> route
 ```
+
+The default answer path can recommend one concise, target-appropriate slash command when the request points to concrete follow-up work. That recommendation does not dispatch or authorize the action. `AGENT_TRIAGE_MODE=agent` restores model-backed route inference only for uncommanded explicit mentions; explicit slash routes, labels, authorization, and implicit follow-ups retain their existing paths.
+
 Once the route is resolved, the backend either answers inline, asks for approval, or dispatches a route-specific workflow.
 
 ```mermaid
