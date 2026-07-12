@@ -2952,11 +2952,22 @@ test("router mutation routes keep non-lossy per-target locks", () => {
     const concurrency = job.concurrency as Record<string, unknown>;
     const group = String(concurrency.group);
     assert.match(group, new RegExp(`^agent-${jobName}-`));
-    assert.match(group, /needs\.portal\.outputs\.target_kind/);
-    assert.match(group, /needs\.portal\.outputs\.target_number/);
     assert.equal(concurrency["cancel-in-progress"], false);
     assert.equal(concurrency.queue, "max");
   }
+
+  // Skill serialization is per source target; install serialization is
+  // repo-wide because the contended resource is the external install target,
+  // which different source issues can share.
+  const skillGroup = String(
+    (((workflow.jobs as Record<string, unknown>).skill as Record<string, unknown>).concurrency as Record<string, unknown>).group,
+  );
+  assert.match(skillGroup, /needs\.portal\.outputs\.target_kind/);
+  assert.match(skillGroup, /needs\.portal\.outputs\.target_number/);
+  const installGroup = String(
+    (((workflow.jobs as Record<string, unknown>).install as Record<string, unknown>).concurrency as Record<string, unknown>).group,
+  );
+  assert.doesNotMatch(installGroup, /target_number/);
 });
 
 test("portal fast acknowledgement runs before checkout and suppresses the late reaction", () => {

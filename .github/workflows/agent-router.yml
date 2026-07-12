@@ -144,7 +144,7 @@ jobs:
       base_pr: ${{ steps.dispatch.outputs.base_pr }}
     steps:
       # Best-effort early acknowledgement before checkout and runtime setup.
-      # Uses only jq + gh on raw payload fields, so it needs no repository
+      # Uses only jq + curl on raw payload fields, so it needs no repository
       # files. The sed/grep pair approximates the boundary-aware live-mention
       # check in .agent/src/mentions.ts (fenced code, inline code, and quoted
       # lines are ignored); extract-context remains the authoritative
@@ -191,10 +191,14 @@ jobs:
               ;;
           esac
           if [ -n "${id}" ]; then
+            # Fence handling is deliberately more conservative than
+            # .agent/src/mentions.ts: any line containing a fence marker is
+            # dropped, and odd marker counts toggle fenced state, so
+            # list-nested fences cannot leak a false acknowledgement. Missed
+            # fast acks fall back to the post-setup reaction path.
             live="$(printf '%s\n' "${text}" \
-              | sed -e '/^[[:space:]]*```/,/^[[:space:]]*```/d' \
-                    -e '/^[[:space:]]*~~~/,/^[[:space:]]*~~~/d' \
-                    -e 's/`[^`]*`//g' \
+              | awk '{ n = gsub(/```+|~~~+/, "") } n > 0 { if (n % 2 == 1) infence = !infence; next } !infence { print }' \
+              | sed -e 's/`[^`]*`//g' \
                     -e '/^[[:space:]]*>/d')"
             # Boundary-aware handle match, mirroring .agent/src/mentions.ts:
             # a leading line start, whitespace, or "(", and a trailing
@@ -879,11 +883,13 @@ jobs:
       vars.AGENT_ENABLED != 'false' &&
       needs.portal.outputs.should_respond == 'true' &&
       needs.portal.outputs.route == 'install'
-    # Install publishes the fixed agent/install-agent-infra branch, so
-    # concurrent runs race or fail non-fast-forward. Serialize per source
-    # target without dropping overlapping requests.
+    # Install publishes the fixed agent/install-agent-infra branch of an
+    # external repository that is only resolved during the run, so no group
+    # expression can key on the real contended resource. Serialize all
+    # install runs repo-wide without dropping overlapping requests; installs
+    # are rare enough that global FIFO is the safe trade.
     concurrency:
-      group: agent-install-${{ github.repository }}-${{ needs.portal.outputs.target_kind }}-${{ needs.portal.outputs.target_number }}
+      group: agent-install-${{ github.repository }}
       cancel-in-progress: false
       queue: max
     runs-on: ${{ fromJson(inputs.runs_on || vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}

@@ -8,7 +8,7 @@
 
 ### Fixed
 
-- Bot-sender events (such as Sepo's own progress-comment edits) and non-`agent/*` label events now run in throwaway concurrency groups, so they can no longer evict a queued human-triggered run — previously any such event could silently cancel a pending mention on the same issue. Human mentions now key concurrency on the triggering comment, so mentions in different comments run concurrently. Write routes gained non-lossy `queue: max` locks: `agent-fix-pr.yml` carries a job-level per-PR group covering the `workflow_call` path where workflow-level concurrency is not applied, and the router's `install` and `skill` jobs serialize per source target now that entrypoint concurrency no longer provides that serialization.
+- Bot-sender events (such as Sepo's own progress-comment edits) and non-`agent/*` label events now run in throwaway concurrency groups, so they can no longer evict a queued human-triggered run — previously any such event could silently cancel a pending mention on the same issue. Human mentions now key concurrency on the triggering comment, so mentions in different comments run concurrently. Write routes gained non-lossy `queue: max` locks: `agent-fix-pr.yml` carries a job-level per-PR group covering the `workflow_call` path where workflow-level concurrency is not applied, the router's `skill` job serializes per source target now that entrypoint concurrency no longer provides that serialization, and `install` serializes repo-wide because different source issues can converge on the same external install target.
 
 ### Changed
 

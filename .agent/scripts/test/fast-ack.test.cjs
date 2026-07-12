@@ -158,6 +158,21 @@ test("fast ack skips non-live and unsupported mentions without calling the API",
       payload: { action: "created", comment: { id: 204, body: `> ${MENTION} quoted\nplain follow-up` } },
     },
     {
+      name: "list-nested backtick fence",
+      eventName: "issue_comment",
+      payload: { action: "created", comment: { id: 205, body: `- \`\`\`\n${MENTION} in nested fence\n  \`\`\`\nno live mention` } },
+    },
+    {
+      name: "list-nested tilde fence",
+      eventName: "issue_comment",
+      payload: { action: "created", comment: { id: 206, body: `- ~~~\n${MENTION} in nested fence\n  ~~~\nno live mention` } },
+    },
+    {
+      name: "mid-line fence opener",
+      eventName: "issue_comment",
+      payload: { action: "created", comment: { id: 207, body: `example: \`\`\`\n${MENTION} inside\n\`\`\`` } },
+    },
+    {
       name: "discussion surface",
       eventName: "discussion",
       payload: { action: "created", discussion: { number: 3, body: `${MENTION} hi` } },
