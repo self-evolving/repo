@@ -45,15 +45,58 @@ concurrency:
 
 jobs:
   agent:
-    # Broad pre-filter: the real mention validation happens in extract-context.js
-    # inside agent-router.yml (boundary-aware, strips code blocks and quotes).
+    # Cheap envelope pre-filter: only the active trigger text can enter the
+    # mention branch, and bot senders stop before a runner is allocated. The
+    # real mention validation still happens in extract-context.js inside
+    # agent-router.yml (boundary-aware, strips code blocks and quotes).
     # Unmentioned follow-ups may also wake the router when the target issue/PR
     # already has the fixed `agent` label; the router then runs an answer-only
     # intent gate before posting anything.
     if: >-
       vars.AGENT_ENABLED != 'false' &&
       (
-        contains(toJSON(github.event), vars.AGENT_HANDLE || '@sepo-agent') ||
+        (
+          github.event.sender.type != 'Bot' &&
+          (
+            (
+              github.event_name == 'issues' &&
+              (
+                contains(github.event.issue.title, vars.AGENT_HANDLE || '@sepo-agent') ||
+                contains(github.event.issue.body, vars.AGENT_HANDLE || '@sepo-agent')
+              )
+            ) ||
+            (
+              github.event_name == 'issue_comment' &&
+              contains(github.event.comment.body, vars.AGENT_HANDLE || '@sepo-agent')
+            ) ||
+            (
+              github.event_name == 'pull_request' &&
+              (
+                contains(github.event.pull_request.title, vars.AGENT_HANDLE || '@sepo-agent') ||
+                contains(github.event.pull_request.body, vars.AGENT_HANDLE || '@sepo-agent')
+              )
+            ) ||
+            (
+              github.event_name == 'pull_request_review_comment' &&
+              contains(github.event.comment.body, vars.AGENT_HANDLE || '@sepo-agent')
+            ) ||
+            (
+              github.event_name == 'pull_request_review' &&
+              contains(github.event.review.body, vars.AGENT_HANDLE || '@sepo-agent')
+            ) ||
+            (
+              github.event_name == 'discussion' &&
+              (
+                contains(github.event.discussion.title, vars.AGENT_HANDLE || '@sepo-agent') ||
+                contains(github.event.discussion.body, vars.AGENT_HANDLE || '@sepo-agent')
+              )
+            ) ||
+            (
+              github.event_name == 'discussion_comment' &&
+              contains(github.event.comment.body, vars.AGENT_HANDLE || '@sepo-agent')
+            )
+          )
+        ) ||
         (
           vars.AGENT_FOLLOWUP_INTENT_MODE != 'disabled' &&
           vars.AGENT_FOLLOWUP_INTENT_MODE != 'false' &&

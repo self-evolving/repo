@@ -81,9 +81,9 @@ Known limitation: GitHub can report private organization members as `CONTRIBUTOR
 
 ## Enforcement model
 
-For mention and label triggers, trigger extraction validates the event, resolves explicit routes or labels when present, and records the caller association. Route authorization happens during dispatch resolution after explicit routes are normalized locally or implicit mentions are triaged into a concrete route.
+For mention and label triggers, trigger extraction validates the event, resolves explicit routes or labels when present, and records the caller association. Route authorization happens during dispatch resolution after routes are normalized locally. An uncommanded explicit mention resolves to `answer` by default, or to the model-selected route when `AGENT_TRIAGE_MODE=agent` is enabled.
 
-That means `route_overrides` also apply to plain implicit mentions such as `@sepo-agent can you help?`. If the resolved route is not allowed, the router posts an inline unsupported reply instead of silently dropping the request.
+That means `route_overrides` also apply to plain mentions such as `@sepo-agent can you help?`. If the resolved route is not allowed, the router posts an inline unsupported reply instead of silently dropping the request.
 
 Approval comments use the same policy after the pending request is found. The approval check uses the route stored in the pending request marker.
 

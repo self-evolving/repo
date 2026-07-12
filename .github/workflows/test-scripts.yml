@@ -2,10 +2,19 @@ name: Test Scripts
 
 on:
   pull_request:
+    paths:
+      - ".agent/**"
+      - ".github/actions/**"
+      - ".github/prompts/**"
+      - ".github/workflows/**"
   workflow_dispatch:
 
 jobs:
   check:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.repository == 'self-evolving/repo' ||
+      vars.AGENT_TEST_SCRIPTS_ENABLED == 'true'
     runs-on: ${{ fromJson(vars.AGENT_TEST_RUNS_ON || vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
     steps:
       - uses: actions/checkout@v4
