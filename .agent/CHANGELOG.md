@@ -4,11 +4,11 @@
 
 ### Added
 
-- The portal now posts the initial 👀 reaction as its first step, before checkout and runtime setup, via a dependency-free REST call on issue/PR bodies and issue, PR, and review comments; a successful early reaction suppresses the later resolved-identity reaction. Discussions, PR review bodies, and edited events keep the post-setup path.
+- The portal now posts the initial 👀 reaction as its first step, before checkout and runtime setup, via a dependency-free, bounded REST call on issue/PR bodies and issue, PR, and review comments, with boundary-aware handle matching mirroring the runtime validator; a successful early reaction suppresses the later resolved-identity reaction. Discussions, PR review bodies, and edited events keep the post-setup path.
 
 ### Fixed
 
-- Bot-sender events (such as Sepo's own progress-comment edits) and non-`agent/*` label events now run in throwaway concurrency groups, so they can no longer evict a queued human-triggered run — previously any such event could silently cancel a pending mention on the same issue. Human mentions now key concurrency on the triggering comment, so mentions in different comments run concurrently, and `agent-fix-pr.yml` gained a job-level per-PR lock covering the `workflow_call` path where workflow-level concurrency is not applied.
+- Bot-sender events (such as Sepo's own progress-comment edits) and non-`agent/*` label events now run in throwaway concurrency groups, so they can no longer evict a queued human-triggered run — previously any such event could silently cancel a pending mention on the same issue. Human mentions now key concurrency on the triggering comment, so mentions in different comments run concurrently. Write routes gained non-lossy `queue: max` locks: `agent-fix-pr.yml` carries a job-level per-PR group covering the `workflow_call` path where workflow-level concurrency is not applied, and the router's `install` and `skill` jobs serialize per source target now that entrypoint concurrency no longer provides that serialization.
 
 ### Changed
 

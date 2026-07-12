@@ -2935,6 +2935,28 @@ test("fix-pr carries a job-level per-PR lock distinct from the workflow-level gr
   assert.match(jobGroup, /^agent-fix-pr-job-/);
   assert.notEqual(jobGroup, workflowGroup);
   assert.equal(jobConcurrency["cancel-in-progress"], false);
+  assert.equal(jobConcurrency.queue, "max");
+  assert.equal((workflow.concurrency as Record<string, unknown>).queue, "max");
+
+  const implement = parseYaml(readRepoFile(".github/workflows/agent-implement.yml")) as Record<string, unknown>;
+  assert.ok(isRecord(implement) && isRecord(implement.concurrency), "implement should define concurrency");
+  assert.equal((implement.concurrency as Record<string, unknown>).queue, "max");
+});
+
+test("router mutation routes keep non-lossy per-target locks", () => {
+  const workflow = parseYaml(readRepoFile(".github/workflows/agent-router.yml")) as Record<string, unknown>;
+  assert.ok(isRecord(workflow) && isRecord(workflow.jobs), "router should define jobs");
+  for (const jobName of ["install", "skill"]) {
+    const job = (workflow.jobs as Record<string, unknown>)[jobName];
+    assert.ok(isRecord(job) && isRecord(job.concurrency), `router ${jobName} job should define concurrency`);
+    const concurrency = job.concurrency as Record<string, unknown>;
+    const group = String(concurrency.group);
+    assert.match(group, new RegExp(`^agent-${jobName}-`));
+    assert.match(group, /needs\.portal\.outputs\.target_kind/);
+    assert.match(group, /needs\.portal\.outputs\.target_number/);
+    assert.equal(concurrency["cancel-in-progress"], false);
+    assert.equal(concurrency.queue, "max");
+  }
 });
 
 test("portal fast acknowledgement runs before checkout and suppresses the late reaction", () => {
@@ -2957,8 +2979,10 @@ test("portal fast acknowledgement runs before checkout and suppresses the late r
   assert.match(condition, /inputs\.trigger_kind == 'mention'/);
   assert.match(condition, /github\.event\.sender\.type != 'Bot'/);
   assert.match(condition, /github\.event\.action != 'edited'/);
+  assert.equal(fastAck["timeout-minutes"], 1);
   const script = String(fastAck.run);
-  assert.match(script, /content=eyes/);
+  assert.match(script, /"content":"eyes"/);
+  assert.match(script, /--max-time 10/);
   assert.doesNotMatch(script, /@sepo-agent/);
 
   const react = steps.find((step) => step.name === "React with eyes");

@@ -158,6 +158,7 @@ jobs:
           github.event.sender.type != 'Bot' &&
           github.event.action != 'edited'
         continue-on-error: true
+        timeout-minutes: 1
         env:
           GH_TOKEN: ${{ github.token }}
           AGENT_HANDLE: ${{ inputs.agent_handle }}
@@ -195,9 +196,22 @@ jobs:
                     -e '/^[[:space:]]*~~~/,/^[[:space:]]*~~~/d' \
                     -e 's/`[^`]*`//g' \
                     -e '/^[[:space:]]*>/d')"
-            if printf '%s' "${live}" | grep -qF "${AGENT_HANDLE}"; then
-              if gh api --method POST "${endpoint}" -f content=eyes >/dev/null 2>&1; then
+            # Boundary-aware handle match, mirroring .agent/src/mentions.ts:
+            # a leading line start, whitespace, or "(", and a trailing
+            # terminator or end of line, so a handle with a trailing suffix
+            # does not match.
+            escaped="$(printf '%s' "${AGENT_HANDLE}" | sed 's/[][\.|$()*+?^{}]/\\&/g')"
+            if printf '%s\n' "${live}" | grep -qE "(^|[[:space:](])${escaped}([][:space:].,;:!?)}]|$)"; then
+              if response="$(curl -fsS --max-time 10 \
+                -X POST \
+                -H "Authorization: Bearer ${GH_TOKEN}" \
+                -H "Accept: application/vnd.github+json" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                -d '{"content":"eyes"}' \
+                "${GITHUB_API_URL:-https://api.github.com}/${endpoint}" 2>&1)"; then
                 reacted=true
+              else
+                echo "Fast acknowledgement request failed: $(printf '%s' "${response}" | head -c 200)"
               fi
             fi
           fi
@@ -685,6 +699,14 @@ jobs:
       vars.AGENT_ENABLED != 'false' &&
       needs.portal.outputs.should_respond == 'true' &&
       needs.portal.outputs.route == 'skill'
+    # Skills run with write-capable credentials, so per-target serialization
+    # must live here now that entrypoint concurrency keys on the triggering
+    # comment. queue: max keeps overlapping requests instead of replacing the
+    # single pending run.
+    concurrency:
+      group: agent-skill-${{ github.repository }}-${{ needs.portal.outputs.target_kind }}-${{ needs.portal.outputs.target_number }}
+      cancel-in-progress: false
+      queue: max
     runs-on: ${{ fromJson(inputs.runs_on || vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
     steps:
       - uses: actions/checkout@v4
@@ -857,6 +879,13 @@ jobs:
       vars.AGENT_ENABLED != 'false' &&
       needs.portal.outputs.should_respond == 'true' &&
       needs.portal.outputs.route == 'install'
+    # Install publishes the fixed agent/install-agent-infra branch, so
+    # concurrent runs race or fail non-fast-forward. Serialize per source
+    # target without dropping overlapping requests.
+    concurrency:
+      group: agent-install-${{ github.repository }}-${{ needs.portal.outputs.target_kind }}-${{ needs.portal.outputs.target_number }}
+      cancel-in-progress: false
+      queue: max
     runs-on: ${{ fromJson(inputs.runs_on || vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
     env:
       AGENT_INSTALL_PAT_CONFIGURED: ${{ secrets.AGENT_INSTALL_PAT != '' && 'true' || 'false' }}
