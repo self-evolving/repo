@@ -17,7 +17,7 @@
 - Jobs using repo-local actions must run actions/checkout first.
 - For weak mention author_association, verify repo collaborator status before treating the actor as COLLABORATOR.
 - Public repos default-allow CONTRIBUTOR due GitHub association visibility limits; use AGENT_ACCESS_POLICY to tighten access.
-- Dispatch triage prioritizes the live mention; planning/diagnosis/check asks stay /answer unless changes are explicit.
+- Bare mentions route to answer by default; AGENT_TRIAGE_MODE=agent restores inference, while suggested commands never authorize action.
 - Keep .agent/dist/ and .agent/node_modules/ ignored; they are generated outputs, not repository source.
 - Orchestrate owns bounded follow-up chains; explicit /orchestrate and dispatch-triaged issue/PR starts may enter it.
 - Context-gathering planner agents may use approve-all in non-interactive workflows; keep writes in deterministic, tested CLIs.
