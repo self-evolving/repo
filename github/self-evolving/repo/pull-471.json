@@ -7,7 +7,7 @@
   },
   "baseRefName": "agent/implement-issue-461/codex-29132286256",
   "body": "Clean reimplementation of #468, stacked directly on #462 (drops the dependency on the fast-reaction PR #466 per review direction). Supersedes #468. Part of #454 (Task 2) / #467; direction from #441 and #443.\n\n## What it does\n\n- **Mentions without a slash command route directly to the inline `answer` path.** `extract-context` resolves `requested_route=answer` for uncommanded live mentions, so the `Run dispatch triage` step (a full acpx agent session) is skipped by construction and the existing explicit-route authorization / unsupported-reply machinery applies unchanged. The answer agent becomes the first and only model call.\n- **`AGENT_TRIAGE_MODE`** (`commands` default | `agent`) restores model-backed route inference for uncommanded mentions only. Slash routes, `agent/*` labels, access policy, and the unmentioned follow-up gate never depend on it.\n- **The answer prompt teaches next steps**: answer-only mode is enforced, and change-shaped replies end with one concise copyable command (`/implement`, `/fix-pr`, `/review`, `/orchestrate`) with an explicit \"a suggested command is not authorization\" rule.\n- Docs (`overall-design` flowchart, `request-lifecycle`, `configuration-list`, `supported-workflows`, quick-start, agent-actions, index, access-policy) and README updated to describe the answer-first default.\n\n## Differences from #468\n\n- **Rebased onto #462's branch** — no dependency on the `.cjs` fast-ack change.\n- **Simpler invalid-config handling**: `parseTriageMode` throws on unknown values and the error propagates, exactly like `parseFollowupIntentMode` for `AGENT_FOLLOWUP_INTENT_MODE`; the `process.exitCode` bookkeeping in `extract-context` is gone.\n- **Adds the missing `CHANGELOG.md` entries** for this default-behavior change and for #462's prefilter change (both unreleased and user-visible).\n\n## Tests\n\n`.agent` full suite green locally (`npm run test:ci`: build, runtime, workflow/action validation, docs, shell lanes). New/updated coverage: `parseTriageMode` unit tests, extract-context CLI cases (bare mention → `answer` by default, `agent` mode preserves empty route for triage, explicit routes and label triggers unaffected, implicit follow-ups excluded), and envelope tests for `INPUT_TRIAGE_MODE` wiring.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n",
-  "closedAt": null,
+  "closedAt": "2026-07-12T07:00:07Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABJvxGAw",
@@ -275,8 +275,8 @@
       }
     }
   ],
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Route bare mentions directly to answer by default (clean)",
-  "updatedAt": "2026-07-11T23:36:14Z",
+  "updatedAt": "2026-07-12T07:00:07Z",
   "url": "https://github.com/self-evolving/repo/pull/471"
 }

@@ -1,0 +1,264 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "baseRefName": "main",
+  "body": "Follow-up to the #473 test findings; part of #454 (Tasks 1b/1c). Two changes, one theme: the first user-visible signal gets faster, and queued runs stop being evictable by noise.\n\n## Fast acknowledgement (inline, no committed JS)\n\nNew first step in the router portal — before checkout and runtime setup — posts the 👀 via REST using only `jq` + `gh` on raw payload fields (`github.token` identity). A ~4-line sed/grep pair approximates the boundary-aware live-mention check (fenced code, inline code, quoted lines ignored); `extract-context` remains the authoritative validator, and a `reacted` output suppresses the later resolved-identity reaction so two accounts never both react. Edited events, discussions, and PR review bodies keep the post-setup path (new-mention validation / GraphQL-only surfaces). Expected ack: ~15–20s → **~5–7s** (runner pickup + one API call). Script smoke-tested against synthetic payloads: live mention reacts; fenced/quoted/inline-code mentions, unsupported surfaces, and missing IDs all fall through cleanly.\n\n## Eviction-safe concurrency\n\nRoot cause from issue #473: GitHub keeps at most **one pending run per concurrency group** and cancels the previous pending run whenever a newer one queues. Sepo's own progress-comment edits fire `issue_comment edited` webhooks into the same per-issue group as real runs, so during any active run, noise events chain-cancel whatever is pending — including a queued human mention (observed as the chain of cancelled runs 29183691633…29183709008).\n\n- **Entrypoint**: bot-sender events divert to `agent-noise-<run_id>` throwaway groups; human events key on the triggering comment/review ID when present (#454 Task 1c — mentions in different comments now run concurrently), with per-target fallback for comment-less surfaces where newest-edit-wins is the intended dedupe.\n- **Label workflow**: bot labelers (Sepo's status label) *and* non-`agent/*` labels divert to throwaway groups — any random label was another eviction vector.\n- **Prerequisite lock**: `agent-fix-pr.yml` gains a job-level `agent-fix-pr-job-<pr>` group, because workflow-level concurrency is not applied via `workflow_call` (a distinct name from the workflow-level group, which would self-deadlock standalone dispatches). Known, documented trade: parallel answer runs on one target may race session-bundle registration (resume-best-effort ⇒ reduced continuity, not corruption).\n\n## Validation\n\nEnvelope tests pin the new invariants (fast_ack before checkout + suppression wiring, noise-group expressions, distinct fix-pr job lock): workflow lane 90/90, docs 5/5, shell 15/15. CHANGELOG updated under Unreleased.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJxCz_A",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review ",
+      "createdAt": "2026-07-12T07:27:09Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/474#issuecomment-4950373372",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJxEUOg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 88 | PARTIAL | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The PR explicitly follows the failure observed in [#473](https://github.com/self-evolving/repo/issues/473) and Tasks 1b/1c of [#454](https://github.com/self-evolving/repo/issues/454), covering early acknowledgement, per-comment concurrency, and the fix-PR lock. |\n| coding_workflow / generic | Reuse existing code | partial | 5/8 | The existing authoritative parser and late reaction remain, but the pre-checkout [`grep -qF` matcher](https://github.com/self-evolving/repo/blob/90447ca3c49525dfed3910bcdf1566028b376972/.github/workflows/agent-router.yml#L146-L204) duplicates only part of [`mentions.ts`](https://github.com/self-evolving/repo/blob/90447ca3c49525dfed3910bcdf1566028b376972/.agent/src/mentions.ts#L26-L42) and omits its boundary rule. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | [Supported-workflows documentation](https://github.com/self-evolving/repo/blob/90447ca3c49525dfed3910bcdf1566028b376972/.agent/docs/usage/supported-workflows.md#L265-L287) and the changelog describe fast acknowledgement, supported surfaces, concurrency behavior, and the answer-session tradeoff. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The seven changed files are limited to the three affected workflows, focused envelope tests, documentation, and changelog entries. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | A successful early reaction suppresses the later resolved-identity reaction. GitHub’s [reaction API](https://docs.github.com/en/rest/reactions/reactions) also returns `200` when the same actor already added that reaction. |\n| coding_workflow / generic | Bound transient retries | pass | 7/7 | Fast acknowledgement makes one best-effort REST attempt; failure leaves `reacted=false` and preserves the existing late fallback without an unbounded or indiscriminate retry loop. |\n| coding_workflow / generic | Comment on accepted workflow stops | partial | 3/6 | The [job-level fix-PR lock](https://github.com/self-evolving/repo/blob/90447ca3c49525dfed3910bcdf1566028b376972/.github/workflows/agent-fix-pr.yml#L107-L120) serializes two requests, but retains GitHub’s single-pending default, under which a later request cancels the previous pending request without a visible stop. |\n\n## Notes\n\n- Current head `90447ca3c49525dfed3910bcdf1566028b376972` passes the [Test Scripts workflow](https://github.com/self-evolving/repo/actions/runs/29184101259), including runtime, workflow, docs, shell, and diff-hygiene lanes.\n- The main deductions are for behavioral gaps not exercised by the new structural envelope tests.\n- Smallest useful follow-up: preserve mention boundaries in the inline matcher with executable synthetic-payload coverage, and give the fix-PR lock a multi-entry queue or equivalent visible terminal handling.\n\n## Findings\n\n- **WARNING:** The fast matcher treats `prefix@sepo-agentsuffix` as live because it uses fixed-substring matching, while the canonical parser and its [boundary regression test](https://github.com/self-evolving/repo/blob/90447ca3c49525dfed3910bcdf1566028b376972/.agent/src/__tests__/mentions.test.ts#L27-L36) reject it. The portal prefilter still starts on that substring, so the new step posts a false 👀 before authoritative extraction declines the request. The added [envelope test](https://github.com/self-evolving/repo/blob/90447ca3c49525dfed3910bcdf1566028b376972/.agent/src/__tests__/envelope.test.ts#L2940-L2966) inspects workflow text but does not execute these cases.\n- **WARNING:** `cancel-in-progress: false` protects a running fix-PR job but does not preserve more than one pending job. Under GitHub’s documented [default concurrency behavior](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency), a third same-PR request replaces the second pending request. `queue: max` on the job lock, or an equivalent visible-stop design, would close the remaining silent-cancellation path.\n\n## Final Rubric Verdict\n\nPARTIAL\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-1`",
+      "createdAt": "2026-07-12T07:37:26Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/474#issuecomment-4950398010",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJxGHNg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 90447ca3c49525dfed3910bcdf1566028b376972 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #474 follows #473 and implements Tasks 1b/1c of #454. It adds a pre-checkout 👀 reaction using raw webhook data, diverts noise events into unique concurrency groups, and keys human comments independently. It also adds a job-level fix-PR lock for reusable-workflow calls. The goal is faster acknowledgement without allowing noise events to evict legitimate queued work.\n\n## Review\n\nThe noise diversion and distinct fix-PR lock are directionally correct, but the current head introduces a concrete race for mutating routes. The fast acknowledgement and queue handling also need tightening before merge.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Unlocked mutating routes can race | BLOCKING | [Per-comment grouping](https://github.com/self-evolving/repo/blob/90447ca3c49525dfed3910bcdf1566028b376972/.github/workflows/agent-entrypoint.yml#L39-L59) releases the previous target lock before routing, while `/install` and mutation-capable `skill` runs have no replacement. Concurrent installs can publish the fixed `agent/install-agent-infra` branch and race or fail non-fast-forward. |\n| Fast acknowledgement overmatches invalid handles | WARNING | [`grep -qF`](https://github.com/self-evolving/repo/blob/90447ca3c49525dfed3910bcdf1566028b376972/.github/workflows/agent-router.yml#L193-L202) accepts strings such as `@sepo-agentic`, unlike the canonical boundary-aware parser. This posts a misleading 👀 before authoritative validation declines the trigger. |\n| Serialized write queues can still drop requests | WARNING | The new fix-PR lock and existing implement lock retain the single-pending default, so a third request replaces the second. GitHub now supports non-lossy `queue: max` groups of up to 100 pending runs. [GitHub concurrency documentation](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency) |\n| Fast API call lacks an explicit duration bound | WARNING | The first [`gh api` call](https://github.com/self-evolving/repo/blob/90447ca3c49525dfed3910bcdf1566028b376972/.github/workflows/agent-router.yml#L198-L204) has no step or subprocess timeout and suppresses diagnostics. `continue-on-error` preserves fallback only after the command terminates. |\n\n## Progress\n\n- Current head `90447ca3c49525dfed3910bcdf1566028b376972` is mergeable, [Test Scripts passes](https://github.com/self-evolving/repo/actions/runs/29184101259), and `git diff --check` is clean.\n- Documentation, changelog coverage, noise diversion, and distinct fix-PR workflow/job group names are already present.\n- The matcher and single-pending queue findings were already covered by the existing rubrics comment, so no duplicate inline feedback was posted.\n- Posted one new inline comment for the unlocked install race: [discussion_r3565897639](https://github.com/self-evolving/repo/pull/474#discussion_r3565897639). No comments were replied to, minimized, or resolved.\n- The proposed association-gating finding was not carried forward: all standard GitHub associations are accepted by context extraction, and the existing late reaction already precedes route-level access-policy resolution.\n\n## Issue Details\n\n<details>\n<summary>Unlocked mutating routes can race</summary>\n\n**Cause:** `/install` runs directly inside the router without concurrency protection and publishes through an ordinary push to a fixed branch. Repository skills also run with write-capable credentials and `approve-all`.\n\n**Candidate solutions:** Add a `queue: max` job lock keyed by the source target for `/install`, and either similarly serialize `skill` runs or explicitly constrain them to read-only behavior.\n\n**Comments:** One reviewer considered the concurrency work ship-ready; an independent route audit found this regression, and the current code confirms it.\n\n</details>\n\n<details>\n<summary>Fast acknowledgement overmatches invalid handles</summary>\n\n**Cause:** The fast path uses literal substring matching while `mentions.ts` requires leading and trailing token boundaries. The new tests inspect workflow text but never execute the matcher.\n\n**Candidate solutions:** Implement a literal-safe boundary matcher and add executable fixtures for valid/invalid boundaries, code and quote stripping, supported endpoints, API failure, and fallback.\n\n**Comments:** Reviewers disagreed on severity. This synthesis uses WARNING because authoritative validation still prevents route execution; the impact is a misleading reaction rather than an unauthorized action.\n\n</details>\n\n<details>\n<summary>Serialized write queues can still drop requests</summary>\n\n**Cause:** `cancel-in-progress: false` does not change the default `queue: single`; only one pending request is retained.\n\n**Candidate solutions:** Add `queue: max` to both fix-PR locks, the implement lock, and any new install/skill mutation locks. Extend envelope tests to assert this invariant.\n\n**Comments:** Reviewers rated this between WARNING and BLOCKING. It requires three overlapping requests, but silently losing accepted work warrants correction.\n\n</details>\n\n<details>\n<summary>Fast API call lacks an explicit duration bound</summary>\n\n**Cause:** The best-effort API request has neither a step timeout nor a bounded subprocess wrapper, and stderr is discarded.\n\n**Candidate solutions:** Add a short explicit timeout, preserve a concise failure diagnostic, and verify that timeout/failure leaves `reacted=false` so the established reaction path remains available.\n\n</details>\n\n## Recommended Next Step\n\n`FIX_PR`: The blocking route-lock regression and remaining fast-path and queue issues are concrete, localized branch changes suitable for an automated fix pass.\n\n## Final Verdict\n\nNEEDS_REWORK\n\n## Action Items\n\n- [ ] Add non-lossy per-target serialization for `/install` and audit/lock mutation-capable `skill` runs.\n- [ ] Enforce canonical mention boundaries and add executable fast-ack regression tests.\n- [ ] Add `queue: max` to both fix-PR locks, `agent-implement`, and the new mutation locks.\n- [ ] Bound the fast acknowledgement API call while preserving fallback behavior and concise diagnostics.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-2`",
+      "createdAt": "2026-07-12T07:49:21Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/474#issuecomment-4950427446",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJxHmnQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "All four review action items are addressed in ad3ce02:\n\n- **Mutation-route locks (blocking):** router `install` and `skill` jobs gained per-source-target `queue: max` concurrency groups — serialization chosen over read-only constraint for skills, since repo-defined skills legitimately mutate.\n- **Boundary matcher:** the fast ack now enforces `mentions.ts`-style boundaries (leading start/whitespace/`(`, trailing terminator/end), so a handle with a trailing suffix no longer matches. The new `.agent/scripts/test/fast-ack.test.cjs` extracts the step script from the workflow YAML and executes it against fixtures — boundary overmatch, fence/inline/quote stripping, endpoint selection per surface, missing IDs, unsupported surfaces, and API failure → `reacted=false` with a diagnostic.\n- **Non-lossy queues:** `queue: max` added to both fix-pr locks, the implement lock, and the new install/skill locks; envelope tests pin the invariant. One caveat: the concurrency docs only show `queue` at workflow level explicitly — it's applied here at job level too (fix-pr job, install, skill), so the first post-merge `/fix-pr` run is worth watching; if GitHub rejects job-level `queue`, the fallback is dropping that one key while keeping the job-level groups.\n- **Bounded ack call:** `gh api` replaced with `curl --max-time 10` inside a `timeout-minutes: 1` step, failure diagnostics logged concisely, `reacted=false` preserved on any failure so the post-setup reaction path remains available.\n\nLanes: workflow 91/91, shell 18/18, runtime 756/756, docs 5/5.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)",
+      "createdAt": "2026-07-12T07:59:17Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/474#issuecomment-4950451869",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJxIUug",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review",
+      "createdAt": "2026-07-12T08:03:48Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/474#issuecomment-4950463674",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJxJ26A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 98 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The implementation follows the failure observed in [#473](https://github.com/self-evolving/repo/issues/473) and Tasks 1b/1c of [#454](https://github.com/self-evolving/repo/issues/454), including early acknowledgement, per-comment concurrency, and explicit write-route locks. |\n| coding_workflow / generic | Reuse existing code | partial | 7/8 | The canonical parser and late reaction remain authoritative, while the pre-checkout [shell fast path](https://github.com/self-evolving/repo/blob/ad3ce0206355127394e60a259a73d7928a1bf004/.github/workflows/agent-router.yml#L146-L218) necessarily duplicates a small portion of mention logic. The [extracted-script fixtures](https://github.com/self-evolving/repo/blob/ad3ce0206355127394e60a259a73d7928a1bf004/.agent/scripts/test/fast-ack.test.cjs#L95-L188) materially reduce divergence risk. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The [workflow documentation](https://github.com/self-evolving/repo/blob/ad3ce0206355127394e60a259a73d7928a1bf004/.agent/docs/usage/supported-workflows.md#L265-L287) and [changelog](https://github.com/self-evolving/repo/blob/ad3ce0206355127394e60a259a73d7928a1bf004/.agent/CHANGELOG.md#L5-L11) cover supported surfaces, boundaries, timeouts, fallback behavior, concurrency, queue limits, and the answer-session tradeoff. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The [nine-file diff](https://github.com/self-evolving/repo/pull/474/files) is confined to affected workflows, focused executable/envelope tests, documentation, and changelog entries. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | A successful early reaction [suppresses the resolved-identity fallback](https://github.com/self-evolving/repo/blob/ad3ce0206355127394e60a259a73d7928a1bf004/.github/workflows/agent-router.yml#L298-L307); GitHub also returns `200` when that actor’s reaction already exists. [GitHub reaction API](https://docs.github.com/en/rest/reactions/reactions?apiVersion=2022-11-28) |\n| coding_workflow / generic | Bound transient retries | pass | 7/7 | The REST request has a [10-second command bound and one-minute step bound](https://github.com/self-evolving/repo/blob/ad3ce0206355127394e60a259a73d7928a1bf004/.github/workflows/agent-router.yml#L154-L215), makes no indiscriminate retries, and preserves the established fallback on failure. |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Noise events use unique groups, while [fix-PR](https://github.com/self-evolving/repo/blob/ad3ce0206355127394e60a259a73d7928a1bf004/.github/workflows/agent-fix-pr.yml#L107-L122), implement, install, and skill locks use `queue: max`, preventing the silent single-pending replacement found in the prior head. GitHub supports this at both workflow and job level. [GitHub concurrency documentation](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency) |\n\n## Notes\n\n- Current head `ad3ce0206355127394e60a259a73d7928a1bf004` passes the [Test Scripts run](https://github.com/self-evolving/repo/actions/runs/29185094947), including runtime, workflow/action, docs, shell, and diff-hygiene checks.\n- The prior boundary, mutation-lock, lossy-queue, and unbounded-request findings are addressed with executable regression coverage.\n- Smallest useful follow-up: correct the stale workflow comment from “`jq + gh`” to “`jq + curl`.”\n\n## Findings\n\n- **INFO:** The [fast-ack source comment](https://github.com/self-evolving/repo/blob/ad3ce0206355127394e60a259a73d7928a1bf004/.github/workflows/agent-router.yml#L146-L148) still names `gh`, although the implementation and user-facing documentation now correctly use `curl`. This does not affect behavior.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-1`",
+      "createdAt": "2026-07-12T08:13:33Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/474#issuecomment-4950488808",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-07-12T07:21:07Z",
+  "files": [
+    {
+      "path": ".agent/CHANGELOG.md",
+      "additions": 8,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/supported-workflows.md",
+      "additions": 4,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/scripts/test/fast-ack.test.cjs",
+      "additions": 189,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 86,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-entrypoint.yml",
+      "additions": 25,
+      "deletions": 10,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-fix-pr.yml",
+      "additions": 9,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-implement.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-label.yml",
+      "additions": 22,
+      "deletions": 8,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 91,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "fast-ack-and-concurrency",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 474,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABFu23vA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-07-12T07:46:52Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "90447ca3c49525dfed3910bcdf1566028b376972"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABFu3xsg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "",
+      "submittedAt": "2026-07-12T07:59:15Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "ad3ce0206355127394e60a259a73d7928a1bf004"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABFu6fPA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-07-12T08:29:51Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "ad3ce0206355127394e60a259a73d7928a1bf004"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABFu6fWQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-07-12T08:29:52Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "ad3ce0206355127394e60a259a73d7928a1bf004"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Fast pre-checkout acknowledgement and eviction-safe concurrency groups",
+  "updatedAt": "2026-07-12T08:29:51Z",
+  "url": "https://github.com/self-evolving/repo/pull/474"
+}
