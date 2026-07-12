@@ -727,14 +727,35 @@ test("packaged Sepo workflows have a global AGENT_ENABLED job guard", () => {
   const memoryDocs = readRepoFile(".agent/docs/architecture/memory.md");
   const docsIndex = readRepoFile(".agent/docs/index.md");
   const testScriptsWorkflow = readRepoFile(".github/workflows/test-scripts.yml");
+  const parsedTestScriptsWorkflow = parseYaml(testScriptsWorkflow) as unknown;
 
   assert.match(configurationList, /`AGENT_ENABLED`[\s\S]*Global Sepo pause switch/);
   assert.match(supportedWorkflows, /All packaged `agent-\*\.yml` workflow jobs honor `AGENT_ENABLED=false`/);
+  assert.ok(isRecord(parsedTestScriptsWorkflow), "test scripts workflow should parse as a YAML object");
+  assert.ok(isRecord(parsedTestScriptsWorkflow.on), "test scripts workflow should define triggers");
+  assert.ok(
+    isRecord(parsedTestScriptsWorkflow.on.pull_request),
+    "test scripts workflow should define a pull request trigger",
+  );
+  assert.deepEqual(parsedTestScriptsWorkflow.on.pull_request.paths, [
+    ".agent/**",
+    ".github/actions/**",
+    ".github/prompts/**",
+    ".github/workflows/**",
+  ]);
+  assert.ok(isRecord(parsedTestScriptsWorkflow.jobs), "test scripts workflow should define jobs");
+  assert.ok(isRecord(parsedTestScriptsWorkflow.jobs.check), "test scripts workflow should define a check job");
+  assert.equal(
+    parsedTestScriptsWorkflow.jobs.check.if,
+    "github.event_name == 'workflow_dispatch' || github.repository == 'self-evolving/repo' || vars.AGENT_TEST_SCRIPTS_ENABLED == 'true'",
+  );
   assert.match(
     testScriptsWorkflow,
     /runs-on:\s*\$\{\{\s*fromJson\(vars\.AGENT_TEST_RUNS_ON \|\| vars\.AGENT_RUNS_ON \|\| '\["ubuntu-latest"\]'\)\s*\}\}/,
   );
+  assert.match(configurationList, /AGENT_TEST_SCRIPTS_ENABLED[\s\S]*outside the canonical `self-evolving\/repo`/);
   assert.match(configurationList, /AGENT_TEST_RUNS_ON[\s\S]*falls back to `AGENT_RUNS_ON`/);
+  assert.match(supportedWorkflows, /Downstream repositories can opt in by setting[\s\S]*`AGENT_TEST_SCRIPTS_ENABLED=true`/);
   assert.match(supportedWorkflows, /AGENT_TEST_RUNS_ON[\s\S]*AGENT_RUNS_ON[\s\S]*\["ubuntu-latest"\]/);
   assert.match(agentActions, /template includes the same `AGENT_ENABLED=false` job/);
   assert.match(memoryDocs, /pause all Sepo workflow entry points[\s\S]*`AGENT_ENABLED`/);
@@ -1955,6 +1976,7 @@ test("workflow docs record the minimal metadata contract and developer notes", (
   assert.match(requestLifecycle, /agent\/<route>-<target_kind>-<number>\/<agent>-<run_id>/);
 
   assert.match(configurationList, /AGENT_RUNS_ON/);
+  assert.match(configurationList, /AGENT_TEST_SCRIPTS_ENABLED/);
   assert.match(configurationList, /AGENT_TEST_RUNS_ON/);
   assert.match(configurationList, /AGENT_ENABLED/);
   assert.match(configurationList, /AGENT_TASK_TIMEOUT_POLICY/);
