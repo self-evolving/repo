@@ -1,0 +1,282 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "baseRefName": "agent/implement-issue-461/codex-29132286256",
+  "body": "Clean reimplementation of #468, stacked directly on #462 (drops the dependency on the fast-reaction PR #466 per review direction). Supersedes #468. Part of #454 (Task 2) / #467; direction from #441 and #443.\n\n## What it does\n\n- **Mentions without a slash command route directly to the inline `answer` path.** `extract-context` resolves `requested_route=answer` for uncommanded live mentions, so the `Run dispatch triage` step (a full acpx agent session) is skipped by construction and the existing explicit-route authorization / unsupported-reply machinery applies unchanged. The answer agent becomes the first and only model call.\n- **`AGENT_TRIAGE_MODE`** (`commands` default | `agent`) restores model-backed route inference for uncommanded mentions only. Slash routes, `agent/*` labels, access policy, and the unmentioned follow-up gate never depend on it.\n- **The answer prompt teaches next steps**: answer-only mode is enforced, and change-shaped replies end with one concise copyable command (`/implement`, `/fix-pr`, `/review`, `/orchestrate`) with an explicit \"a suggested command is not authorization\" rule.\n- Docs (`overall-design` flowchart, `request-lifecycle`, `configuration-list`, `supported-workflows`, quick-start, agent-actions, index, access-policy) and README updated to describe the answer-first default.\n\n## Differences from #468\n\n- **Rebased onto #462's branch** — no dependency on the `.cjs` fast-ack change.\n- **Simpler invalid-config handling**: `parseTriageMode` throws on unknown values and the error propagates, exactly like `parseFollowupIntentMode` for `AGENT_FOLLOWUP_INTENT_MODE`; the `process.exitCode` bookkeeping in `extract-context` is gone.\n- **Adds the missing `CHANGELOG.md` entries** for this default-behavior change and for #462's prefilter change (both unreleased and user-visible).\n\n## Tests\n\n`.agent` full suite green locally (`npm run test:ci`: build, runtime, workflow/action validation, docs, shell lanes). New/updated coverage: `parseTriageMode` unit tests, extract-context CLI cases (bare mention → `answer` by default, `agent` mode preserves empty route for triage, explicit routes and label triggers unaffected, implicit follow-ups excluded), and envelope tests for `INPUT_TRIAGE_MODE` wiring.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJvxGAw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review ",
+      "createdAt": "2026-07-11T22:45:31Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/471#issuecomment-4949034499",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJvyaHA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | Bare mentions still pass through the established [route authorization](https://github.com/self-evolving/repo/blob/c91f5e1014833f9b988c5458e19a7760802214c3/.github/workflows/agent-router.yml#L427-L448). The [answer prompt](https://github.com/self-evolving/repo/blob/c91f5e1014833f9b988c5458e19a7760802214c3/.github/prompts/agent-answer.md#L9-L23) forbids writes or dispatch and explicitly says suggestions are not authorization. |\n| communication / generic | Write audience-first documentation | pass | 7/7 | The [README](https://github.com/self-evolving/repo/blob/c91f5e1014833f9b988c5458e19a7760802214c3/README.md#L30-L40) leads with the question-versus-action distinction; implementation details remain in deeper lifecycle and configuration documentation. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | `AGENT_TRIAGE_MODE` is a separate validated `commands \\| agent` input with clear rejection of other values ([parser](https://github.com/self-evolving/repo/blob/c91f5e1014833f9b988c5458e19a7760802214c3/.agent/src/triage.ts#L68-L79)); it remains independent from `AGENT_FOLLOWUP_INTENT_MODE`. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | The workflow defaults to deterministic `commands` behavior while one documented repository variable restores the existing agent-backed triage path ([workflow](https://github.com/self-evolving/repo/blob/c91f5e1014833f9b988c5458e19a7760802214c3/.github/workflows/agent-router.yml#L212-L222), [configuration](https://github.com/self-evolving/repo/blob/c91f5e1014833f9b988c5458e19a7760802214c3/.agent/docs/customization/configuration-list.md#L7-L12)). |\n| coding_workflow / generic | Name config by capability | pass | 6/6 | `AGENT_TRIAGE_MODE` names the general routing capability and its documentation precisely describes the affected mention class and two supported modes. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff stays within the commands-only [#467 scope](https://github.com/self-evolving/repo/issues/467): routing assignment, validation, answer guidance, focused tests, documentation, and release notes. Approval offers, metadata removal, concurrency, and Task 3 remain untouched. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The implementation reuses `extractRequestedRouteDecision` and the existing dispatch-policy resolver instead of introducing another router ([extraction](https://github.com/self-evolving/repo/blob/c91f5e1014833f9b988c5458e19a7760802214c3/.agent/src/cli/extract-context.ts#L202-L246), [policy](https://github.com/self-evolving/repo/blob/c91f5e1014833f9b988c5458e19a7760802214c3/.agent/src/triage.ts#L427-L459)). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Lifecycle, architecture, access-policy, configuration, workflow, quick-start, README, and [changelog](https://github.com/self-evolving/repo/blob/c91f5e1014833f9b988c5458e19a7760802214c3/.agent/CHANGELOG.md#L3-L8) documentation consistently describes answer-first routing and the opt-in mode. |\n| communication / specific | Prefer silence for ambiguous implicit follow-ups | pass | 8/8 | Default answer routing is guarded by `!implicitFollowup`, and regression coverage confirms agent triage mode does not consume unmentioned follow-ups ([implementation](https://github.com/self-evolving/repo/blob/c91f5e1014833f9b988c5458e19a7760802214c3/.agent/src/cli/extract-context.ts#L205-L223), [test](https://github.com/self-evolving/repo/blob/c91f5e1014833f9b988c5458e19a7760802214c3/.agent/src/__tests__/extract-context-cli.test.ts#L1250-L1277)). |\n\n## Notes\n\n- Exact head `c91f5e1` independently passed 756 runtime tests, 87 workflow/action checks, 5 documentation checks, and 15 shell checks; the [hosted check](https://github.com/self-evolving/repo/actions/runs/29170473420/job/86590735856) is also green.\n- Delegated-route authorization was not scored because the answer path does not delegate an action; any suggested follow-up command becomes a fresh, separately authorized request.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific defect found at the current PR head.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-4`",
+      "createdAt": "2026-07-11T22:53:52Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/471#issuecomment-4949056028",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJvzUxA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: c91f5e1014833f9b988c5458e19a7760802214c3 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\n[PR #471](https://github.com/self-evolving/repo/pull/471) reimplements the answer-first portion of [#467](https://github.com/self-evolving/repo/issues/467) under milestone [#454](https://github.com/self-evolving/repo/issues/454). Bare mentions now route directly to `answer`, avoiding a preliminary model-backed triage call. `AGENT_TRIAGE_MODE=agent` restores route inference while explicit commands, labels, authorization, and implicit follow-ups remain unchanged. The PR is stacked directly on [#462](https://github.com/self-evolving/repo/pull/462), supersedes #468, and includes focused tests, documentation, and changelog updates.\n\n## Review\n\nThe core routing and authorization design is sound, but the new answer prompt does not accurately represent the routes supported on each target. Claude and the rubric review returned SHIP/PASS, while Codex identified this warning; verification against the current route policy supports the Codex finding.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Align command guidance with the enforced target matrix | WARNING | The prompt omits valid stacked/follow-up `/implement` work on PRs and does not state that `/orchestrate` is unsupported on discussions. This can recommend an unusable command or omit a valid one. |\n\n## Progress\n\n- Current head `c91f5e1014833f9b988c5458e19a7760802214c3` is mergeable, and the hosted Test Scripts check is green.\n- Reviewers independently validated the answer-first routing, access-policy enforcement, opt-in triage mode, and full test suite.\n- Posted one [targeted inline comment](https://github.com/self-evolving/repo/pull/471#discussion_r3565191385); no replies, minimizations, or thread resolutions were performed.\n- Approval offers, implement-metadata removal, concurrency, and Task 3 remain intentionally out of scope.\n- Other reviewer notes concern optional error-log UX, input plumbing, handle examples, and changelog ordering; none require automation.\n\n## Issue Details\n\n<details>\n<summary>Align command guidance with the enforced target matrix</summary>\n\n**Cause:** The prompt maps `/implement` only to issue/discussion changes and leaves `/orchestrate` target-neutral. The authoritative policy supports `/implement` on PRs but restricts `/orchestrate` to issues and PRs.\n\n**Candidate solutions:** Update the prompt to describe `/implement` for new stacked/follow-up PR work, `/fix-pr` for editing the current PR branch, and `/orchestrate` only for issues/PRs; update the envelope test to pin that matrix.\n\n**Comments:** Claude considered the command guidance ship-ready and the rubric lane found no rubric defect, but Codex raised this mismatch. The current policy confirms it is actionable.\n\n</details>\n\n## Recommended Next Step\n\n`FIX_PR`: The prompt and its focused regression test need a small, deterministic branch change.\n\n## Final Verdict\n\n`MINOR_ISSUES`\n\n## Action Items\n\n- [ ] Align the answer prompt’s command guidance with the enforced target matrix and update its envelope test.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-4`",
+      "createdAt": "2026-07-11T22:59:48Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/471#issuecomment-4949071044",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJv26qA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review ",
+      "createdAt": "2026-07-11T23:22:21Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/471#issuecomment-4949129896",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJv4jTA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | Bare mentions still pass through [route authorization](https://github.com/self-evolving/repo/blob/9ce714a929aef295ea2d91fe805e4a46bb773341/.github/workflows/agent-router.yml#L427-L448). The [answer prompt](https://github.com/self-evolving/repo/blob/9ce714a929aef295ea2d91fe805e4a46bb773341/.github/prompts/agent-answer.md#L9-L23) forbids writes or dispatch and states that suggestions are not authorization. |\n| communication / generic | Write audience-first documentation | pass | 7/7 | The [README](https://github.com/self-evolving/repo/blob/9ce714a929aef295ea2d91fe805e4a46bb773341/README.md#L29-L40) leads with the question-versus-action distinction while deeper docs cover configuration and routing mechanics. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | `AGENT_TRIAGE_MODE` is a separate validated `commands` or `agent` setting with clear invalid-value failure behavior ([parser](https://github.com/self-evolving/repo/blob/9ce714a929aef295ea2d91fe805e4a46bb773341/.agent/src/triage.ts#L68-L79)). |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | The [workflow](https://github.com/self-evolving/repo/blob/9ce714a929aef295ea2d91fe805e4a46bb773341/.github/workflows/agent-router.yml#L212-L222) defaults to deterministic answer routing, while one documented variable restores existing agent-backed triage ([configuration](https://github.com/self-evolving/repo/blob/9ce714a929aef295ea2d91fe805e4a46bb773341/.agent/docs/customization/configuration-list.md#L7-L12)). |\n| coding_workflow / generic | Name config by capability | pass | 6/6 | `AGENT_TRIAGE_MODE` names the general routing capability, and its documentation precisely limits its effect to uncommanded explicit mentions. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff remains within [#467’s commands-only scope](https://github.com/self-evolving/repo/issues/467): routing, validation, answer guidance, focused tests, documentation, and release notes. Deferred approval offers, metadata removal, concurrency, and Task 3 are untouched. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The implementation reuses existing request extraction and dispatch-policy resolution instead of adding another router ([extraction](https://github.com/self-evolving/repo/blob/9ce714a929aef295ea2d91fe805e4a46bb773341/.agent/src/cli/extract-context.ts#L202-L246), [policy](https://github.com/self-evolving/repo/blob/9ce714a929aef295ea2d91fe805e4a46bb773341/.agent/src/triage.ts#L427-L459)). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Architecture, lifecycle, access-policy, configuration, workflow, quick-start, README, and [changelog](https://github.com/self-evolving/repo/blob/9ce714a929aef295ea2d91fe805e4a46bb773341/.agent/CHANGELOG.md#L3-L8) documentation consistently describes the new default and opt-in mode. |\n| communication / specific | Prefer silence for ambiguous implicit follow-ups | pass | 8/8 | Default answer routing explicitly excludes implicit follow-ups, with regression coverage proving agent triage mode does not consume them ([implementation](https://github.com/self-evolving/repo/blob/9ce714a929aef295ea2d91fe805e4a46bb773341/.agent/src/cli/extract-context.ts#L205-L223), [test](https://github.com/self-evolving/repo/blob/9ce714a929aef295ea2d91fe805e4a46bb773341/.agent/src/__tests__/extract-context-cli.test.ts#L1250-L1277)). |\n\n## Notes\n\n- Current head [`9ce714a`](https://github.com/self-evolving/repo/commit/9ce714a929aef295ea2d91fe805e4a46bb773341) resolves the prior [target-matrix warning](https://github.com/self-evolving/repo/pull/471#discussion_r3565191385), and the [prompt test](https://github.com/self-evolving/repo/blob/9ce714a929aef295ea2d91fe805e4a46bb773341/.agent/src/__tests__/envelope.test.ts#L274-L300) now pins the corrected guidance.\n- Exact head independently passed 756 runtime tests, 87 workflow/action checks, 5 documentation checks, and 15 shell checks; the [hosted exact-head check](https://github.com/self-evolving/repo/actions/runs/29171891591/job/86594331428) is also green.\n- Delegated-route authorization was not scored because the answer path does not delegate an action; a suggested command becomes a fresh, separately authorized request.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific defect found at the current PR head.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-4`",
+      "createdAt": "2026-07-11T23:30:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/471#issuecomment-4949156684",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJv5ykg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 9ce714a929aef295ea2d91fe805e4a46bb773341 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\n[PR #471](https://github.com/self-evolving/repo/pull/471) implements the answer-first portion of [#467](https://github.com/self-evolving/repo/issues/467) under milestone [#454](https://github.com/self-evolving/repo/issues/454), stacked on [#462](https://github.com/self-evolving/repo/pull/462). Bare mentions now route directly to `answer`, avoiding a preliminary model-backed dispatch-triage call while retaining existing authorization checks. `AGENT_TRIAGE_MODE=agent` restores triage for uncommanded mentions without affecting explicit commands, labels, or implicit follow-ups. The answer prompt supplies target-appropriate, non-authorizing follow-up commands, with corresponding tests, documentation, and changelog updates.\n\n## Review\n\nAll current reviewer artifacts agree that head `9ce714a` is ship-ready. Live inspection confirms that authorization remains enforced, the corrected command guidance matches the route policy, and no actionable defects remain.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No unresolved actionable issues | INFO | The implementation satisfies the delegated scope, and the previously reported command-matrix mismatch is fixed and regression-tested. |\n\n## Progress\n\n- Current head `9ce714a929aef295ea2d91fe805e4a46bb773341` is cleanly mergeable; the [exact-head Test Scripts check](https://github.com/self-evolving/repo/actions/runs/29171891591/job/86594331428) passed.\n- Claude and Codex returned `SHIP`; the rubric review passed at 100%, with no meaningful current disagreement.\n- The prior [route-matrix finding](https://github.com/self-evolving/repo/pull/471#discussion_r3565191385) is addressed in both the prompt and its regression test.\n- The addressed inline thread is mixed-author and reports `viewerCanResolve: false`; no comments, replies, minimizations, or resolutions were added.\n- Approval offers, implement-metadata removal, concurrency, and Task 3 remain intentionally outside this PR.\n- Optional INFO notes about error-message polish, defensive guards, configuration plumbing symmetry, and stronger answer-route hardening do not require branch changes.\n\n## Recommended Next Step\n\n`NO_AUTOMATED_ACTION`: No unresolved actionable branch work remains; normal maintainer handling of the clean draft stack can proceed.\n\n## Final Verdict\n\n`SHIP`\n\n## Action Items\n\n- [ ] None — no required branch changes remain.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-2`",
+      "createdAt": "2026-07-11T23:36:14Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/471#issuecomment-4949176978",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-07-11T22:25:18Z",
+  "files": [
+    {
+      "path": ".agent/CHANGELOG.md",
+      "additions": 7,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/overall-design.md",
+      "additions": 13,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/request-lifecycle.md",
+      "additions": 6,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/access-policy.md",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/index.md",
+      "additions": 5,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/overview/quick-start.md",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/agent-actions.md",
+      "additions": 4,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/supported-workflows.md",
+      "additions": 8,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 50,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/extract-context-cli.test.ts",
+      "additions": 40,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/triage.test.ts",
+      "additions": 8,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/extract-context.ts",
+      "additions": 22,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/triage.ts",
+      "additions": 15,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-answer.md",
+      "additions": 6,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 2,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": "README.md",
+      "additions": 5,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "answer-default-routing",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 471,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABFuJStA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-07-11T22:59:00Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "c91f5e1014833f9b988c5458e19a7760802214c3"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABFuKkow",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "",
+      "submittedAt": "2026-07-11T23:17:50Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "9ce714a929aef295ea2d91fe805e4a46bb773341"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Route bare mentions directly to answer by default (clean)",
+  "updatedAt": "2026-07-11T23:36:14Z",
+  "url": "https://github.com/self-evolving/repo/pull/471"
+}
