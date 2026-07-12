@@ -72,6 +72,10 @@ test("workflow steps that allow gh commands define GH_TOKEN", () => {
 test("setup-agent-runtime caching preserves the save-before-branch-switch trust boundary", () => {
   const action = readYaml(".github/actions/setup-agent-runtime/action.yml");
   assert.ok(isRecord(action) && isRecord(action.runs), "action should define runs");
+  assert.ok(isRecord(action.inputs), "action should define inputs");
+  const cacheMode = (action.inputs as Record<string, unknown>).cache_mode;
+  assert.ok(isRecord(cacheMode), "cache_mode input should exist");
+  assert.equal(String(cacheMode.default), "full", "caching is on by default with off as the escape hatch");
   const steps = (action.runs as Record<string, unknown>).steps;
   assert.ok(Array.isArray(steps), "action should define steps");
   const stepList = steps as Array<Record<string, unknown>>;
