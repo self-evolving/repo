@@ -29,11 +29,13 @@ inputs:
   cache_mode:
     description: >-
       Runtime setup caching: "off" preserves today's unconditional
-      npm ci + build; "modules" restores .agent/node_modules by lockfile
-      hash and skips npm ci on an exact hit; "full" additionally restores
-      .agent/dist keyed by the source tree hash and skips the TypeScript
-      build on an exact hit. Exact-key hits only — any source or lockfile
-      change falls back to the uncached path.
+      npm ci + build; "modules" restores .agent/node_modules keyed by the
+      manifest and lockfile hashes and skips npm ci on an exact hit;
+      "full" additionally restores .agent/dist keyed by the source tree,
+      tsconfig, and manifest hashes and skips the TypeScript build on an
+      exact hit. Exact-key hits only — any source, manifest, or lockfile
+      change (including script-only package.json edits) falls back to the
+      uncached path.
     required: false
     default: "off"
 
@@ -91,8 +93,8 @@ runs:
       id: keys
       shell: bash
       run: |
-        echo "modules=sepo-runtime-modules-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.agent/package-lock.json') }}" >> "$GITHUB_OUTPUT"
-        echo "dist=sepo-runtime-dist-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.agent/src/**', '.agent/tsconfig.json', '.agent/package-lock.json') }}" >> "$GITHUB_OUTPUT"
+        echo "modules=sepo-runtime-modules-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.agent/package.json', '.agent/package-lock.json') }}" >> "$GITHUB_OUTPUT"
+        echo "dist=sepo-runtime-dist-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.agent/src/**', '.agent/tsconfig.json', '.agent/package.json', '.agent/package-lock.json') }}" >> "$GITHUB_OUTPUT"
 
     - name: Restore runtime dependency cache
       if: ${{ inputs.cache_mode != 'off' }}
