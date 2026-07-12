@@ -3,7 +3,7 @@
 ## Durable
 - Keep repository memory lean: prefer durable conventions and project questions over copying issue/PR metadata.
 - Long-lived agent memory lives on `agent/memory`; user/team rubrics live separately on `agent/rubrics`.
-- Canonical docs live under `.agent/docs/`.
+- Canonical Sepo docs live under `.agent/docs/` and publish to docs.sepo.sh; keep the source README a lean front door.
 - Public defaults use `@sepo-agent` and the `sepo-agent-app` GitHub App.
 - Agent trigger access is centralized in `AGENT_ACCESS_POLICY`.
 - Mention slash routes resolve locally and bypass dispatch triage, but still run dispatch policy gates.
