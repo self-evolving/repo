@@ -119,8 +119,8 @@
       "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 98 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The implementation follows the failure observed in [#473](https://github.com/self-evolving/repo/issues/473) and Tasks 1b/1c of [#454](https://github.com/self-evolving/repo/issues/454), including early acknowledgement, per-comment concurrency, and explicit write-route locks. |\n| coding_workflow / generic | Reuse existing code | partial | 7/8 | The canonical parser and late reaction remain authoritative, while the pre-checkout [shell fast path](https://github.com/self-evolving/repo/blob/ad3ce0206355127394e60a259a73d7928a1bf004/.github/workflows/agent-router.yml#L146-L218) necessarily duplicates a small portion of mention logic. The [extracted-script fixtures](https://github.com/self-evolving/repo/blob/ad3ce0206355127394e60a259a73d7928a1bf004/.agent/scripts/test/fast-ack.test.cjs#L95-L188) materially reduce divergence risk. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The [workflow documentation](https://github.com/self-evolving/repo/blob/ad3ce0206355127394e60a259a73d7928a1bf004/.agent/docs/usage/supported-workflows.md#L265-L287) and [changelog](https://github.com/self-evolving/repo/blob/ad3ce0206355127394e60a259a73d7928a1bf004/.agent/CHANGELOG.md#L5-L11) cover supported surfaces, boundaries, timeouts, fallback behavior, concurrency, queue limits, and the answer-session tradeoff. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The [nine-file diff](https://github.com/self-evolving/repo/pull/474/files) is confined to affected workflows, focused executable/envelope tests, documentation, and changelog entries. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | A successful early reaction [suppresses the resolved-identity fallback](https://github.com/self-evolving/repo/blob/ad3ce0206355127394e60a259a73d7928a1bf004/.github/workflows/agent-router.yml#L298-L307); GitHub also returns `200` when that actor’s reaction already exists. [GitHub reaction API](https://docs.github.com/en/rest/reactions/reactions?apiVersion=2022-11-28) |\n| coding_workflow / generic | Bound transient retries | pass | 7/7 | The REST request has a [10-second command bound and one-minute step bound](https://github.com/self-evolving/repo/blob/ad3ce0206355127394e60a259a73d7928a1bf004/.github/workflows/agent-router.yml#L154-L215), makes no indiscriminate retries, and preserves the established fallback on failure. |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Noise events use unique groups, while [fix-PR](https://github.com/self-evolving/repo/blob/ad3ce0206355127394e60a259a73d7928a1bf004/.github/workflows/agent-fix-pr.yml#L107-L122), implement, install, and skill locks use `queue: max`, preventing the silent single-pending replacement found in the prior head. GitHub supports this at both workflow and job level. [GitHub concurrency documentation](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency) |\n\n## Notes\n\n- Current head `ad3ce0206355127394e60a259a73d7928a1bf004` passes the [Test Scripts run](https://github.com/self-evolving/repo/actions/runs/29185094947), including runtime, workflow/action, docs, shell, and diff-hygiene checks.\n- The prior boundary, mutation-lock, lossy-queue, and unbounded-request findings are addressed with executable regression coverage.\n- Smallest useful follow-up: correct the stale workflow comment from “`jq + gh`” to “`jq + curl`.”\n\n## Findings\n\n- **INFO:** The [fast-ack source comment](https://github.com/self-evolving/repo/blob/ad3ce0206355127394e60a259a73d7928a1bf004/.github/workflows/agent-router.yml#L146-L148) still names `gh`, although the implementation and user-facing documentation now correctly use `curl`. This does not affect behavior.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-1`",
       "createdAt": "2026-07-12T08:13:33Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/474#issuecomment-4950488808",
       "viewerDidAuthor": true
@@ -134,10 +134,68 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: ad3ce0206355127394e60a259a73d7928a1bf004 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #474 follows the queue-eviction behavior observed in #473 and implements Tasks 1b/1c of #454. It moves the 👀 acknowledgement before checkout, isolates noise events, keys human comments independently, and adds non-lossy locks for mutating routes. At current head `ad3ce02`, the previous handle-boundary, queue-depth, and timeout findings are fixed with executable coverage. Two localized correctness gaps remain in install serialization and Markdown-fence handling.\n\n## Review\n\nThe overall design is sound, the required check passes, and the PR is mergeable. The remaining findings are warnings rather than blockers, but both warrant small branch changes.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Install lock keys the source thread, not the external target | WARNING | The [install concurrency group](https://github.com/self-evolving/repo/blob/ad3ce0206355127394e60a259a73d7928a1bf004/.github/workflows/agent-router.yml#L882-L888) differs across source issues, even when both runs target and push the same external repository branch. One push can consequently fail non-fast-forward and be misreported as a permission failure. |\n| List-nested fences can produce false acknowledgements | WARNING | The [fast matcher](https://github.com/self-evolving/repo/blob/ad3ce0206355127394e60a259a73d7928a1bf004/.github/workflows/agent-router.yml#L194-L198) only opens fenced ranges when the delimiter begins the line, unlike the canonical parser. Mentions inside list-nested backtick or tilde fences therefore receive 👀 before authoritative validation rejects them. |\n\n## Progress\n\n- Current head `ad3ce0206355127394e60a259a73d7928a1bf004` is mergeable and the `check` workflow succeeds.\n- The prior suffix-boundary, single-pending queue, mutation-lock, and unbounded-request findings are substantially addressed.\n- Current [GitHub documentation](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency) explicitly supports `queue: max` for jobs and workflow runs, resolving the reviewer concern about job-level schema support.\n- Added a [same-agent reply](https://github.com/self-evolving/repo/pull/474#discussion_r3565954435) clarifying the residual install race and opened a [new inline comment](https://github.com/self-evolving/repo/pull/474#discussion_r3565954454) for nested fences. No comments were minimized and no threads were resolved.\n- The stale “`jq + gh`” source comment and label-workflow wording are optional INFO nits and are intentionally excluded from required action items.\n\n## Issue Details\n\n<details>\n<summary>Install lock keys the source thread, not the external target</summary>\n\n**Cause:** The lock uses the source issue/PR kind and number, while `/install` later resolves an external repository and pushes its fixed `agent/install-agent-infra` branch. Different source issues can therefore receive different locks while sharing the protected branch.\n\n**Candidate solutions:** Key concurrency on the normalized external target, or conservatively serialize all install jobs. Add coverage for two source issues requesting the same external repository.\n\n**Comments:** Reviewers disagreed because the new lock restores the previous same-source serialization. The current helper confirms that cross-source requests can still converge on the same branch, so this remains a narrower WARNING.\n\n</details>\n\n<details>\n<summary>List-nested fences can produce false acknowledgements</summary>\n\n**Cause:** Fence deletion requires leading whitespace before the delimiter, while `stripNonLiveMentions()` removes paired triple-backtick and tilde fences wherever they occur. Executing the current matcher against list-nested fixtures produced `fast=true` and `canonical=false`.\n\n**Candidate solutions:** Make the fast fence filter conservative for delimiters anywhere on a line and add list-nested backtick and tilde fixtures to `fast-ack.test.cjs`.\n\n**Comments:** One reviewer considered this cosmetic and rare; another demonstrated the parity failure. Authoritative extraction prevents route execution, limiting the impact to misleading acknowledgement.\n\n</details>\n\n## Recommended Next Step\n\n`FIX_PR`: Both warnings are concrete, localized workflow-and-test changes suitable for an automated fix-pr pass.\n\n## Final Verdict\n\nMINOR_ISSUES\n\n## Action Items\n\n- [ ] Key `/install` serialization to the external target resource, or serialize all install jobs, with a cross-source regression invariant.\n- [ ] Align fast fence stripping conservatively with the canonical parser and add list-nested backtick and tilde fixtures.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-4`",
       "createdAt": "2026-07-12T08:31:25Z",
       "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/474#issuecomment-4950533774",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJyq2kw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review",
+      "createdAt": "2026-07-12T17:21:16Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/474#issuecomment-4952077971",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJysW6w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 90 | PARTIAL | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The PR follows the failure observed in [#473](https://github.com/self-evolving/repo/issues/473) and Tasks 1b/1c of [#454](https://github.com/self-evolving/repo/issues/454), covering early acknowledgement and explicit downstream serialization. |\n| coding_workflow / generic | Reuse existing code | partial | 6/8 | The canonical [`mentions.ts` parser](https://github.com/self-evolving/repo/blob/b6669c05a41a4761bc208c069028deec785a353a/.agent/src/mentions.ts#L16-L42) remains authoritative and the [fixtures execute the extracted workflow script](https://github.com/self-evolving/repo/blob/b6669c05a41a4761bc208c069028deec785a353a/.agent/scripts/test/fast-ack.test.cjs#L24-L93), but the duplicated shell fence parser still diverges for mixed fence delimiters. |\n| coding_workflow / generic | Keep docs in sync | partial | 6/7 | Fast acknowledgement and concurrency are documented, but [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/b6669c05a41a4761bc208c069028deec785a353a/.agent/docs/usage/supported-workflows.md#L287) says both install and skill serialize per source target, while [install is now repository-wide](https://github.com/self-evolving/repo/blob/b6669c05a41a4761bc208c069028deec785a353a/.github/workflows/agent-router.yml#L879-L895). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The [nine-file diff](https://github.com/self-evolving/repo/pull/474/files) is confined to affected workflows, focused tests, documentation, and the changelog. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | A successful [early reaction](https://github.com/self-evolving/repo/blob/b6669c05a41a4761bc208c069028deec785a353a/.github/workflows/agent-router.yml#L209-L222) suppresses the [resolved-identity fallback](https://github.com/self-evolving/repo/blob/b6669c05a41a4761bc208c069028deec785a353a/.github/workflows/agent-router.yml#L302-L311). |\n| coding_workflow / generic | Bound transient retries | pass | 7/7 | The REST request has a [10-second command bound and one-minute step bound](https://github.com/self-evolving/repo/blob/b6669c05a41a4761bc208c069028deec785a353a/.github/workflows/agent-router.yml#L154-L218), makes one attempt, logs failure, and preserves fallback behavior. |\n| coding_workflow / generic | Comment on accepted workflow stops | partial | 4/6 | `queue: max` protects fix-PR, implement, install, and skill requests, but explicitly dispatched orchestrator runs retain the single-pending default and can still silently replace an accepted request. |\n\n## Notes\n\n- Current head `b6669c05a41a4761bc208c069028deec785a353a` is mergeable and its [Test Scripts check passes](https://github.com/self-evolving/repo/actions/runs/29186055586).\n- The previous install-target and list-nested-fence findings are addressed at the current head; the deductions above are based on new current-head evidence.\n- Smallest useful follow-up: correct the install-lock documentation, add `queue: max` to the orchestrator lock, and track backtick/tilde fence state independently with a mixed-delimiter fixture.\n\n## Findings\n\n- **WARNING:** [`agent-orchestrator.yml`](https://github.com/self-evolving/repo/blob/b6669c05a41a4761bc208c069028deec785a353a/.github/workflows/agent-orchestrator.yml#L85-L87) lacks `queue: max`. The router dispatches every explicit request with the same target, `source_action=orchestrate`, and round `1` ([dispatch evidence](https://github.com/self-evolving/repo/blob/b6669c05a41a4761bc208c069028deec785a353a/.github/workflows/agent-router.yml#L1211-L1229)), so a third overlapping request cancels the previous pending request under GitHub’s [default concurrency behavior](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency).\n\n- **WARNING:** The [fast fence filter](https://github.com/self-evolving/repo/blob/b6669c05a41a4761bc208c069028deec785a353a/.github/workflows/agent-router.yml#L194-L208) uses one `infence` state for both backtick and tilde delimiters. A tilde marker inside a backtick fence therefore toggles the state off and can expose a mention that the canonical parser removes. The current [negative fixtures](https://github.com/self-evolving/repo/blob/b6669c05a41a4761bc208c069028deec785a353a/.agent/scripts/test/fast-ack.test.cjs#L138-L193) do not cover mixed delimiters.\n\n- **WARNING:** The supported-workflows documentation still describes install serialization as per-source-target, contradicting both the repository-wide workflow group and the corrected [changelog entry](https://github.com/self-evolving/repo/blob/b6669c05a41a4761bc208c069028deec785a353a/.agent/CHANGELOG.md#L9-L11).\n\n## Final Rubric Verdict\n\nPARTIAL\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-6`",
+      "createdAt": "2026-07-12T17:29:22Z",
+      "includesCreatedEdit": false,
       "isMinimized": false,
       "minimizedReason": "",
       "reactionGroups": [],
-      "url": "https://github.com/self-evolving/repo/pull/474#issuecomment-4950533774",
+      "url": "https://github.com/self-evolving/repo/pull/474#issuecomment-4952102635",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJywSRA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: b6669c05a41a4761bc208c069028deec785a353a -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #474 follows the queue eviction observed in #473 and implements Tasks 1b/1c of #454. It adds a best-effort REST 👀 reaction before checkout, isolates webhook noise, keys human comments independently, and adds non-lossy locks to known mutating routes. Current head `b6669c0` fixes the earlier install, boundary-matching, timeout, and list-nested-fence findings. Three localized workflow edge cases remain.\n\n## Review\n\nThe architecture and authorization boundaries are sound, the PR is mergeable, and Test Scripts passes. No blocking issue remains, but accepted requests can still be dropped and the fast acknowledgement has two reproducible edge failures.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Accepted orchestrator and label requests can still be evicted | WARNING | The [orchestrator](https://github.com/self-evolving/repo/blob/b6669c05a41a4761bc208c069028deec785a353a/.github/workflows/agent-orchestrator.yml#L85-L87) and human [label workflow](https://github.com/self-evolving/repo/blob/b6669c05a41a4761bc208c069028deec785a353a/.github/workflows/agent-label.yml#L23-L42) retain the default single-pending queue, so a third overlapping request silently replaces the first pending request. |\n| Mixed fence delimiters can produce false acknowledgements | WARNING | The [fast fence filter](https://github.com/self-evolving/repo/blob/b6669c05a41a4761bc208c069028deec785a353a/.github/workflows/agent-router.yml#L194-L202) shares one state across backtick and tilde fences. A mismatched delimiter can expose a code-only mention and post a misleading 👀. |\n| Maximum-size bodies can miss the fast path | WARNING | Under `pipefail`, the [`printf \\| grep -q`](https://github.com/self-evolving/repo/blob/b6669c05a41a4761bc208c069028deec785a353a/.github/workflows/agent-router.yml#L207-L208) pipeline can return 141 after an early match. A valid 65,536-character body reproduced this failure and fell back to the slower reaction path. |\n| Install serialization documentation is stale | INFO | [Supported workflows](https://github.com/self-evolving/repo/blob/b6669c05a41a4761bc208c069028deec785a353a/.agent/docs/usage/supported-workflows.md#L287) says install and skill both serialize per source target, but install now serializes repository-wide. |\n\n## Progress\n\n- Current head `b6669c0` is mergeable and the [Test Scripts check passes](https://github.com/self-evolving/repo/actions/runs/29186055586).\n- The prior install race, suffix overmatch, lossy implement/fix-pr queues, unbounded API request, and list-nested-fence findings are addressed.\n- Replied in the existing fence thread ([discussion_r3566803610](https://github.com/self-evolving/repo/pull/474#discussion_r3566803610)) and posted new inline comments for the [maximum-size pipeline](https://github.com/self-evolving/repo/pull/474#discussion_r3566803672) and [label queue](https://github.com/self-evolving/repo/pull/474#discussion_r3566803706).\n- No comments were minimized and no threads were resolved; the older threads contain human replies and are not viewer-resolvable.\n- The workflow-token reaction identity and best-effort fallback behavior do not bypass authoritative context extraction or route authorization.\n\n## Issue Details\n\n<details>\n<summary>Accepted orchestrator and label requests can still be evicted</summary>\n\n**Cause:** Both concurrency groups omit `queue: max`. Direct orchestrator requests share target, source action, and round keys, while human `agent/*` label events share the target key.\n\n**Candidate solutions:** Add `queue: max` to both groups and extend envelope tests to pin the non-lossy invariant.\n\n**Comments:** Claude and the rubrics lane identified the orchestrator path; Codex independently identified the label path as an additional accepted-trigger gap.\n\n</details>\n\n<details>\n<summary>Mixed fence delimiters can produce false acknowledgements</summary>\n\n**Cause:** Any odd backtick or tilde marker count flips the same `infence` bit, allowing a tilde marker inside a backtick fence—or vice versa—to close the wrong fence.\n\n**Candidate solutions:** Track the active delimiter independently and add fixtures covering both mixed-delimiter orders.\n\n**Comments:** Claude considered the conservative parser false-negative-only, while the rubrics and Codex lanes found this parity failure. Executing the current AWK filter confirmed that it emits the fenced mention.\n\n</details>\n\n<details>\n<summary>Maximum-size bodies can miss the fast path</summary>\n\n**Cause:** `grep -q` exits after matching the first line while `printf` still has data to write; `pipefail` converts the producer’s SIGPIPE into a failed condition.\n\n**Candidate solutions:** Feed the matcher through a here-string or file, or avoid an early-closing `grep -q` pipeline, and add a maximum-size fixture.\n\n**Comments:** Codex reported this edge case, and synthesis independently reproduced `miss:141` on the current runner.\n\n</details>\n\n<details>\n<summary>Install serialization documentation is stale</summary>\n\n**Cause:** The implementation changed install locking from per-source-target to repository-wide, but the documentation sentence was not updated.\n\n**Candidate solutions:** Document install as repository-wide and skill as per-source-target.\n\n**Comments:** The rubrics lane treated this as a warning and Codex as INFO. Because it does not affect runtime behavior, synthesis uses INFO.\n\n</details>\n\n## Recommended Next Step\n\n`FIX_PR`: The three warnings are concrete, localized workflow-and-test changes suitable for an automated fix pass.\n\n## Final Verdict\n\nMINOR_ISSUES\n\n## Action Items\n\n- [ ] Add `queue: max` to the orchestrator and human label concurrency groups, with regression assertions.\n- [ ] Track backtick and tilde fence state independently and add mixed-delimiter fixtures.\n- [ ] Remove the `pipefail`/SIGPIPE false negative and add a maximum-size-body fixture.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-3`",
+      "createdAt": "2026-07-12T17:50:51Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/474#issuecomment-4952166980",
       "viewerDidAuthor": true
     }
   ],
@@ -300,10 +358,55 @@
       "commit": {
         "oid": "b6669c05a41a4761bc208c069028deec785a353a"
       }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABFvquhg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-07-12T17:49:00Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "b6669c05a41a4761bc208c069028deec785a353a"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABFvqupg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-07-12T17:49:01Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "b6669c05a41a4761bc208c069028deec785a353a"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABFvquuQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-07-12T17:49:02Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "b6669c05a41a4761bc208c069028deec785a353a"
+      }
     }
   ],
   "state": "OPEN",
   "title": "Fast pre-checkout acknowledgement and eviction-safe concurrency groups",
-  "updatedAt": "2026-07-12T08:34:23Z",
+  "updatedAt": "2026-07-12T17:50:51Z",
   "url": "https://github.com/self-evolving/repo/pull/474"
 }
