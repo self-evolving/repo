@@ -95,13 +95,14 @@ runs:
       id: keys
       shell: bash
       run: |
-        # The resolved runtime version (not the requested selector) keys the
-        # modules cache: native addons are ABI-tied to what actually runs.
-        # Hashing the action file itself fingerprints the producer, so
-        # changes to how artifacts are built rotate the keys. No
-        # caller-supplied inputs are interpolated into this script.
-        resolved_node="$(node -p 'process.version')"
-        echo "modules=sepo-runtime-modules-${{ runner.os }}-${{ runner.arch }}-node${resolved_node}-${{ hashFiles('.agent/package.json', '.agent/package-lock.json', '.github/actions/setup-agent-runtime/action.yml') }}" >> "$GITHUB_OUTPUT"
+        # The resolved runtime ABI (not the requested selector or exact
+        # version) keys the modules cache: native addons are ABI-tied to
+        # what actually runs, and ABI-compatible patch updates should keep
+        # the cache warm. Hashing the action file itself fingerprints the
+        # producer, so changes to how artifacts are built rotate the keys.
+        # No caller-supplied inputs are interpolated into this script.
+        resolved_node_abi="$(node -p 'process.versions.modules')"
+        echo "modules=sepo-runtime-modules-${{ runner.os }}-${{ runner.arch }}-nodeabi${resolved_node_abi}-${{ hashFiles('.agent/package.json', '.agent/package-lock.json', '.github/actions/setup-agent-runtime/action.yml') }}" >> "$GITHUB_OUTPUT"
         echo "dist=sepo-runtime-dist-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.agent/src/**', '.agent/tsconfig.json', '.agent/package.json', '.agent/package-lock.json', '.github/actions/setup-agent-runtime/action.yml') }}" >> "$GITHUB_OUTPUT"
 
     # restore/save are split deliberately: the combined actions/cache action

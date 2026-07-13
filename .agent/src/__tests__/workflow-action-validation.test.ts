@@ -132,8 +132,8 @@ test("setup-agent-runtime caching preserves the save-before-branch-switch trust 
   assert.ok(isRecord(keysStep), "keys step should exist");
   const keysRun = String(keysStep.run);
   assert.doesNotMatch(keysRun, /\$\{\{\s*inputs\./, "no inputs interpolated into the keys script");
-  assert.match(keysRun, /process\.version/, "modules key uses the resolved Node runtime version");
-  assert.match(keysRun, /node\$\{resolved_node\}/, "modules key embeds the resolved Node version");
+  assert.match(keysRun, /process\.versions\.modules/, "modules key uses the resolved Node ABI");
+  assert.match(keysRun, /nodeabi\$\{resolved_node_abi\}/, "modules key embeds the resolved Node ABI");
   const producerHash = /hashFiles\([^)]*\.github\/actions\/setup-agent-runtime\/action\.yml/;
   assert.match(keysRun, producerHash, "keys fingerprint the producing action");
   assert.equal(
@@ -160,6 +160,13 @@ test("cache seed workflow only executes the trusted default branch", () => {
     String(seed.if),
     /github\.ref_name == github\.event\.repository\.default_branch/,
     "seed job gates on the repository default branch",
+  );
+  const concurrency = (workflow as Record<string, unknown>).concurrency;
+  assert.ok(isRecord(concurrency), "seed workflow should define concurrency");
+  assert.match(
+    String(concurrency.group),
+    /github\.ref/,
+    "seed concurrency is ref-scoped so branch pushes cannot cancel a default-branch warm",
   );
   const steps = seed.steps as Array<Record<string, unknown>>;
   const checkout = steps.find((step) => typeof step.uses === "string" && step.uses.startsWith("actions/checkout"));
