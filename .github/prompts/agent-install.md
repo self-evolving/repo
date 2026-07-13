@@ -63,7 +63,7 @@ repository by opening or reusing a focused install PR.
    - Merge `.agent/dist/` and `.agent/node_modules/` into the target
      `.gitignore` when missing. Preserve existing ignore entries and make the
      update idempotent.
-   - Add optional `.skills/<requested-skill>/SKILL.md` or root `AGENT.md` only
+   - Add optional `.skills/<requested-skill>/SKILL.md` or root `AGENTS.md` only
      when explicitly requested.
 7. Validate, stage, and commit the install diff before publishing.
    - Review `git status --short` and `git diff --stat` in the target workdir.
@@ -104,7 +104,7 @@ Install only:
 - `.agent/`, excluding generated/dependency directories
 - Sepo-owned `.github/` workflows, actions, prompts, and helper assets, merged
   without deleting target-only content
-- optional `.skills/<requested-skill>/SKILL.md` or root `AGENT.md` only when
+- optional `.skills/<requested-skill>/SKILL.md` or root `AGENTS.md` only when
   explicitly requested
 
 Never overwrite target application code, repository secrets, branch protection,

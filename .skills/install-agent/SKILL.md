@@ -24,7 +24,7 @@ Confirm these before editing:
   `AGENT_PAT`, or fallback workflow token
 - model provider secret plan: `OPENAI_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`, or both
 - whether to copy any `.skills/` directories; default is no
-- whether to copy root `AGENT.md`; default is no
+- whether to copy root `AGENTS.md`; default is no
 
 Stop if the target repo, branch, or source revision is ambiguous.
 
@@ -41,7 +41,7 @@ Install only this agent infrastructure:
   - existing target workflows, actions, prompts, scripts/functions, or other
     `.github` files preserved unless explicitly approved for replacement
 - optional `.skills/<requested-skill>/SKILL.md`, only with explicit approval
-- optional `AGENT.md`, only with explicit approval
+- optional `AGENTS.md`, only with explicit approval
 
 Do not install or overwrite target application source, repository secrets, branch
 protection, target-owned `.github` functionality, or the target root `README.md`
@@ -101,7 +101,7 @@ unless explicitly requested.
    - Preserve target-only `.github` files and replace existing `.github` files
      only when they are identical, clearly agent-owned, or explicitly approved.
    - Copy source prompt `.md` files without deleting target-only prompts.
-   - Copy requested `.skills/` directories and `AGENT.md` only when approved.
+   - Copy requested `.skills/` directories and `AGENTS.md` only when approved.
 
 5. Configure target repository guidance.
    - Do not commit secret values.
@@ -117,7 +117,7 @@ unless explicitly requested.
 6. Review and validate before commit.
    - Confirm the diff is limited to approved agent infrastructure:
      `git status --short`, `git diff --stat`, and
-     `git diff -- .agent .github .skills AGENT.md`.
+     `git diff -- .agent .github .skills AGENTS.md`.
    - Run whitespace/staged checks:
      `git diff --check`, then stage intended files, then
      `git diff --cached --check`.
@@ -130,7 +130,7 @@ unless explicitly requested.
 7. Commit, push, and open the PR.
    - Commit message: `chore: install Sepo agent infrastructure`.
    - Stage only intended files, typically `.agent .github`, plus approved
-     `.skills/<requested-skill>` and/or `AGENT.md`.
+     `.skills/<requested-skill>` and/or `AGENTS.md`.
    - PR body should start with summary, then **Required setup after merge**,
      then source revision, installed files, conflict audit,
      preserved/skipped files, validation results, and any source request link.

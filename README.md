@@ -1,116 +1,18 @@
-# sepo: self-evolving repository
+<p align="center">
+  <img src=".github/assets/sepo-headline.png" alt="Sepo — the self-evolving repo" width="575" />
+</p>
 
-Mention `@sepo-agent` on a GitHub issue, pull request, or discussion to answer questions, implement issues, review PRs, fix PR branches, or create durable scheduled agent workflows. Sepo runs inside GitHub Actions and keeps working context in repository-owned branches, so collaboration stays in GitHub instead of moving to a separate chat surface.
+<p align="center">
+  <a href="https://app.sepo.sh/new">Create a Sepo</a> &nbsp;|&nbsp;
+  <a href="https://sepo.sh/#tour">Quick guide</a> &nbsp;|&nbsp;
+  <a href="https://sepo.sh">Learn more</a> &nbsp;|&nbsp;
+  <a href="https://github.com/apps/sepo-agent-app/installations/select_target">Install the Sepo App</a>
+</p>
 
-Sepo turns a repository into a **self-evolving repository**: a codebase that can react to user requests, preserve agent-facing memory and user/team rubrics, and improve both application code and its own automation over time. For the concept behind that architecture, see [What is a self-evolving repository?](.agent/docs/overview/what-is-self-evolving-repo.md).
+---
 
-![Sepo overview](.agent/docs/assets/sepo-overview.png)
+The goal of a self-evolving repo (**Sepo**) is to make a workspace for **structured team–agent collaboration**, such that (1) it can streamline the coding work and session management, (2) the agent can grow and share the project memory / rubrics with you and the team, and (3) ultimately the agent will become the **"owner" of the repo** and can self-improve and evolve the code. Concretely:
 
-## Quick Start
-
-### Start from this template
-
-1. Create a new repository with **Use this template**.
-2. Install the [Sepo GitHub App](https://github.com/apps/sepo-agent-app/installations/select_target). For first-time setup, select only the repository you are setting up.
-3. Before onboarding, confirm the repository is ready:
-   - **Issues** are enabled in `Settings > General > Features > Issues`.
-   - **Actions** are enabled in `Settings > Actions > General`.
-   - The Sepo GitHub App is installed for this repository.
-   - At least one model-provider credential is configured under `Settings > Secrets and variables > Actions` as a repository secret: `OPENAI_API_KEY` for Codex-backed runs, or `CLAUDE_CODE_OAUTH_TOKEN` / `ANTHROPIC_API_KEY` for Claude-backed runs.
-4. Run `Agent / Onboarding / Check Setup` from GitHub Actions. It creates the built-in `agent/*` trigger labels if they are missing and opens or updates a `Sepo setup check` issue with configuration status and copyable test commands.
-5. Open an issue and mention `@sepo-agent` in the issue body or a comment. After a short delay, the workflow should add an eyes reaction and then post a response.
-
-### Install into an existing repository
-
-Check [Install into an existing repository](.agent/docs/setup/install-existing-repository.md) for the detailed guide.
-
-- **Public repositories:** the quickest path is to open the [Install Sepo into another repository](https://github.com/self-evolving/repo/issues/new?template=install-sepo.md) issue template in `self-evolving/repo` and paste the target URL.
-- **Private repositories:** run an agent locally, give it access to this source checkout and the private target repository, and ask it to use the `.skills/install-agent` skill so private access stays in your trusted environment.
-
-## What You Can Ask It To Do
-
-### In any GitHub text input (issues, PRs, discussions), ask the agent a question or run a task
-
-```python
-# Use a free-form mention when you want an answer or advice.
-# Change-shaped answers suggest a copyable command for the next step.
-@sepo-agent can you explain how review synthesis works?
-
-# Use an explicit slash route when you want Sepo to run an action.
-@sepo-agent /implement implement issue #2
-
-# Propose user/team rubric updates against agent/rubrics
-@sepo-agent /add-rubrics prefer small PRs for workflow changes
-
-# Invoke arbitrary skills
-@sepo-agent /skill <skill-name>
-
-# Public repo: open the "Install Sepo into another repository" issue form,
-# or ask for the install PR directly when Sepo can write to the repo
-@sepo-agent /install can you install Sepo into https://github.com/owner/repo?
-
-# Private repo: run a local/trusted agent session with the install-agent skill
-
-# Inside a PR
-@sepo-agent /review
-@sepo-agent /fix-pr
-@sepo-agent /orchestrate
-```
-
-> [!WARNING]
-> Only authorized repository users can trigger Sepo. By default, repositories allow `OWNER`, `MEMBER`, `COLLABORATOR`, and `CONTRIBUTOR` associations; public repositories can tighten this with `AGENT_ACCESS_POLICY`. See [Trigger access policy](.agent/docs/customization/access-policy.md) to customize that behavior.
-
-
-### You can also trigger the same built-in routes by adding `agent/*` labels to PRs
-
-For example, adding the `agent/review` label will run the review agent. The `Agent / Onboarding / Check Setup` workflow creates the built-in trigger labels on first run.
-
-### Live Progress and Cancel Control
-
-For direct `/implement` and `/fix-pr` runs on issues or pull requests, Sepo posts one live progress comment and edits it as the agent works. `/answer` runs on issues and pull requests show report-only progress by default. When the run finishes, Sepo updates that progress comment with the final response or status and keeps the activity log collapsed below it. Orchestrated chains use handoff and status comments by default; set `AGENT_PROGRESS_POLICY` with `orchestration_mode: "report-only"` to opt into non-cancellable progress comments for orchestrated runs. The original requester, repository owner, member, or collaborator can react 👎 on cancellable progress comments to stop the in-flight run.
-
-### Task Orchestration Route
-Use `@sepo-agent /orchestrate` (or `agent/orchestrate`) to run the orchestration route explicitly. It checks current target state, dispatches the right built-in action (`implement`, `review`, or `fix-pr`), and keeps that explicitly started chain moving through bounded follow-up handoffs until a stop condition is reached. Direct `/implement`, `/review`, and `/fix-pr` requests remain one-shot.
-
-### Tracking Workspace Memory and Rubrics
-Sepo persists long-lived context in `agent/memory` and preference rules in `agent/rubrics`, both as repository-owned branches. This lets later runs resume with durable project context and team-specific guidance.
-
-Use `@sepo-agent /add-rubrics` to propose add-or-update rubric changes in a draft PR targeting `agent/rubrics`.
-
-### Scheduled Jobs
-You can run Sepo on a schedule to handle recurring maintenance, triage, or monitoring tasks without a manual mention. For example, [`agent-daily-summary.yml`](.github/workflows/agent-daily-summary.yml) can publish a daily repository activity summary discussion when enabled, and [`agent-update.yml`](.github/workflows/agent-update.yml) checks near-biweekly for Sepo agent infrastructure updates from the latest stable release tag. The packaged daily summary cron is disabled by default, while manual dispatch remains available. Manual update runs can pass `source_ref` to test `main`, a branch, or a specific tag; if no release exists yet, the workflow falls back to `main` and records that in the run summary. If an update PR is already open, later runs update that PR instead of opening a duplicate. Set `AGENT_AUTO_UPDATE=false` to disable the scheduled update check, or set `AGENT_ENABLED=false` to pause all Sepo agent workflows. Scheduled workflows still route through the same policy and memory layers, so they behave consistently with on-demand runs.
-
-
-## How It Works
-
-Every trigger converges on `agent-router.yml`, which extracts GitHub context, applies access policy, and dispatches to a specialized route. A mention without a slash command goes directly to the answer route by default; when the answer identifies concrete follow-up work, it can suggest a copyable command without starting that action. Explicit slash commands and `agent/*` labels select action routes directly. Repositories that prefer model-backed route inference for uncommanded mentions can set `AGENT_TRIAGE_MODE=agent`. Agent sessions are persisted across runs with git refs and GitHub Actions artifacts, so a later mention can continue from prior context.
-
-Durable context lives in two repository-owned branches:
-
-- `agent/memory` mirrors GitHub artifacts and stores curated project context.
-- `agent/rubrics` stores user/team preferences that guide implementation and review.
-
-Orchestration runs through `agent-orchestrator.yml` as an explicit route. Follow-up automation starts only when requested, and only workflows launched with explicit orchestration context hand back to the orchestrator.
-
-## Learn More
-
-Getting started:
-
-- [Quick start](.agent/docs/overview/quick-start.md)
-- [Setup guide](.agent/docs/setup/setup-guide.md)
-- [Install into an existing repository](.agent/docs/setup/install-existing-repository.md)
-
-Understanding the system:
-
-- [Overall design](.agent/docs/architecture/overall-design.md)
-- [Supported workflows](.agent/docs/usage/supported-workflows.md)
-- [Agent actions](.agent/docs/usage/agent-actions.md)
-
-Customizing and operating:
-
-- [Repository skills](.agent/docs/customization/skills.md)
-- [Configuration list](.agent/docs/customization/configuration-list.md)
-- [Repository memory](.agent/docs/architecture/memory.md)
-- [User/team rubrics](.agent/docs/architecture/rubrics.md)
-
-See the [full documentation index](.agent/docs/index.md) for technical details, setup options, and the complete docs tree.
+1. **At the interaction level**, Sepo allows you to mention `@sepo-agent` anywhere on GitHub and it answers, implements, reviews, and fixes your code. Every exchange lands as structured work — issues, PRs, and comments you can reference, search, and share across team members.
+2. **Through the collaboration**, the agent grows with you: the agent memorizes project context, extracts your rubrics, and saves them in the [`agent/memory`](https://docs.sepo.sh/sepo/architecture/memory) and [`agent/rubrics`](https://docs.sepo.sh/sepo/architecture/rubrics) branches.
+3. **In the longer term**, Sepo can take over longer jobs, handle [project goals](https://docs.sepo.sh/sepo/architecture/goals), and self-improve.

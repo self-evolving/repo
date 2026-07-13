@@ -4,11 +4,7 @@
 
 ### Added
 
-- The portal now posts the initial 👀 reaction as its first step, before checkout and runtime setup, via a dependency-free, bounded REST call on issue/PR bodies and issue, PR, and review comments, with boundary-aware handle matching mirroring the runtime validator; a successful early reaction suppresses the later resolved-identity reaction. Discussions, PR review bodies, and edited events keep the post-setup path.
-
-### Fixed
-
-- Bot-sender events (such as Sepo's own progress-comment edits) and non-`agent/*` label events now run in throwaway concurrency groups, so they can no longer evict a queued human-triggered run — previously any such event could silently cancel a pending mention on the same issue. Human mentions now key concurrency on the triggering comment, so mentions in different comments run concurrently. Write routes gained non-lossy `queue: max` locks: `agent-fix-pr.yml` carries a job-level per-PR group covering the `workflow_call` path where workflow-level concurrency is not applied, the router's `skill` job serializes per source target now that entrypoint concurrency no longer provides that serialization, and `install` serializes repo-wide because different source issues can converge on the same external install target.
+- `setup-agent-runtime` now caches `.agent/node_modules` and `.agent/dist` with exact-key semantics by default (`cache_mode: full`; `off` restores the unconditional path). Caches save immediately after install/build — never at job end — key on OS/arch/Node/manifest/lockfile/source hashes, and a push-triggered seed workflow warms them on runtime changes so user-facing runs rarely pay the first miss.
 
 ### Changed
 
