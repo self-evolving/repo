@@ -15,7 +15,3 @@ The goal of a self-evolving repo (**Sepo**) is to make a workspace for **structu
 1. **At the interaction level**, Sepo allows you to mention `@sepo-agent` anywhere on GitHub and it answers, implements, reviews, and fixes your code. Every exchange lands as structured work — issues, PRs, and comments you can reference, search, and share across team members.
 2. **Through the collaboration**, the agent grows with you: the agent memorizes project context, extracts your rubrics, and saves them in the [`agent/memory`](https://docs.sepo.sh/sepo/architecture/memory) and [`agent/rubrics`](https://docs.sepo.sh/sepo/architecture/rubrics) branches.
 3. **In the longer term**, Sepo can take over longer jobs, handle [project goals](https://docs.sepo.sh/sepo/architecture/goals), and self-improve.
-
-## License
-
-Licensed under the [MIT License](LICENSE).
