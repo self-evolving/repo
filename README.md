@@ -3,9 +3,10 @@
 </p>
 
 <p align="center">
-  <a href="https://app.sepo.sh/new">Install Sepo</a> &nbsp;|&nbsp;
+  <a href="https://app.sepo.sh/new">Create a Sepo</a> &nbsp;|&nbsp;
   <a href="https://sepo.sh/#tour">Quick guide</a> &nbsp;|&nbsp;
-  <a href="https://sepo.sh">Learn more</a>
+  <a href="https://sepo.sh">Learn more</a> &nbsp;|&nbsp;
+  <a href="https://github.com/apps/sepo-agent-app/installations/select_target">Install the Sepo App</a>
 </p>
 
 ---
