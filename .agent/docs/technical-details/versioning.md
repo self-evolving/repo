@@ -6,7 +6,7 @@ Sepo uses SemVer for public version labels.
 
 `.agent/package.json` is the canonical Sepo package/runtime version.
 
-`.agent/CHANGELOG.md` is the canonical Sepo changelog.
+`.agent/CHANGELOG.md` is the canonical Sepo changelog. It is written at release time: the release flow drafts each version's section from the pull requests merged since the previous release tag. Pull requests do not add or maintain an `Unreleased` section; the pull request description is the per-change record. (The current `Unreleased` section predates this policy and will be absorbed into the next release.)
 
 ## Policy
 
