@@ -183,6 +183,16 @@ test("fast ack skips non-live and unsupported mentions without calling the API",
       payload: { action: "created", comment: { id: 209, body: `~~~\n\`\`\`\n${MENTION} hidden\n~~~\nno live mention` } },
     },
     {
+      name: "same-line backtick close and tilde open",
+      eventName: "issue_comment",
+      payload: { action: "created", comment: { id: 211, body: `\`\`\`\ncode\n\`\`\` ~~~\n${MENTION} hidden\n~~~\nno live mention` } },
+    },
+    {
+      name: "same-line tilde close and backtick open",
+      eventName: "issue_comment",
+      payload: { action: "created", comment: { id: 212, body: `~~~\ncode\n~~~ \`\`\`\n${MENTION} hidden\n\`\`\`\nno live mention` } },
+    },
+    {
       name: "discussion surface",
       eventName: "discussion",
       payload: { action: "created", discussion: { number: 3, body: `${MENTION} hi` } },

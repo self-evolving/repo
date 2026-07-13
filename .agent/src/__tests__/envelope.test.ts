@@ -2922,6 +2922,9 @@ test("noise events divert to throwaway concurrency groups", () => {
   assert.match(labelGroup, /github\.event\.sender\.type == 'Bot'/);
   assert.match(labelGroup, /startsWith\(github\.event\.label\.name, 'agent\/'\)/);
   assert.match(labelGroup, /agent-noise-/);
+  // Label runs must not share a group namespace with the entrypoint's
+  // comment-less events, whose single-pending replacement would evict them.
+  assert.match(labelGroup, /agent-label-/);
 
   // Accepted triggers queue rather than evict: a third overlapping request
   // must not silently replace the pending one.
@@ -3011,4 +3014,12 @@ test("portal fast acknowledgement runs before checkout and suppresses the late r
   const react = steps.find((step) => step.name === "React with eyes");
   assert.ok(react, "portal should keep the post-setup reaction step");
   assert.match(String(react.if), /steps\.fast_ack\.outputs\.reacted != 'true'/);
+
+  const implicitReact = steps.find((step) => step.name === "React with eyes (implicit answer)");
+  assert.ok(implicitReact, "portal should keep the implicit-answer reaction step");
+  assert.match(
+    String(implicitReact.if),
+    /steps\.fast_ack\.outputs\.reacted != 'true'/,
+    "a fast-ack false positive must not produce a second reaction identity",
+  );
 });
