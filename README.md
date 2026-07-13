@@ -3,21 +3,20 @@
 </p>
 
 <p align="center">
-  <a href="https://docs.sepo.sh/tutorials/">Quick start</a> &nbsp;|&nbsp;
-  <a href="https://docs.sepo.sh">Documentation</a> &nbsp;|&nbsp;
-  <a href="https://sepo.sh">Website</a> &nbsp;|&nbsp;
-  <a href="https://app.sepo.sh">Try Sepo</a>
+  <a href="https://app.sepo.sh/new">Install Sepo</a> &nbsp;|&nbsp;
+  <a href="https://sepo.sh/#tour">Quick guide</a> &nbsp;|&nbsp;
+  <a href="https://sepo.sh">Learn more</a>
 </p>
 
 ---
 
-**Sepo** turns a GitHub repository into a **self-evolving repository**: mention `@sepo-agent` in issues, PRs, and discussions, and agent work happens where your team already collaborates — traceable in PRs, guarded by review, and feeding repository-owned memory that improves the next run.
+The goal of a self-evolving repo is to make a workspace for structured team–agent collaboration, such that (1) it can streamline the coding work and session management, (2) the agent can share the project memory / rubrics with you and the team and grow, and (3) ultimately the agent will become the "owner" of the repo and can self-improve and evolve the code. Concretely:
 
-- **Work in place** — `@sepo-agent` answers questions, implements issues, reviews PRs, and fixes branches right from GitHub comments; runs execute in GitHub Actions with live progress and cancel control.
-- **The repo learns** — sessions persist on the `agent/memory` branch, and lessons from your discussions and reviews become `agent/rubrics` that steer future runs.
-- **Own the long horizon** — `/orchestrate` keeps bounded implement → review → fix loops moving until review passes, and scheduled jobs let the repo improve itself under your supervision.
+1. At the interaction level, Sepo allows you to mention `@sepo-agent` anywhere on GitHub and it answers, implements, reviews, and fixes your code. Every exchange lands as structured work — issues, PRs, and comments you can reference, search, and share across team members.
+2. Through the collaboration, the agent grows with you: the agent memorizes project context, extracts your rubrics, and saves them in the [`agent/memory`](https://docs.sepo.sh/sepo/architecture/memory) and [`agent/rubrics`](https://docs.sepo.sh/sepo/architecture/rubrics) branches.
+3. In the longer term, Sepo can take over longer jobs, handle [project goals](https://docs.sepo.sh/sepo/architecture/goals), and self-improve.
 
-**Get started →** create a repository with **Use this template** and install the [Sepo GitHub App](https://github.com/apps/sepo-agent-app/installations/select_target), then follow the [quick start](.agent/docs/overview/quick-start.md) — or [install Sepo into an existing repository](.agent/docs/setup/install-existing-repository.md).
+**Get started →** [install Sepo](https://app.sepo.sh/new) on a new or existing repository, then follow the [quick start](.agent/docs/overview/quick-start.md).
 
 The full documentation lives in [`.agent/docs`](.agent/docs/index.md) and is published at [docs.sepo.sh](https://docs.sepo.sh).
 
