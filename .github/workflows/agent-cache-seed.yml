@@ -12,7 +12,6 @@ name: Agent / Cache Seed
 
 on:
   push:
-    branches: [main]
     paths:
       - ".agent/**"
       - ".github/actions/setup-agent-runtime/**"
@@ -27,12 +26,21 @@ concurrency:
 
 jobs:
   seed:
-    if: vars.AGENT_ENABLED != 'false'
+    # Only the repository default branch may seed: the job gate covers both
+    # push events from other branches (runnerless skips) and manual
+    # dispatches selecting a non-default ref, and the checkout pins the
+    # default branch explicitly so the executed action code and the saved
+    # artifacts always come from the trusted default-branch tree.
+    if: >-
+      vars.AGENT_ENABLED != 'false' &&
+      github.ref_name == github.event.repository.default_branch
     runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
 
       - name: Warm runtime caches
         uses: ./.github/actions/setup-agent-runtime

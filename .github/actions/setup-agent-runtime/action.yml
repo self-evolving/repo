@@ -94,14 +94,15 @@ runs:
       if: ${{ inputs.cache_mode != 'off' }}
       id: keys
       shell: bash
-      env:
-        # Interpolating caller-supplied inputs directly into run: text is a
-        # script-injection surface; pass through env instead. runner.* and
-        # hashFiles() are runner-controlled context, safe to interpolate.
-        NODE_VERSION_INPUT: ${{ inputs.node_version }}
       run: |
-        echo "modules=sepo-runtime-modules-${{ runner.os }}-${{ runner.arch }}-node${NODE_VERSION_INPUT}-${{ hashFiles('.agent/package.json', '.agent/package-lock.json') }}" >> "$GITHUB_OUTPUT"
-        echo "dist=sepo-runtime-dist-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.agent/src/**', '.agent/tsconfig.json', '.agent/package.json', '.agent/package-lock.json') }}" >> "$GITHUB_OUTPUT"
+        # The resolved runtime version (not the requested selector) keys the
+        # modules cache: native addons are ABI-tied to what actually runs.
+        # Hashing the action file itself fingerprints the producer, so
+        # changes to how artifacts are built rotate the keys. No
+        # caller-supplied inputs are interpolated into this script.
+        resolved_node="$(node -p 'process.version')"
+        echo "modules=sepo-runtime-modules-${{ runner.os }}-${{ runner.arch }}-node${resolved_node}-${{ hashFiles('.agent/package.json', '.agent/package-lock.json', '.github/actions/setup-agent-runtime/action.yml') }}" >> "$GITHUB_OUTPUT"
+        echo "dist=sepo-runtime-dist-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.agent/src/**', '.agent/tsconfig.json', '.agent/package.json', '.agent/package-lock.json', '.github/actions/setup-agent-runtime/action.yml') }}" >> "$GITHUB_OUTPUT"
 
     # restore/save are split deliberately: the combined actions/cache action
     # saves in a post step at job completion, by which point write-capable
@@ -113,6 +114,10 @@ runs:
     - name: Restore runtime dependency cache
       if: ${{ inputs.cache_mode != 'off' }}
       id: cache_modules
+      # Best-effort: a failed restore leaves cache-hit unset, so the miss
+      # guards below fall through to the unconditional npm ci / build path
+      # instead of failing setup outright.
+      continue-on-error: true
       uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
       with:
         path: .agent/node_modules
@@ -121,6 +126,7 @@ runs:
     - name: Restore built runtime cache
       if: ${{ inputs.cache_mode == 'full' }}
       id: cache_dist
+      continue-on-error: true
       uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
       with:
         path: .agent/dist

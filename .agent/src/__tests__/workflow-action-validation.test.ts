@@ -118,16 +118,53 @@ test("setup-agent-runtime caching preserves the save-before-branch-switch trust 
     assert.match(String(step.if), /cache-hit != 'true'/, `${name} saves only on a miss`);
   }
 
+  // Restores must also be best-effort: a failed restore leaves cache-hit
+  // unset so the miss guards fall through to npm ci / build, rather than
+  // failing setup before the uncached fallback can run.
+  for (const name of ["Restore runtime dependency cache", "Restore built runtime cache"]) {
+    const step = stepList[indexOf(name)];
+    assert.equal(step["continue-on-error"], true, `${name} must not fail setup`);
+  }
+
   // Caller-supplied inputs must not be interpolated into run: text, and the
   // modules key must carry the Node version through env indirection.
   const keysStep = stepList[stepList.findIndex((step) => step.id === "keys")];
   assert.ok(isRecord(keysStep), "keys step should exist");
   const keysRun = String(keysStep.run);
   assert.doesNotMatch(keysRun, /\$\{\{\s*inputs\./, "no inputs interpolated into the keys script");
-  assert.match(keysRun, /node\$\{NODE_VERSION_INPUT\}/, "modules key embeds the Node version via env");
-  assert.ok(isRecord(keysStep.env), "keys step should pass inputs via env");
+  assert.match(keysRun, /process\.version/, "modules key uses the resolved Node runtime version");
+  assert.match(keysRun, /node\$\{resolved_node\}/, "modules key embeds the resolved Node version");
+  const producerHash = /hashFiles\([^)]*\.github\/actions\/setup-agent-runtime\/action\.yml/;
+  assert.match(keysRun, producerHash, "keys fingerprint the producing action");
   assert.equal(
-    String((keysStep.env as Record<string, unknown>).NODE_VERSION_INPUT),
-    "${{ inputs.node_version }}",
+    (keysRun.match(/\.github\/actions\/setup-agent-runtime\/action\.yml/g) || []).length,
+    2,
+    "both keys fingerprint the producing action",
   );
+});
+
+test("cache seed workflow only executes the trusted default branch", () => {
+  const workflow = readYaml(".github/workflows/agent-cache-seed.yml");
+  assert.ok(isRecord(workflow), "seed workflow should parse");
+  const on = (workflow as Record<string, unknown>).on;
+  assert.ok(isRecord(on) && isRecord(on.push), "seed workflow should trigger on push");
+  assert.equal(
+    (on.push as Record<string, unknown>).branches,
+    undefined,
+    "no static branch filter; the job gate enforces the default branch",
+  );
+  const jobs = (workflow as Record<string, unknown>).jobs;
+  assert.ok(isRecord(jobs) && isRecord(jobs.seed), "seed job should exist");
+  const seed = jobs.seed as Record<string, unknown>;
+  assert.match(
+    String(seed.if),
+    /github\.ref_name == github\.event\.repository\.default_branch/,
+    "seed job gates on the repository default branch",
+  );
+  const steps = seed.steps as Array<Record<string, unknown>>;
+  const checkout = steps.find((step) => typeof step.uses === "string" && step.uses.startsWith("actions/checkout"));
+  assert.ok(checkout && isRecord(checkout.with), "seed checkout should pin its ref");
+  const withBlock = checkout.with as Record<string, unknown>;
+  assert.equal(String(withBlock.ref), "${{ github.event.repository.default_branch }}");
+  assert.equal(withBlock["persist-credentials"], false);
 });

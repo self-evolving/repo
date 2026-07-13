@@ -119,7 +119,7 @@ Rubrics live on a separate `agent/rubrics` branch, governed by `AGENT_RUBRICS_PO
 
 ## Runtime dependencies
 
-The reusable workflows bootstrap the runtime in place by checking out the repository, running `.github/actions/setup-agent-runtime`, installing dependencies inside `.agent/`, building `.agent/dist/`, and optionally installing `codex` or `claude`.
+The reusable workflows bootstrap the runtime in place by checking out the repository and running `.github/actions/setup-agent-runtime`, which restores exact-key caches of `.agent/node_modules` and `.agent/dist` when available (default `cache_mode: full`, warmed by `agent-cache-seed.yml`), otherwise installs dependencies inside `.agent/` and builds `.agent/dist/`, and optionally installs `codex` or `claude`.
 
 Remaining runner requirements:
 
