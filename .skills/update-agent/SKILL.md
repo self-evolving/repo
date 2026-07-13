@@ -60,6 +60,9 @@ Update only installed agent infrastructure:
     `.github` files preserved unless explicitly approved for replacement
 - optional `.skills/<requested-skill>/SKILL.md`, only with explicit approval
 - optional `AGENTS.md`, only when agent-owned or explicitly approved
+  (`AGENTS.md` is the renamed successor of root `AGENT.md`; when an approved
+  guidance update applies to a target that still has `AGENT.md`, rename it
+  rather than adding a duplicate, and never leave both files)
 
 Do not update target application source, repository secrets, branch protection,
 memory/rubrics branch content, target-owned `.github` functionality, or the
