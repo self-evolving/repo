@@ -173,6 +173,16 @@ test("fast ack skips non-live and unsupported mentions without calling the API",
       payload: { action: "created", comment: { id: 207, body: `example: \`\`\`\n${MENTION} inside\n\`\`\`` } },
     },
     {
+      name: "tilde marker inside backtick fence",
+      eventName: "issue_comment",
+      payload: { action: "created", comment: { id: 208, body: `\`\`\`\n~~~\n${MENTION} hidden\n\`\`\`\nno live mention` } },
+    },
+    {
+      name: "backtick marker inside tilde fence",
+      eventName: "issue_comment",
+      payload: { action: "created", comment: { id: 209, body: `~~~\n\`\`\`\n${MENTION} hidden\n~~~\nno live mention` } },
+    },
+    {
       name: "discussion surface",
       eventName: "discussion",
       payload: { action: "created", discussion: { number: 3, body: `${MENTION} hi` } },
@@ -190,6 +200,20 @@ test("fast ack skips non-live and unsupported mentions without calling the API",
     assert.equal(outputs.reacted, "false", `${testCase.name} should not react`);
     assert.equal(curlArgs, "", `${testCase.name} should not call the API`);
   }
+});
+
+test("fast ack handles a maximum-size comment body", () => {
+  // 65,536 characters is GitHub's comment ceiling. An early match once made
+  // grep -q exit while the producer was still writing, and pipefail turned
+  // the SIGPIPE into a miss; the here-string form must not regress.
+  const body = `${MENTION} ` + "a".repeat(65536 - MENTION.length - 1);
+  const { curlArgs, outputs, result } = runFastAck({
+    eventName: "issue_comment",
+    payload: { action: "created", comment: { id: 210, body } },
+  });
+  assert.equal(result.status, 0, "maximum-size body should exit cleanly");
+  assert.equal(outputs.reacted, "true", "maximum-size body should still fast-ack");
+  assert.ok(curlArgs.includes("/issues/comments/210/reactions"));
 });
 
 test("fast ack reports reacted=false with a diagnostic when the API call fails", () => {

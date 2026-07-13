@@ -197,7 +197,13 @@ jobs:
             # list-nested fences cannot leak a false acknowledgement. Missed
             # fast acks fall back to the post-setup reaction path.
             live="$(printf '%s\n' "${text}" \
-              | awk '{ n = gsub(/```+|~~~+/, "") } n > 0 { if (n % 2 == 1) infence = !infence; next } !infence { print }' \
+              | awk '{ bt = gsub(/```+/, ""); td = gsub(/~~~+/, "") }
+                  inbt { if (bt % 2 == 1) inbt = 0; next }
+                  intd { if (td % 2 == 1) intd = 0; next }
+                  bt % 2 == 1 { inbt = 1; next }
+                  td % 2 == 1 { intd = 1; next }
+                  bt > 0 || td > 0 { next }
+                  { print }' \
               | sed -e 's/`[^`]*`//g' \
                     -e '/^[[:space:]]*>/d')"
             # Boundary-aware handle match, mirroring .agent/src/mentions.ts:
@@ -205,7 +211,7 @@ jobs:
             # terminator or end of line, so a handle with a trailing suffix
             # does not match.
             escaped="$(printf '%s' "${AGENT_HANDLE}" | sed 's/[][\.|$()*+?^{}]/\\&/g')"
-            if printf '%s\n' "${live}" | grep -qE "(^|[[:space:](])${escaped}([][:space:].,;:!?)}]|$)"; then
+            if grep -qE "(^|[[:space:](])${escaped}([][:space:].,;:!?)}]|$)" <<< "${live}"; then
               if response="$(curl -fsS --max-time 10 \
                 -X POST \
                 -H "Authorization: Bearer ${GH_TOKEN}" \

@@ -2917,10 +2917,22 @@ test("noise events divert to throwaway concurrency groups", () => {
 
   const label = parseYaml(readRepoFile(".github/workflows/agent-label.yml")) as Record<string, unknown>;
   assert.ok(isRecord(label) && isRecord(label.concurrency), "label workflow should define concurrency");
-  const labelGroup = String((label.concurrency as Record<string, unknown>).group);
+  const labelConcurrency = label.concurrency as Record<string, unknown>;
+  const labelGroup = String(labelConcurrency.group);
   assert.match(labelGroup, /github\.event\.sender\.type == 'Bot'/);
   assert.match(labelGroup, /startsWith\(github\.event\.label\.name, 'agent\/'\)/);
   assert.match(labelGroup, /agent-noise-/);
+
+  // Accepted triggers queue rather than evict: a third overlapping request
+  // must not silently replace the pending one.
+  assert.equal(labelConcurrency.queue, "max", "label requests queue non-lossily");
+  const orchestrator = parseYaml(readRepoFile(".github/workflows/agent-orchestrator.yml")) as Record<string, unknown>;
+  assert.ok(isRecord(orchestrator) && isRecord(orchestrator.concurrency), "orchestrator should define concurrency");
+  assert.equal(
+    (orchestrator.concurrency as Record<string, unknown>).queue,
+    "max",
+    "orchestrator requests queue non-lossily",
+  );
 });
 
 test("fix-pr carries a job-level per-PR lock distinct from the workflow-level group", () => {
