@@ -124,3 +124,4 @@
 - .agent/tools/local-runner supports macOS and Linux; LOCAL_RUNNER_ROOT relocates runner state across setup/start/stop/cleanup.
 - Test Scripts PR CI auto-runs only in self-evolving/repo; downstream repos set AGENT_TEST_SCRIPTS_ENABLED=true or dispatch manually.
 - Entrypoint mention prefilters inspect only active event text and reject bot senders before runner allocation; follow-ups stay separate.
+- Root guidance is AGENTS.md; approved updates rename legacy AGENT.md rather than leaving both. [[github/self-evolving/repo/pull-476.json]]
