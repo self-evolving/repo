@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- `setup-agent-runtime` now caches `.agent/node_modules` and `.agent/dist` with exact-key semantics by default (`cache_mode: full`; `off` restores the unconditional path). Caches save immediately after install/build — never at job end — key on OS/arch/Node/manifest/lockfile/source hashes, and a push-triggered seed workflow warms them on runtime changes so user-facing runs rarely pay the first miss.
+
 ### Changed
 
 - Mentions without a slash command now route directly to the inline answer path by default instead of running model-backed dispatch triage; change-shaped answers end with a copyable follow-up command (such as `/implement` or `/fix-pr`) that the user can send explicitly. Set `AGENT_TRIAGE_MODE=agent` to restore route inference for uncommanded mentions. Explicit slash routes, `agent/*` labels, access policy, and unmentioned follow-up gating are unaffected.

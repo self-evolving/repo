@@ -1,0 +1,48 @@
+name: Agent / Cache Seed
+
+# Warms the setup-agent-runtime caches from a trusted push-triggered path
+# whenever the runtime inputs change on the default branch. This guarantees
+# default-branch cache population regardless of what cache scope
+# low-trust-triggered runs are granted, and moves the first-run miss cost
+# (npm ci + build + save) off user-facing runs.
+#
+# Runs on the configured runner pool; caches are keyed per OS/arch/Node, so
+# repositories mixing runner types warm the pool this job runs on and let
+# other pools self-populate on their first post-change run.
+
+on:
+  push:
+    paths:
+      - ".agent/**"
+      - ".github/actions/setup-agent-runtime/**"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agent-cache-seed-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  seed:
+    # Only the repository default branch may seed: the job gate covers both
+    # push events from other branches (runnerless skips) and manual
+    # dispatches selecting a non-default ref, and the checkout pins the
+    # default branch explicitly so the executed action code and the saved
+    # artifacts always come from the trusted default-branch tree.
+    if: >-
+      vars.AGENT_ENABLED != 'false' &&
+      github.ref_name == github.event.repository.default_branch
+    runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Warm runtime caches
+        uses: ./.github/actions/setup-agent-runtime
+        with:
+          cache_mode: full
