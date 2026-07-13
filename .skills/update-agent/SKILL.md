@@ -19,7 +19,7 @@ Confirm these before editing:
   `self-evolving/repo` unless the user provides another source
 - update branch name, defaulting to `agent/update-agent-infra-<yyyymmdd>`
 - whether to update any `.skills/` directories; default is no
-- whether root `AGENT.md` is agent-owned and should be updated; default is no
+- whether root `AGENTS.md` is agent-owned and should be updated; default is no
 - whether obsolete/legacy agent files should be removed; default is no
 - whether post-merge workflows should be dispatched by you or only documented
 
@@ -28,7 +28,7 @@ request as that confirmation: the target repository is the current checkout or
 the explicit update target path named in the request,
 the workflow has already resolved `self-evolving/repo` to either the latest
 published stable release tag or an explicit manual `source_ref`, optional
-`.skills/` and `AGENT.md` updates default to no, obsolete-file removal defaults
+`.skills/` and `AGENTS.md` updates default to no, obsolete-file removal defaults
 to no, and post-merge workflows should be documented only unless the request
 explicitly says otherwise. If no release exists yet, the workflow falls back to
 `main` and includes that fallback in the run summary. The workflow skips before
@@ -59,7 +59,7 @@ Update only installed agent infrastructure:
   - existing target workflows, actions, prompts, scripts/functions, or other
     `.github` files preserved unless explicitly approved for replacement
 - optional `.skills/<requested-skill>/SKILL.md`, only with explicit approval
-- optional `AGENT.md`, only when agent-owned or explicitly approved
+- optional `AGENTS.md`, only when agent-owned or explicitly approved
 
 Do not update target application source, repository secrets, branch protection,
 memory/rubrics branch content, target-owned `.github` functionality, or the
@@ -73,7 +73,7 @@ target root `README.md` unless explicitly requested.
 - Never overwrite target customizations or remove target-only files without
   showing an audit and getting confirmation.
 - Preserve target-only `.github` files, target `.skills/`, target-only prompts,
-  and repo-owned `AGENT.md` by default.
+  and repo-owned `AGENTS.md` by default.
 - Do not use `rsync --delete` on `.github/`, `.github/prompts/`, or `.skills/`.
   `rsync --delete` is acceptable only inside `.agent/` after approval.
 - Do not copy generated or local-only files: `node_modules/`, `dist/`,
@@ -127,14 +127,14 @@ target root `README.md` unless explicitly requested.
      only when they are identical, clearly agent-owned, or explicitly approved.
    - Copy source prompt `.md` files without deleting target-only prompts;
      manually merge local prompt customizations if needed.
-   - Update requested `.skills/` directories and `AGENT.md` only when approved.
+   - Update requested `.skills/` directories and `AGENTS.md` only when approved.
    - Remove obsolete/legacy files only when explicitly approved, and list every
      removal in the PR body.
 
 5. Review and validate before commit.
    - Confirm the diff is limited to approved agent infrastructure:
      `git status --short`, `git diff --stat`, and
-     `git diff -- .agent .github .skills AGENT.md`.
+     `git diff -- .agent .github .skills AGENTS.md`.
    - Run whitespace/staged checks:
      `git diff --check`, then stage intended files, then
      `git diff --cached --check`.
@@ -149,7 +149,7 @@ target root `README.md` unless explicitly requested.
 6. Commit, push, and open the PR.
    - Commit message: `chore: update Sepo agent infrastructure`.
    - Stage only intended files, typically `.agent .github`, plus approved
-     `.skills/<requested-skill>` and/or `AGENT.md`.
+     `.skills/<requested-skill>` and/or `AGENTS.md`.
    - If the update produces no file changes, do not create a branch or PR;
      report that the target is already current.
    - If the request names an existing update PR, push updates to that PR's
