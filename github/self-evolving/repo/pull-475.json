@@ -46,8 +46,8 @@
       "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 73 | FAIL | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Keep privileged workflows on trusted runtime code | fail | 0/8 | The [seed workflow](https://github.com/self-evolving/repo/blob/12cccbdf46cf733fa7f2853fe507c047833e28d4/.github/workflows/agent-cache-seed.yml#L19-L38) permits `workflow_dispatch`, checks out without an explicit trusted ref, then executes a local action. |\n| coding_workflow / generic | Couple runtime-dependent defaults | partial | 5/8 | The [keys](https://github.com/self-evolving/repo/blob/12cccbdf46cf733fa7f2853fe507c047833e28d4/.github/actions/setup-agent-runtime/action.yml#L93-L104) hash runtime source, manifests, and lockfile, but not the setup action that defines how cached artifacts are produced. |\n| coding_workflow / generic | Prefer explicit structured inputs | partial | 5/7 | [`cache_mode`](https://github.com/self-evolving/repo/blob/12cccbdf46cf733fa7f2853fe507c047833e28d4/.github/actions/setup-agent-runtime/action.yml#L29-L42) is a clear single field, but invalid values silently behave as `modules` instead of failing validation. |\n| coding_workflow / generic | Keep docs in sync | partial | 4/7 | The [internal-action reference](https://github.com/self-evolving/repo/blob/12cccbdf46cf733fa7f2853fe507c047833e28d4/.agent/docs/usage/internal-actions.md#L9) and changelog were updated, but the [supported-workflows inventory](https://github.com/self-evolving/repo/blob/12cccbdf46cf733fa7f2853fe507c047833e28d4/.agent/docs/usage/supported-workflows.md#L8-L28) omits the new workflow and [key concepts](https://github.com/self-evolving/repo/blob/12cccbdf46cf733fa7f2853fe507c047833e28d4/.agent/docs/technical-details/key-concepts.md#L122) still describes unconditional installation/building. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The implementation extends the existing shared runtime action, uses the native SHA-pinned cache actions, and keeps the seed workflow thin. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | `full` covers the common case, while `modules` and `off` provide focused escape hatches through the repo-owned action. |\n| coding_workflow / generic | Name config by capability | pass | 6/6 | `cache_mode` names the general capability within `setup-agent-runtime`, rather than the seed workflow or one caller. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The five changed files are limited to the action, seed workflow, focused validation, documentation, and changelog. |\n\n## Notes\n\n- The score is 44/60, rounded to 73. The trusted-runtime failure is blocking despite the otherwise focused implementation.\n- The live Test Scripts check passed, and `npm run test:ci` passed locally at head `12cccbdf`. Current tests do not cover the manual-dispatch ref, cache-key coupling to the action, or invalid input handling.\n- The smallest required follow-up is to pin the seed checkout/local action to the repository default branch and add a regression assertion.\n\n## Findings\n\n- **BLOCKING — Keep privileged workflows on trusted runtime code:** A manual workflow can be launched against another branch, while `actions/checkout@v4` defaults to the event ref when `ref` is omitted. Consequently, the seed workflow can execute that branch’s local `setup-agent-runtime` action on the configured runner instead of enforcing its claimed trusted-default-branch boundary. Pin `ref: ${{ github.event.repository.default_branch }}`, disable persisted credentials, and test the invariant. [GitHub documents selectable manual-run branches](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow?tool=webui), and [checkout v4 documents its event-ref default](https://github.com/actions/checkout/blob/v4/README.md#usage).\n- **WARNING — Couple runtime-dependent defaults:** Changes under `.github/actions/setup-agent-runtime/**` trigger the seed, but neither cache key includes that action. Because cache entries are immutable, a behavior-changing action edit can trigger the workflow, hit the old key, and skip regeneration. Include the action hash or an explicitly tested cache-schema version in both keys. [GitHub cache reference](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching).\n- **WARNING — Prefer explicit structured inputs:** A typo such as `ful` silently selects modules-only behavior. Validate `off`, `modules`, and `full` before cache operations and fail with a clear message.\n- **WARNING — Keep docs in sync:** Add `agent-cache-seed.yml` to the canonical supported-workflows page and revise the runtime-bootstrap description to include cache restoration and skipped install/build steps.\n\n## Final Rubric Verdict\n\nFAIL\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-5`",
       "createdAt": "2026-07-12T19:10:24Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/475#issuecomment-4952410068",
       "viewerDidAuthor": true
@@ -61,10 +61,83 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 12cccbdf46cf733fa7f2853fe507c047833e28d4 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #475 enables exact-key caching of `.agent/node_modules` and `.agent/dist` by default to avoid repeated installs and TypeScript builds. It separates restore and save operations so artifacts are saved before write-capable callers can switch branches. It also adds a workflow intended to seed caches from the trusted default branch. Focused structural tests and internal-action documentation accompany the change.\n\n## Review\n\nThe immediate-save design and exact-hit fallback are sound. However, the unchanged head `12cccbdf` confirms two blocking availability/trust issues plus incomplete invalidation and documentation. Although reviewer verdicts ranged from `MINOR_ISSUES` to `FAIL`, current evidence supports `NEEDS_REWORK`.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Cache restore failures bypass the uncached fallback | BLOCKING | Both default-on restore steps lack `continue-on-error`; transport, archive, or extraction errors therefore stop setup before `npm ci` or the build can provide the intended fallback. |\n| Seed workflow does not enforce the repository default branch | BLOCKING | Pushes are restricted to literal `main`, while manual dispatch can checkout and execute its selected branch’s local action. This both misses non-`main` installations and violates the trusted-runtime boundary. |\n| Cache keys omit producer and resolved-runtime inputs | WARNING | Action-only producer changes can trigger seeding but restore immutable old artifacts because the action is not fingerprinted. The modules key also records the requested Node string rather than the resolved runtime or ABI. |\n| Canonical workflow documentation is incomplete | WARNING | The internal-action table and changelog were updated, but the supported-workflows inventory omits the seed workflow and key concepts still describes unconditional installation and building. |\n\n## Progress\n\n- Head `12cccbdf` remains unchanged, draft, cleanly mergeable, and its current Test Scripts check passes.\n- Immediate saves, SHA-pinned split cache actions, exact-hit gating, cache modes, source/manifests hashing, and environment-based input handling were validated.\n- Existing top-level rubric feedback already covers the trusted checkout, producer-key, strict-validation, and documentation concerns.\n- Posted inline feedback for [restore fallback](https://github.com/self-evolving/repo/pull/475#discussion_r3566946789) and [default-branch triggering](https://github.com/self-evolving/repo/pull/475#discussion_r3566946810). No replies, minimizations, or thread resolutions were performed.\n- Strict rejection of unknown `cache_mode` values is not required here: the current fallback to `modules` is explicitly documented, making validation a contract preference rather than a demonstrated regression.\n\n## Issue Details\n\n<details>\n<summary>Cache restore failures bypass the uncached fallback</summary>\n\n**Cause:** The [restore steps](https://github.com/self-evolving/repo/blob/12cccbdf46cf733fa7f2853fe507c047833e28d4/.github/actions/setup-agent-runtime/action.yml#L113-L127) are fatal, while only save steps are best-effort. The pinned restore action calls `core.setFailed` for exceptional failures, leaving cache-hit outputs unset but preventing later steps from running.\n\n**Candidate solutions:**\n\n- Add `continue-on-error: true` to both restore steps.\n- Extend the structural test to require best-effort restores and retain the existing miss guards.\n\n**Comments:** This issue was absent from the more positive review, but the pinned action source and current workflow conditions confirm the blocking behavior.\n\n</details>\n\n<details>\n<summary>Seed workflow does not enforce the repository default branch</summary>\n\n**Cause:** The [workflow](https://github.com/self-evolving/repo/blob/12cccbdf46cf733fa7f2853fe507c047833e28d4/.github/workflows/agent-cache-seed.yml#L13-L40) combines `branches: [main]` with an unpinned checkout. Manual dispatches therefore follow the selected event ref.\n\n**Candidate solutions:**\n\n- Remove the static push branch filter and gate the job with `github.ref_name == github.event.repository.default_branch`.\n- Checkout `github.event.repository.default_branch` explicitly with `persist-credentials: false`.\n- Add structural coverage for the trigger, job gate, and checkout invariants.\n\n**Comments:** One reviewer treated the hardcoded branch as a portability warning; the rubric review identified the separate manual-dispatch trust violation. Together they form one default-branch enforcement defect.\n\n</details>\n\n<details>\n<summary>Cache keys omit producer and resolved-runtime inputs</summary>\n\n**Cause:** The [keys](https://github.com/self-evolving/repo/blob/12cccbdf46cf733fa7f2853fe507c047833e28d4/.github/actions/setup-agent-runtime/action.yml#L93-L104) hash runtime artifacts but not the action that produces them. Dynamic Node selectors or differing self-hosted runtimes can also share a requested-version key.\n\n**Candidate solutions:**\n\n- Include the setup action hash or an explicitly maintained cache-schema version in both keys.\n- Add the resolved Node version or module ABI to the modules key.\n- Test both invalidation inputs.\n\n**Comments:** The positive review correctly established that source/build inputs are complete, but that does not cover producer-action or resolved-runtime changes.\n\n</details>\n\n<details>\n<summary>Canonical workflow documentation is incomplete</summary>\n\n**Cause:** [`supported-workflows.md`](https://github.com/self-evolving/repo/blob/12cccbdf46cf733fa7f2853fe507c047833e28d4/.agent/docs/usage/supported-workflows.md#L9-L28) lacks the new workflow, while [`key-concepts.md`](https://github.com/self-evolving/repo/blob/12cccbdf46cf733fa7f2853fe507c047833e28d4/.agent/docs/technical-details/key-concepts.md#L120-L123) still implies every run installs and builds.\n\n**Candidate solutions:**\n\n- Add `agent-cache-seed.yml`, its triggers, and trusted-cache purpose to the workflow inventory.\n- Update runtime dependencies to explain exact cache restoration and miss-based installation/building.\n\n**Comments:** Reviewers rated this from no issue to WARNING; the current canonical pages confirm both omissions.\n\n</details>\n\n## Recommended Next Step\n\n`FIX_PR`: The blockers and related cache/documentation guardrails are concrete, localized branch changes suitable for an automated fix pass.\n\n## Final Verdict\n\n`NEEDS_REWORK`\n\n## Action Items\n\n- [ ] Make both cache restores best-effort and add regression coverage.\n- [ ] Enforce the actual default branch for seed triggers, manual runs, and checkout; disable persisted checkout credentials.\n- [ ] Couple cache keys to their producer action and resolved Node runtime/ABI, with tests.\n- [ ] Update the supported-workflows inventory and runtime-dependency documentation.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-1`",
       "createdAt": "2026-07-12T19:18:36Z",
       "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/475#issuecomment-4952435389",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJ0HmZw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "All four synthesis findings addressed in 1336d7c:\n\n- [x] **Restore fallback (blocking)** — both restores are `continue-on-error: true`; failures leave `cache-hit` unset and fall through to `npm ci`/build. Test-pinned.\n- [x] **Default-branch seeding (blocking)** — job gate on `github.ref_name == github.event.repository.default_branch` replaces the literal `main` filter; checkout pinned to the default branch with `persist-credentials: false`. Test-pinned.\n- [x] **Producer + resolved-runtime keys** — both keys now hash the setup action file itself (producer fingerprint), and the modules key embeds the *resolved* `node -p process.version` rather than the requested selector. Note: this rotates all existing keys once, and the seed workflow absorbs that miss.\n- [x] **Docs** — `agent-cache-seed.yml` added to the supported-workflows inventory; key-concepts now describes the restore-first bootstrap instead of unconditional install/build.\n\nLanes: workflow 89/89, docs 5/5.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)",
+      "createdAt": "2026-07-13T01:16:39Z",
+      "includesCreatedEdit": false,
       "isMinimized": false,
       "minimizedReason": "",
       "reactionGroups": [],
-      "url": "https://github.com/self-evolving/repo/pull/475#issuecomment-4952435389",
+      "url": "https://github.com/self-evolving/repo/pull/475#issuecomment-4953597543",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJ0J7XQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review ",
+      "createdAt": "2026-07-13T01:27:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/475#issuecomment-4953635677",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJ0LybQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 97 | PARTIAL | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Keep privileged workflows on trusted runtime code | pass | 8/8 | The [seed job](https://github.com/self-evolving/repo/blob/1336d7c8af1717bc81d9db729c1865f2caa26a64/.github/workflows/agent-cache-seed.yml#L27-L48) gates on the actual default branch, explicitly checks it out, disables persisted credentials, and runs the local action from that tree. |\n| coding_workflow / generic | Couple runtime-dependent defaults | pass | 8/8 | Both [exact cache keys](https://github.com/self-evolving/repo/blob/1336d7c8af1717bc81d9db729c1865f2caa26a64/.github/actions/setup-agent-runtime/action.yml#L93-L105) fingerprint their producing action; the modules key also uses the resolved Node version. Cache behavior remains bundled with reviewed runtime code. |\n| coding_workflow / generic | Prefer explicit structured inputs | partial | 5/7 | [`cache_mode`](https://github.com/self-evolving/repo/blob/1336d7c8af1717bc81d9db729c1865f2caa26a64/.github/actions/setup-agent-runtime/action.yml#L29-L42) is one clearly documented enum-like field, but unsupported values silently select modules-only behavior rather than failing validation. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The change updates the [internal-action contract](https://github.com/self-evolving/repo/blob/1336d7c8af1717bc81d9db729c1865f2caa26a64/.agent/docs/usage/internal-actions.md#L7-L10), [workflow inventory](https://github.com/self-evolving/repo/blob/1336d7c8af1717bc81d9db729c1865f2caa26a64/.agent/docs/usage/supported-workflows.md#L25-L29), runtime [key concepts](https://github.com/self-evolving/repo/blob/1336d7c8af1717bc81d9db729c1865f2caa26a64/.agent/docs/technical-details/key-concepts.md#L120-L123), and changelog. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Caching is centralized in the existing shared runtime action, uses SHA-pinned native cache restore/save actions, and leaves the seed workflow as a thin caller. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | `full` supplies the common default, while `modules` and `off` provide focused escape hatches without introducing repository-level duplicate controls. |\n| coding_workflow / generic | Name config by capability | pass | 6/6 | `cache_mode` names the runtime-caching capability rather than a particular workflow or runner implementation. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The seven changed files are limited to the shared action, seed workflow, focused validation, canonical documentation, and changelog. |\n\n## Notes\n\n- The score is 58/60, rounded to 97. The current head fixes the earlier trusted-checkout, producer-key, restore-fallback, and documentation findings.\n- Current-head CI passed runtime tests, workflow/action checks, docs checks, shell checks, and diff hygiene in the [Test Scripts run](https://github.com/self-evolving/repo/actions/runs/29217075086).\n- The smallest useful follow-up is strict validation of `cache_mode` before cache operations.\n\n## Findings\n\n- **WARNING — Prefer explicit structured inputs:** A typo such as `ful` currently behaves as `modules`, silently disabling the built-runtime cache. Validate the accepted `off`, `modules`, and `full` values with a clear error and add a focused regression assertion.\n\n## Final Rubric Verdict\n\nPARTIAL\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-2`",
+      "createdAt": "2026-07-13T01:35:07Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/475#issuecomment-4953666157",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABJ0NErg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 1336d7c8af1717bc81d9db729c1865f2caa26a64 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #475 enables exact-key caching of `.agent/node_modules` and `.agent/dist` by default to reduce repeated installation and build time. It separates cache restore/save operations, saves artifacts before callers can mutate the workspace, and adds a trusted default-branch seed workflow. Current head `1336d7c` fixes the earlier restore-fallback, trusted-checkout, cache-key, and documentation findings. Focused structural tests protect those trust and fallback invariants.\n\n## Review\n\nThe implementation is substantially ready, but one availability issue remains in the seed workflow’s concurrency handling. The other reviewer concerns are optional efficiency and contract-hardening improvements.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Seed concurrency is shared across refs | WARNING | Non-default branch runs use the same workflow-level concurrency group and can cancel an active default-branch seed before their own job skips, potentially leaving new cache keys cold. |\n| Unknown cache_mode values select modules-only | INFO | Unsupported values are documented to fall back to modules-only caching, but a typo silently disables the built-runtime cache instead of failing validation. |\n| Module cache key over-rotates on Node patch updates | INFO | The modules key uses the full Node version rather than its ABI, so compatible patch updates rotate the cache without automatically triggering the seed workflow. |\n\n## Progress\n\n- Both restore operations are now best-effort and correctly fall through to installation/building.\n- The seed job gates on and checks out the actual default branch with persisted credentials disabled.\n- Cache keys now fingerprint the producer action and resolved Node runtime; canonical documentation is updated.\n- The current `check` job passes. The seed job skipped for this PR event, so current-head validation remains structural, though the author reports prior live miss/save/hit verification.\n- Posted inline feedback for the [seed concurrency issue](https://github.com/self-evolving/repo/pull/475#discussion_r3567593638).\n- No replies, minimizations, or thread resolutions were performed. Earlier fixed threads are not viewer-resolvable and contain human replies.\n\n## Issue Details\n\n<details>\n<summary>Seed concurrency is shared across refs</summary>\n\n**Cause:** The [workflow-level concurrency group](https://github.com/self-evolving/repo/blob/1336d7c8af1717bc81d9db729c1865f2caa26a64/.github/workflows/agent-cache-seed.yml#L24-L26) excludes the triggering ref while branch filtering happens at the job condition. GitHub documents that `cancel-in-progress: true` cancels a running workflow in the same group and recommends ref-scoped groups for branch isolation in its [concurrency guidance](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency).\n\n**Candidate solutions:** Include `github.ref` in the group, move concurrency to the gated `seed` job, or disable in-progress cancellation. Add a regression assertion for the chosen invariant.\n\n**Comments:** Only the Codex reviewer identified this issue, but the current workflow and documented concurrency behavior independently confirm it. This affects cache availability rather than runtime trust or correctness.\n\n</details>\n\n<details>\n<summary>Unknown cache_mode values select modules-only</summary>\n\n**Cause:** Conditions treat every value other than `off` or `full` like `modules`, as the input description explicitly documents.\n\n**Candidate solutions:** Validate `off`, `modules`, and `full` before cache operations and add a focused invalid-input test.\n\n**Comments:** The rubrics reviewer rated this WARNING while Claude rated it INFO. This synthesis uses INFO because the documented fallback remains correct and only reduces caching performance.\n\n</details>\n\n<details>\n<summary>Module cache key over-rotates on Node patch updates</summary>\n\n**Cause:** The key embeds `process.version`, while the stated native-addon compatibility concern is tied primarily to `process.versions.modules`. Runner Node updates also do not trigger the seed workflow by themselves.\n\n**Candidate solutions:** Use the Node module ABI in the key if patch-level isolation is unnecessary, or retain the conservative full-version key and accept occasional cold dependency caches.\n\n**Comments:** The current behavior is safe and intentionally conservative; this is an optional efficiency improvement.\n\n</details>\n\n## Recommended Next Step\n\n`FIX_PR`: The concurrency issue is a concrete, localized workflow and regression-test change suitable for an automated fix pass.\n\n## Final Verdict\n\n`MINOR_ISSUES`\n\n## Action Items\n\n- [ ] Prevent non-default-ref runs from canceling an active default-branch seed, and add regression coverage for the chosen concurrency invariant.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-4`",
+      "createdAt": "2026-07-13T01:40:22Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/475#issuecomment-4953687214",
       "viewerDidAuthor": true
     }
   ],
@@ -77,26 +150,38 @@
       "changeType": "MODIFIED"
     },
     {
+      "path": ".agent/docs/technical-details/key-concepts.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
       "path": ".agent/docs/usage/internal-actions.md",
       "additions": 1,
       "deletions": 1,
       "changeType": "MODIFIED"
     },
     {
+      "path": ".agent/docs/usage/supported-workflows.md",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
       "path": ".agent/src/__tests__/workflow-action-validation.test.ts",
-      "additions": 63,
+      "additions": 100,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
       "path": ".github/actions/setup-agent-runtime/action.yml",
-      "additions": 68,
+      "additions": 74,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
       "path": ".github/workflows/agent-cache-seed.yml",
-      "additions": 40,
+      "additions": 48,
       "deletions": 0,
       "changeType": "ADDED"
     }
@@ -143,10 +228,55 @@
       "commit": {
         "oid": "12cccbdf46cf733fa7f2853fe507c047833e28d4"
       }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABFwVXTg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "",
+      "submittedAt": "2026-07-13T01:16:37Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "1336d7c8af1717bc81d9db729c1865f2caa26a64"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABFwVXeA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "",
+      "submittedAt": "2026-07-13T01:16:38Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "1336d7c8af1717bc81d9db729c1865f2caa26a64"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABFwYX6g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-07-13T01:39:24Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "1336d7c8af1717bc81d9db729c1865f2caa26a64"
+      }
     }
   ],
   "state": "OPEN",
   "title": "Cache runtime setup by default (cache_mode) with a trusted seed workflow",
-  "updatedAt": "2026-07-12T19:18:36Z",
+  "updatedAt": "2026-07-13T01:40:22Z",
   "url": "https://github.com/self-evolving/repo/pull/475"
 }
