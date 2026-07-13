@@ -134,6 +134,18 @@ test("setup-agent-runtime caching preserves the save-before-branch-switch trust 
   assert.doesNotMatch(keysRun, /\$\{\{\s*inputs\./, "no inputs interpolated into the keys script");
   assert.match(keysRun, /process\.versions\.modules/, "modules key uses the resolved Node ABI");
   assert.match(keysRun, /nodeabi\$\{resolved_node_abi\}/, "modules key embeds the resolved Node ABI");
+  // hashFiles aggregates content digests without paths, so a
+  // content-preserving rename would keep the key while tsc emits different
+  // output paths. The dist source fingerprint must be the path-sensitive
+  // git tree ID instead.
+  assert.match(keysRun, /git rev-parse HEAD:\.agent\/src/, "dist key fingerprints src via git tree ID");
+  assert.match(keysRun, /src\$\{src_tree\}/, "dist key embeds the src tree ID");
+  assert.doesNotMatch(keysRun, /\.agent\/src\/\*\*/, "dist key must not rely on path-blind hashFiles for src");
+
+  const validate = stepList[indexOf("Validate cache mode")];
+  assert.match(String(validate.if), /!= 'off'.*!= 'modules'.*!= 'full'/s, "validation rejects unknown modes");
+  assert.ok(isRecord(validate.env), "validation reads the input via env");
+  assert.match(String(validate.run), /exit 1/, "validation fails setup on unknown modes");
   const producerHash = /hashFiles\([^)]*\.github\/actions\/setup-agent-runtime\/action\.yml/;
   assert.match(keysRun, producerHash, "keys fingerprint the producing action");
   assert.equal(

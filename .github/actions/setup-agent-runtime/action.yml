@@ -35,9 +35,9 @@ inputs:
       tsconfig, and manifest hashes and skips the TypeScript build on an
       exact hit. Exact-key hits only — any source, manifest, or lockfile
       change (including script-only package.json edits) falls back to the
-      uncached path. Only "off", "modules", and "full" are recognized;
-      unrecognized values behave like "modules". Defaults to "full"; set
-      "off" to restore the unconditional npm ci + build path.
+      uncached path. Only "off", "modules", and "full" are accepted;
+      any other value fails setup with a clear error. Defaults to "full";
+      set "off" to restore the unconditional npm ci + build path.
     required: false
     default: "full"
 
@@ -90,6 +90,15 @@ runs:
         echo "$HOME/.local/bin" >> "$GITHUB_PATH"
         echo "NODE_PATH=$GITHUB_WORKSPACE/.agent/node_modules${NODE_PATH:+:$NODE_PATH}" >> "$GITHUB_ENV"
 
+    - name: Validate cache mode
+      if: ${{ inputs.cache_mode != 'off' && inputs.cache_mode != 'modules' && inputs.cache_mode != 'full' }}
+      shell: bash
+      env:
+        CACHE_MODE_INPUT: ${{ inputs.cache_mode }}
+      run: |
+        echo "::error title=Invalid cache_mode::cache_mode must be one of: off, modules, full; got '${CACHE_MODE_INPUT}'."
+        exit 1
+
     - name: Compute runtime cache keys
       if: ${{ inputs.cache_mode != 'off' }}
       id: keys
@@ -100,10 +109,15 @@ runs:
         # what actually runs, and ABI-compatible patch updates should keep
         # the cache warm. Hashing the action file itself fingerprints the
         # producer, so changes to how artifacts are built rotate the keys.
-        # No caller-supplied inputs are interpolated into this script.
+        # The dist source fingerprint is the git tree ID of .agent/src —
+        # unlike hashFiles, tree IDs encode file paths, so a
+        # content-preserving rename rotates the key instead of serving a
+        # dist compiled for the old paths. No caller-supplied inputs are
+        # interpolated into this script.
         resolved_node_abi="$(node -p 'process.versions.modules')"
+        src_tree="$(git rev-parse HEAD:.agent/src)"
         echo "modules=sepo-runtime-modules-${{ runner.os }}-${{ runner.arch }}-nodeabi${resolved_node_abi}-${{ hashFiles('.agent/package.json', '.agent/package-lock.json', '.github/actions/setup-agent-runtime/action.yml') }}" >> "$GITHUB_OUTPUT"
-        echo "dist=sepo-runtime-dist-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.agent/src/**', '.agent/tsconfig.json', '.agent/package.json', '.agent/package-lock.json', '.github/actions/setup-agent-runtime/action.yml') }}" >> "$GITHUB_OUTPUT"
+        echo "dist=sepo-runtime-dist-${{ runner.os }}-${{ runner.arch }}-src${src_tree}-${{ hashFiles('.agent/tsconfig.json', '.agent/package.json', '.agent/package-lock.json', '.github/actions/setup-agent-runtime/action.yml') }}" >> "$GITHUB_OUTPUT"
 
     # restore/save are split deliberately: the combined actions/cache action
     # saves in a post step at job completion, by which point write-capable
@@ -119,7 +133,7 @@ runs:
       # guards below fall through to the unconditional npm ci / build path
       # instead of failing setup outright.
       continue-on-error: true
-      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: .agent/node_modules
         key: ${{ steps.keys.outputs.modules }}
@@ -128,7 +142,7 @@ runs:
       if: ${{ inputs.cache_mode == 'full' }}
       id: cache_dist
       continue-on-error: true
-      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: .agent/dist
         key: ${{ steps.keys.outputs.dist }}
@@ -142,7 +156,7 @@ runs:
     - name: Save runtime dependency cache
       if: ${{ inputs.cache_mode != 'off' && steps.cache_modules.outputs.cache-hit != 'true' }}
       continue-on-error: true
-      uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: .agent/node_modules
         key: ${{ steps.keys.outputs.modules }}
@@ -156,7 +170,7 @@ runs:
     - name: Save built runtime cache
       if: ${{ inputs.cache_mode == 'full' && steps.cache_dist.outputs.cache-hit != 'true' }}
       continue-on-error: true
-      uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: .agent/dist
         key: ${{ steps.keys.outputs.dist }}
