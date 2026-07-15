@@ -169,45 +169,17 @@ jobs:
           model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
           required: "false"
 
-      - name: Resolve answer provider
-        id: answer_provider
-        if: >-
-          (inputs.followup_intent_mode || vars.AGENT_FOLLOWUP_INTENT_MODE || 'agent-label') != 'disabled' &&
-          (inputs.followup_intent_mode || vars.AGENT_FOLLOWUP_INTENT_MODE || 'agent-label') != 'false' &&
-          github.event.sender.type != 'Bot' &&
-          (
-            (
-              github.event_name == 'issue_comment' &&
-              github.event.action == 'created' &&
-              contains(github.event.issue.labels.*.name, 'agent')
-            ) ||
-            (
-              github.event_name == 'pull_request_review_comment' &&
-              github.event.action == 'created' &&
-              contains(github.event.pull_request.labels.*.name, 'agent')
-            ) ||
-            (
-              github.event_name == 'pull_request_review' &&
-              github.event.action == 'submitted' &&
-              contains(github.event.pull_request.labels.*.name, 'agent')
-            )
-          )
-        uses: ./.github/actions/resolve-agent-provider
-        with:
-          route: answer
-          default_provider: ${{ vars.AGENT_DEFAULT_PROVIDER || inputs.default_agent || 'auto' }}
-          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
-          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
-          required: "false"
-
+      # Ordering invariant: nothing heavier than the restored runtime may
+      # precede the first user-visible reaction. Provider CLIs are installed
+      # by dedicated steps immediately before the portal steps that actually
+      # run a model; on the default answer-first path none fire, so the
+      # portal never downloads a CLI at all.
       - name: Setup agent runtime
         id: runtime
         uses: ./.github/actions/setup-agent-runtime
         with:
-          install_codex: ${{ (steps.provider.outputs.install_codex == 'true' || steps.answer_provider.outputs.install_codex == 'true') && 'true' || 'false' }}
-          install_claude: ${{ (steps.provider.outputs.install_claude == 'true' || steps.answer_provider.outputs.install_claude == 'true') && 'true' || 'false' }}
+          install_codex: "false"
+          install_claude: "false"
 
       - name: Extract context
         id: context
@@ -315,6 +287,16 @@ jobs:
           ROUTE: ${{ steps.context.outputs.implicit_followup == 'true' && 'answer' || 'dispatch' }}
         run: node .agent/dist/cli/resolve-task-timeout.js
 
+      - name: Install dispatch triage CLI
+        if: >-
+          steps.context.outputs.should_respond == 'true' &&
+          steps.context.outputs.requested_route == '' &&
+          steps.context.outputs.implicit_followup != 'true'
+        uses: ./.github/actions/install-agent-cli
+        with:
+          install_codex: ${{ steps.dispatch_provider.outputs.install_codex }}
+          install_claude: ${{ steps.dispatch_provider.outputs.install_claude }}
+
       - name: Run dispatch triage
         if: >-
           steps.context.outputs.should_respond == 'true' &&
@@ -348,6 +330,16 @@ jobs:
           target_url: ${{ steps.context.outputs.target_url }}
           reasoning_effort: ${{ steps.dispatch_provider.outputs.reasoning_effort || 'medium' }}
           workflow: agent-router.yml
+
+      - name: Install follow-up intent CLI
+        if: >-
+          steps.context.outputs.should_respond == 'true' &&
+          steps.context.outputs.implicit_followup == 'true' &&
+          steps.followup_authorization.outputs.route == 'answer'
+        uses: ./.github/actions/install-agent-cli
+        with:
+          install_codex: ${{ steps.followup_provider.outputs.install_codex }}
+          install_claude: ${{ steps.followup_provider.outputs.install_claude }}
 
       - name: Run follow-up intent gate
         if: >-
@@ -387,6 +379,17 @@ jobs:
           target_url: ${{ steps.context.outputs.target_url }}
           reasoning_effort: ${{ steps.followup_provider.outputs.reasoning_effort || 'medium' }}
           workflow: agent-router.yml
+
+      - name: Install implement metadata CLI
+        if: >-
+          steps.context.outputs.should_respond == 'true' &&
+          steps.explicit_dispatch.outputs.route == 'implement' &&
+          steps.context.outputs.target_kind != 'issue' &&
+          steps.provider.outputs.provider != ''
+        uses: ./.github/actions/install-agent-cli
+        with:
+          install_codex: ${{ steps.provider.outputs.install_codex }}
+          install_claude: ${{ steps.provider.outputs.install_claude }}
 
       - name: Generate implement issue metadata
         if: >-

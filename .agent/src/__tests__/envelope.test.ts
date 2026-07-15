@@ -1245,17 +1245,14 @@ test("agent router preauthorizes implicit follow-up answer gates", () => {
     /github\.event_name == 'pull_request_review' &&[\s\S]*github\.event\.action == 'submitted' &&[\s\S]*contains\(github\.event\.pull_request\.labels\.\*\.name, 'agent'\)/,
   );
 
-  const answerProviderIndex = runnerWorkflow.indexOf("- name: Resolve answer provider");
   const setupIndex = runnerWorkflow.indexOf("- name: Setup agent runtime");
-  assert.ok(answerProviderIndex > 0, "portal should resolve the answer provider before setup");
-  assert.ok(setupIndex > answerProviderIndex, "runtime setup should see answer provider install flags");
-  assert.match(
-    runnerWorkflow,
-    /install_codex:\s*\$\{\{\s*\(steps\.provider\.outputs\.install_codex == 'true' \|\| steps\.answer_provider\.outputs\.install_codex == 'true'\) && 'true' \|\| 'false'\s*\}\}/,
-  );
-  assert.match(
-    runnerWorkflow,
-    /install_claude:\s*\$\{\{\s*\(steps\.provider\.outputs\.install_claude == 'true' \|\| steps\.answer_provider\.outputs\.install_claude == 'true'\) && 'true' \|\| 'false'\s*\}\}/,
+  // Portal setup installs no CLI: the follow-up gate's provider CLI is
+  // installed by a dedicated step gated with the gate itself, after the
+  // reaction (see "portal defers provider CLI installation").
+  assert.equal(
+    runnerWorkflow.slice(0, setupIndex).indexOf("- name: Resolve answer provider"),
+    -1,
+    "the portal's early answer-provider resolution existed only to feed setup install flags; the answer job keeps its own",
   );
 
   const authIndex = runnerWorkflow.indexOf("- name: Authorize implicit follow-up answer");
@@ -2902,4 +2899,55 @@ test("memory and rubric guidance live in dedicated conditional prompt fragments"
   assert.match(runSource, /RUBRICS_PROMPT_PATH = "\.github\/prompts\/_rubrics\.md"/);
   assert.match(runSource, /vars\.RUBRICS_AVAILABLE === "true"/);
   assert.match(runSource, /base \+ memory \+ rubrics \+ template/);
+});
+
+test("portal defers provider CLI installation until after the reaction", () => {
+  const workflow = parseYaml(readRepoFile(".github/workflows/agent-router.yml")) as Record<string, unknown>;
+  assert.ok(isRecord(workflow) && isRecord(workflow.jobs), "router should define jobs");
+  const portal = (workflow.jobs as Record<string, unknown>).portal;
+  assert.ok(isRecord(portal) && Array.isArray(portal.steps), "portal should define steps");
+  const steps = portal.steps as Array<Record<string, unknown>>;
+  const indexOf = (name: string): number => {
+    const index = steps.findIndex((step) => step.name === name);
+    assert.ok(index >= 0, `portal step "${name}" should exist`);
+    return index;
+  };
+
+  // The setup call must not install any CLI: the reaction depends only on
+  // the restored runtime, and the default answer-first path never runs a
+  // model inside the portal.
+  const setup = steps.find(
+    (step) => typeof step.uses === "string" && step.uses.includes("setup-agent-runtime"),
+  );
+  assert.ok(setup && isRecord(setup.with), "portal should call setup-agent-runtime");
+  const setupWith = setup.with as Record<string, unknown>;
+  assert.equal(String(setupWith.install_codex), "false");
+  assert.equal(String(setupWith.install_claude), "false");
+
+  // No CLI-installing step (composite or inline) may precede the reaction.
+  const reactIndex = indexOf("React with eyes");
+  steps.forEach((step, index) => {
+    const usesInstaller = typeof step.uses === "string" && step.uses.includes("install-agent-cli");
+    const inlineInstaller = typeof step.run === "string" && /claude\.ai\/install\.sh|npm install -g "?\$?\{?pkg/.test(String(step.run));
+    if (usesInstaller || inlineInstaller) {
+      assert.ok(index > reactIndex, `CLI install at step ${index} must come after the reaction`);
+    }
+  });
+
+  // Each portal step that runs a model is immediately preceded by its own
+  // gated CLI install.
+  for (const [installName, modelName] of [
+    ["Install dispatch triage CLI", "Run dispatch triage"],
+    ["Install follow-up intent CLI", "Run follow-up intent gate"],
+    ["Install implement metadata CLI", "Generate implement issue metadata"],
+  ] as const) {
+    const installIndex = indexOf(installName);
+    assert.equal(installIndex, indexOf(modelName) - 1, `${installName} immediately precedes ${modelName}`);
+    const install = steps[installIndex];
+    assert.ok(
+      typeof install.uses === "string" && install.uses.includes("install-agent-cli"),
+      `${installName} uses the install-agent-cli composite`,
+    );
+    assert.equal(String(install.if), String(steps[installIndex + 1].if), `${installName} shares its model step's gate`);
+  }
 });

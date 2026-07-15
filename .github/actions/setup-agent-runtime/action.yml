@@ -190,40 +190,10 @@ runs:
           exit 1
         fi
 
-    - name: Install Codex CLI
-      if: ${{ inputs.install_codex == 'true' }}
-      shell: bash
-      env:
-        CODEX_VERSION: ${{ inputs.codex_version }}
-      run: |
-        if command -v codex >/dev/null 2>&1; then
-          echo "Codex CLI already available."
-          exit 0
-        fi
-
-        pkg="@openai/codex"
-        if [ -n "$CODEX_VERSION" ]; then
-          pkg="$pkg@$CODEX_VERSION"
-        fi
-
-        npm install -g "$pkg"
-        echo "$(npm prefix -g)/bin" >> "$GITHUB_PATH"
-
-    - name: Install Claude CLI
-      if: ${{ inputs.install_claude == 'true' }}
-      shell: bash
-      env:
-        CLAUDE_VERSION: ${{ inputs.claude_version }}
-      run: |
-        if command -v claude >/dev/null 2>&1; then
-          echo "Claude CLI already available."
-          exit 0
-        fi
-
-        if [ -n "$CLAUDE_VERSION" ]; then
-          curl -fsSL https://claude.ai/install.sh | bash -s -- "$CLAUDE_VERSION"
-        else
-          curl -fsSL https://claude.ai/install.sh | bash
-        fi
-
-        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+    - name: Install agent CLIs
+      uses: ./.github/actions/install-agent-cli
+      with:
+        install_codex: ${{ inputs.install_codex }}
+        codex_version: ${{ inputs.codex_version }}
+        install_claude: ${{ inputs.install_claude }}
+        claude_version: ${{ inputs.claude_version }}

@@ -38,6 +38,27 @@ test("workflow and action YAML files parse as objects", () => {
   }
 });
 
+test("setup-agent-runtime delegates CLI installation to install-agent-cli", () => {
+  const action = readYaml(".github/actions/setup-agent-runtime/action.yml");
+  assert.ok(isRecord(action) && isRecord(action.runs), "action should define runs");
+  const steps = (action.runs as Record<string, unknown>).steps as Array<Record<string, unknown>>;
+  assert.ok(
+    steps.some((step) => typeof step.uses === "string" && step.uses.includes("install-agent-cli")),
+    "setup should call the install-agent-cli composite",
+  );
+  for (const step of steps) {
+    if (typeof step.run === "string") {
+      assert.doesNotMatch(String(step.run), /claude\.ai\/install\.sh/, "no inline CLI install remains in setup");
+    }
+  }
+
+  const installer = readYaml(".github/actions/install-agent-cli/action.yml");
+  assert.ok(isRecord(installer) && isRecord(installer.inputs), "installer should define inputs");
+  for (const name of ["install_codex", "codex_version", "install_claude", "claude_version"]) {
+    assert.ok(isRecord((installer.inputs as Record<string, unknown>)[name]), `installer input ${name} exists`);
+  }
+});
+
 test("workflow steps that allow gh commands define GH_TOKEN", () => {
   const failures: string[] = [];
 

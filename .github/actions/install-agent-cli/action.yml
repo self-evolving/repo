@@ -1,0 +1,66 @@
+name: Install Agent CLI
+description: |
+  Installs the Codex and/or Claude CLIs when missing. Split out of
+  setup-agent-runtime so callers can defer the download until immediately
+  before a step that actually runs a model: the portal's ordering invariant
+  is that nothing heavier than the restored runtime may precede the first
+  user-visible reaction.
+
+inputs:
+  install_codex:
+    description: Whether to install the Codex CLI when missing.
+    required: false
+    default: "false"
+  codex_version:
+    description: Optional @openai/codex version to install when the CLI is missing.
+    required: false
+    default: ""
+  install_claude:
+    description: Whether to install the Claude CLI when missing.
+    required: false
+    default: "false"
+  claude_version:
+    description: Optional Claude Code version to install when the CLI is missing.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Install Codex CLI
+      if: ${{ inputs.install_codex == 'true' }}
+      shell: bash
+      env:
+        CODEX_VERSION: ${{ inputs.codex_version }}
+      run: |
+        if command -v codex >/dev/null 2>&1; then
+          echo "Codex CLI already available."
+          exit 0
+        fi
+
+        pkg="@openai/codex"
+        if [ -n "$CODEX_VERSION" ]; then
+          pkg="$pkg@$CODEX_VERSION"
+        fi
+
+        npm install -g "$pkg"
+        echo "$(npm prefix -g)/bin" >> "$GITHUB_PATH"
+
+    - name: Install Claude CLI
+      if: ${{ inputs.install_claude == 'true' }}
+      shell: bash
+      env:
+        CLAUDE_VERSION: ${{ inputs.claude_version }}
+      run: |
+        if command -v claude >/dev/null 2>&1; then
+          echo "Claude CLI already available."
+          exit 0
+        fi
+
+        if [ -n "$CLAUDE_VERSION" ]; then
+          curl -fsSL https://claude.ai/install.sh | bash -s -- "$CLAUDE_VERSION"
+        else
+          curl -fsSL https://claude.ai/install.sh | bash
+        fi
+
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
