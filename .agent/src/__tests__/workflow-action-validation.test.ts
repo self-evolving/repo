@@ -224,8 +224,23 @@ test("standalone CLI caching follows the runtime cache discipline", () => {
   const keysRun = String(keys.run);
   assert.doesNotMatch(keysRun, /\$\{\{\s*inputs\./, "no inputs interpolated into the CLI keys script");
   assert.match(keysRun, /%G-%V/, "unpinned CLI keys rotate on an ISO-week bucket");
-  assert.match(keysRun, /latest-\$\{week\}/, "unpinned CLI keys carry the week bucket");
+  // Mutable channels (empty, latest, stable) all weekly-bucket; anything
+  // else is treated as an exact pin.
+  assert.match(keysRun, /""\|latest\|stable\)/, "empty, latest, and stable share the mutable-channel case");
+  assert.match(keysRun, /latest\}-\$\{week\}/, "mutable channels carry the week bucket");
+  // Installer-resolved platform partitions the key beyond runner.os/arch.
+  assert.match(keysRun, /uname -m/, "key uses the native machine architecture");
+  assert.match(keysRun, /musl/, "key distinguishes musl from glibc");
+  assert.match(keysRun, /proc_translated/, "key distinguishes Rosetta translation");
+  assert.match(keysRun, /claude_key=sepo-cli-claude-\$\{platform\}-\$\{channel\}/, "key composes platform and channel");
   assert.ok(isRecord(keys.env), "CLI keys step reads inputs via env");
+
+  const installProbe = steps[indexOf("Install Claude CLI")];
+  assert.match(
+    String(installProbe.run),
+    /--version >\/dev\/null/,
+    "restored binaries are probed by execution, not just executability",
+  );
   for (const compatibilityInput of [
     ".github/actions/setup-agent-runtime/action.yml",
     ".agent/package-lock.json",
