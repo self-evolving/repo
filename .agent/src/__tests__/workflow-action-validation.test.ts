@@ -187,3 +187,44 @@ test("cache seed workflow only executes the trusted default branch", () => {
   assert.equal(String(withBlock.ref), "${{ github.event.repository.default_branch }}");
   assert.equal(withBlock["persist-credentials"], false);
 });
+
+test("CLI binaries get the same cache discipline as the runtime", () => {
+  const action = readYaml(".github/actions/setup-agent-runtime/action.yml");
+  assert.ok(isRecord(action) && isRecord(action.runs), "action should define runs");
+  const steps = (action.runs as Record<string, unknown>).steps as Array<Record<string, unknown>>;
+  const indexOf = (name: string): number => {
+    const index = steps.findIndex((step) => step.name === name);
+    assert.ok(index >= 0, `step "${name}" should exist`);
+    return index;
+  };
+
+  // Key computation: env-indirected inputs, weekly bucket for unpinned
+  // versions so a stale "latest" cannot outlive its week.
+  const keys = steps[indexOf("Resolve CLI cache keys")];
+  const keysRun = String(keys.run);
+  assert.doesNotMatch(keysRun, /\$\{\{\s*inputs\./, "no inputs interpolated into the CLI keys script");
+  assert.match(keysRun, /%G-%V/, "unpinned CLI keys rotate on an ISO-week bucket");
+  assert.match(keysRun, /latest-\$\{week\}/, "unpinned CLI keys carry the week bucket");
+  assert.ok(isRecord(keys.env), "CLI keys step reads inputs via env");
+
+  // Restores are best-effort and skipped entirely when the CLI is already
+  // present (self-hosted runners with preinstalled CLIs).
+  for (const name of ["Restore Codex CLI cache", "Restore Claude CLI cache"]) {
+    const step = steps[indexOf(name)];
+    assert.equal(step["continue-on-error"], true, `${name} must not fail setup`);
+    assert.match(String(step.if), /need_(codex|claude) == 'true'/, `${name} is gated on the CLI being missing`);
+  }
+
+  // Saves are miss-gated, best-effort, and immediate: each save directly
+  // follows its install step so nothing is archived at job end.
+  for (const [saveName, installName] of [
+    ["Save Codex CLI cache", "Install Codex CLI"],
+    ["Save Claude CLI cache", "Install Claude CLI"],
+  ] as const) {
+    const saveIndex = indexOf(saveName);
+    assert.equal(saveIndex, indexOf(installName) + 1, `${saveName} immediately follows ${installName}`);
+    const step = steps[saveIndex];
+    assert.equal(step["continue-on-error"], true, `${saveName} stays best-effort`);
+    assert.match(String(step.if), /cache-hit != 'true'/, `${saveName} saves only on a miss`);
+  }
+});

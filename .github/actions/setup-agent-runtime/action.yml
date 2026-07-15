@@ -190,6 +190,60 @@ runs:
           exit 1
         fi
 
+    # CLI binaries get the same exact-key cache treatment as the runtime:
+    # best-effort restores, immediate miss-gated saves, never a post-job
+    # save. Unpinned ("latest") installs key on an ISO-week bucket, so a
+    # repo re-downloads a fresh CLI at most once a week per pool instead of
+    # on every job; pinned versions key exactly. Preinstalled CLIs
+    # (self-hosted runners) skip the cache entirely via the need_* checks.
+    - name: Resolve CLI cache keys
+      if: ${{ inputs.cache_mode != 'off' && (inputs.install_codex == 'true' || inputs.install_claude == 'true') }}
+      id: cli
+      shell: bash
+      env:
+        INSTALL_CODEX: ${{ inputs.install_codex }}
+        INSTALL_CLAUDE: ${{ inputs.install_claude }}
+        CODEX_VERSION: ${{ inputs.codex_version }}
+        CLAUDE_VERSION: ${{ inputs.claude_version }}
+      run: |
+        week="$(date -u +%G-%V)"
+        need_codex=false
+        need_claude=false
+        if [ "${INSTALL_CODEX}" = "true" ] && ! command -v codex >/dev/null 2>&1; then
+          need_codex=true
+        fi
+        if [ "${INSTALL_CLAUDE}" = "true" ] && ! command -v claude >/dev/null 2>&1; then
+          need_claude=true
+        fi
+        npm_prefix="$(npm prefix -g)"
+        {
+          echo "need_codex=${need_codex}"
+          echo "need_claude=${need_claude}"
+          echo "codex_key=sepo-cli-codex-${{ runner.os }}-${{ runner.arch }}-${CODEX_VERSION:-latest-${week}}"
+          echo "claude_key=sepo-cli-claude-${{ runner.os }}-${{ runner.arch }}-${CLAUDE_VERSION:-latest-${week}}"
+          echo "codex_paths=${npm_prefix}/lib/node_modules/@openai/codex"$'\n'"${npm_prefix}/bin/codex"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Restore Codex CLI cache
+      if: ${{ steps.cli.outputs.need_codex == 'true' }}
+      id: cli_codex
+      continue-on-error: true
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ steps.cli.outputs.codex_paths }}
+        key: ${{ steps.cli.outputs.codex_key }}
+
+    - name: Restore Claude CLI cache
+      if: ${{ steps.cli.outputs.need_claude == 'true' }}
+      id: cli_claude
+      continue-on-error: true
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ~/.local/bin/claude
+          ~/.local/share/claude
+        key: ${{ steps.cli.outputs.claude_key }}
+
     - name: Install Codex CLI
       if: ${{ inputs.install_codex == 'true' }}
       shell: bash
@@ -200,6 +254,11 @@ runs:
           echo "Codex CLI already available."
           exit 0
         fi
+        echo "$(npm prefix -g)/bin" >> "$GITHUB_PATH"
+        if [ -x "$(npm prefix -g)/bin/codex" ]; then
+          echo "Codex CLI restored from cache."
+          exit 0
+        fi
 
         pkg="@openai/codex"
         if [ -n "$CODEX_VERSION" ]; then
@@ -207,7 +266,14 @@ runs:
         fi
 
         npm install -g "$pkg"
-        echo "$(npm prefix -g)/bin" >> "$GITHUB_PATH"
+
+    - name: Save Codex CLI cache
+      if: ${{ steps.cli.outputs.need_codex == 'true' && steps.cli_codex.outputs.cache-hit != 'true' }}
+      continue-on-error: true
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ steps.cli.outputs.codex_paths }}
+        key: ${{ steps.cli.outputs.codex_key }}
 
     - name: Install Claude CLI
       if: ${{ inputs.install_claude == 'true' }}
@@ -215,7 +281,8 @@ runs:
       env:
         CLAUDE_VERSION: ${{ inputs.claude_version }}
       run: |
-        if command -v claude >/dev/null 2>&1; then
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+        if command -v claude >/dev/null 2>&1 || [ -x "$HOME/.local/bin/claude" ]; then
           echo "Claude CLI already available."
           exit 0
         fi
@@ -226,4 +293,12 @@ runs:
           curl -fsSL https://claude.ai/install.sh | bash
         fi
 
-        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+    - name: Save Claude CLI cache
+      if: ${{ steps.cli.outputs.need_claude == 'true' && steps.cli_claude.outputs.cache-hit != 'true' }}
+      continue-on-error: true
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ~/.local/bin/claude
+          ~/.local/share/claude
+        key: ${{ steps.cli.outputs.claude_key }}
