@@ -188,7 +188,7 @@ test("cache seed workflow only executes the trusted default branch", () => {
   assert.equal(withBlock["persist-credentials"], false);
 });
 
-test("CLI binaries get the same cache discipline as the runtime", () => {
+test("standalone CLI caching follows the runtime cache discipline", () => {
   const action = readYaml(".github/actions/setup-agent-runtime/action.yml");
   assert.ok(isRecord(action) && isRecord(action.runs), "action should define runs");
   const steps = (action.runs as Record<string, unknown>).steps as Array<Record<string, unknown>>;
@@ -198,33 +198,65 @@ test("CLI binaries get the same cache discipline as the runtime", () => {
     return index;
   };
 
-  // Key computation: env-indirected inputs, weekly bucket for unpinned
-  // versions so a stale "latest" cannot outlive its week.
-  const keys = steps[indexOf("Resolve CLI cache keys")];
+  // Codex is already supplied by codex-acp inside the cached runtime
+  // dependencies, so it must not get an unreachable duplicate global cache.
+  const packageLock = JSON.parse(readFileSync(path.join(repoRoot, ".agent/package-lock.json"), "utf8")) as unknown;
+  assert.ok(isRecord(packageLock) && isRecord(packageLock.packages), "package lock should list packages");
+  const codexAcp = packageLock.packages["node_modules/@agentclientprotocol/codex-acp"];
+  assert.ok(isRecord(codexAcp) && isRecord(codexAcp.dependencies), "codex-acp dependencies should be locked");
+  assert.ok(Object.hasOwn(codexAcp.dependencies, "@openai/codex"), "codex-acp should supply the Codex CLI");
+  const runtimeBins = steps[indexOf("Add runtime tool bins to PATH")];
+  assert.match(String(runtimeBins.run), /\.agent\/node_modules\/\.bin/, "the bundled Codex CLI is added to PATH");
+  assert.ok(
+    indexOf("Save runtime dependency cache") < indexOf("Install Codex CLI"),
+    "the cached bundled Codex CLI is available before the fallback installer",
+  );
+  assert.equal(
+    steps.some((step) => step.name === "Restore Codex CLI cache" || step.name === "Save Codex CLI cache"),
+    false,
+    "Codex must not have a duplicate global cache",
+  );
+
+  // Key computation uses env-indirected inputs and a weekly bucket for an
+  // unpinned Claude install. The producing action, adapter lock state, and
+  // model defaults all rotate the compatibility fingerprint.
+  const keys = steps[indexOf("Resolve Claude CLI cache key")];
   const keysRun = String(keys.run);
   assert.doesNotMatch(keysRun, /\$\{\{\s*inputs\./, "no inputs interpolated into the CLI keys script");
   assert.match(keysRun, /%G-%V/, "unpinned CLI keys rotate on an ISO-week bucket");
   assert.match(keysRun, /latest-\$\{week\}/, "unpinned CLI keys carry the week bucket");
   assert.ok(isRecord(keys.env), "CLI keys step reads inputs via env");
-
-  // Restores are best-effort and skipped entirely when the CLI is already
-  // present (self-hosted runners with preinstalled CLIs).
-  for (const name of ["Restore Codex CLI cache", "Restore Claude CLI cache"]) {
-    const step = steps[indexOf(name)];
-    assert.equal(step["continue-on-error"], true, `${name} must not fail setup`);
-    assert.match(String(step.if), /need_(codex|claude) == 'true'/, `${name} is gated on the CLI being missing`);
+  for (const compatibilityInput of [
+    ".github/actions/setup-agent-runtime/action.yml",
+    ".agent/package-lock.json",
+    ".agent/model-defaults.json",
+  ]) {
+    assert.ok(keysRun.includes(`'${compatibilityInput}'`), `CLI key fingerprints ${compatibilityInput}`);
   }
 
-  // Saves are miss-gated, best-effort, and immediate: each save directly
-  // follows its install step so nothing is archived at job end.
-  for (const [saveName, installName] of [
-    ["Save Codex CLI cache", "Install Codex CLI"],
-    ["Save Claude CLI cache", "Install Claude CLI"],
-  ] as const) {
-    const saveIndex = indexOf(saveName);
-    assert.equal(saveIndex, indexOf(installName) + 1, `${saveName} immediately follows ${installName}`);
-    const step = steps[saveIndex];
-    assert.equal(step["continue-on-error"], true, `${saveName} stays best-effort`);
-    assert.match(String(step.if), /cache-hit != 'true'/, `${saveName} saves only on a miss`);
+  // Every redirected output write is a complete NAME=VALUE line. This
+  // rejects shell concatenation that expands a value across physical lines,
+  // which GitHub's output-file parser treats as an invalid bare second line.
+  const outputWrites = keysRun
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("echo "));
+  assert.ok(outputWrites.length > 0, "CLI key step should emit outputs");
+  for (const outputWrite of outputWrites) {
+    assert.match(outputWrite, /^echo "[a-z][a-z0-9_]*=[^"]*"$/, `unsupported GitHub output write: ${outputWrite}`);
   }
+
+  // Restore is best-effort and skipped when Claude is already present on a
+  // self-hosted runner.
+  const restore = steps[indexOf("Restore Claude CLI cache")];
+  assert.equal(restore["continue-on-error"], true, "Claude restore must not fail setup");
+  assert.match(String(restore.if), /need_claude == 'true'/, "Claude restore is gated on the CLI being missing");
+
+  // Save is miss-gated, best-effort, and immediate so nothing is archived at
+  // job end after a caller can switch branches.
+  const saveIndex = indexOf("Save Claude CLI cache");
+  assert.equal(saveIndex, indexOf("Install Claude CLI") + 1, "Claude save immediately follows installation");
+  const save = steps[saveIndex];
+  assert.equal(save["continue-on-error"], true, "Claude save stays best-effort");
+  assert.match(String(save.if), /cache-hit != 'true'/, "Claude save runs only on a miss");
 });

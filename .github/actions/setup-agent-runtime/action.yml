@@ -28,16 +28,19 @@ inputs:
     default: ""
   cache_mode:
     description: >-
-      Runtime setup caching: "off" preserves today's unconditional
-      npm ci + build; "modules" restores .agent/node_modules keyed by the
-      manifest and lockfile hashes and skips npm ci on an exact hit;
-      "full" additionally restores .agent/dist keyed by the source tree,
-      tsconfig, and manifest hashes and skips the TypeScript build on an
-      exact hit. Exact-key hits only — any source, manifest, or lockfile
-      change (including script-only package.json edits) falls back to the
-      uncached path. Only "off", "modules", and "full" are accepted;
-      any other value fails setup with a clear error. Defaults to "full";
-      set "off" to restore the unconditional npm ci + build path.
+      Runtime and CLI caching: "off" preserves today's unconditional npm ci
+      + build and disables CLI restore/save; "modules" restores
+      .agent/node_modules keyed by the manifest and lockfile hashes and skips
+      npm ci on an exact hit; "full" additionally restores .agent/dist keyed
+      by the source tree, tsconfig, and manifest hashes and skips the
+      TypeScript build on an exact hit. Both cached modes also restore/save a
+      missing Claude CLI, keyed exactly when pinned and by ISO week when
+      unpinned. Codex is supplied by the locked runtime dependencies and is
+      covered by the modules cache instead of a duplicate global cache.
+      Exact-key hits only — relevant source, manifest, lockfile, action, or
+      model-default changes fall back to the uncached path. Only "off",
+      "modules", and "full" are accepted; any other value fails setup with a
+      clear error. Defaults to "full".
     required: false
     default: "full"
 
@@ -190,48 +193,31 @@ runs:
           exit 1
         fi
 
-    # CLI binaries get the same exact-key cache treatment as the runtime:
-    # best-effort restores, immediate miss-gated saves, never a post-job
-    # save. Unpinned ("latest") installs key on an ISO-week bucket, so a
-    # repo re-downloads a fresh CLI at most once a week per pool instead of
-    # on every job; pinned versions key exactly. Preinstalled CLIs
-    # (self-hosted runners) skip the cache entirely via the need_* checks.
-    - name: Resolve CLI cache keys
-      if: ${{ inputs.cache_mode != 'off' && (inputs.install_codex == 'true' || inputs.install_claude == 'true') }}
+    # A missing standalone Claude CLI gets the same exact-key cache treatment
+    # as the runtime: best-effort restore, immediate miss-gated save, never a
+    # post-job save. Unpinned ("latest") installs key on an ISO-week bucket;
+    # pinned versions key exactly. The producer action, adapter lock state,
+    # and bundled model defaults form a reviewed compatibility fingerprint.
+    # Preinstalled CLIs (self-hosted runners) skip the cache entirely.
+    # Codex already arrives through codex-acp in .agent/node_modules, so the
+    # runtime dependency cache owns it rather than an unreachable second cache.
+    - name: Resolve Claude CLI cache key
+      if: ${{ inputs.cache_mode != 'off' && inputs.install_claude == 'true' }}
       id: cli
       shell: bash
       env:
-        INSTALL_CODEX: ${{ inputs.install_codex }}
         INSTALL_CLAUDE: ${{ inputs.install_claude }}
-        CODEX_VERSION: ${{ inputs.codex_version }}
         CLAUDE_VERSION: ${{ inputs.claude_version }}
       run: |
         week="$(date -u +%G-%V)"
-        need_codex=false
         need_claude=false
-        if [ "${INSTALL_CODEX}" = "true" ] && ! command -v codex >/dev/null 2>&1; then
-          need_codex=true
-        fi
         if [ "${INSTALL_CLAUDE}" = "true" ] && ! command -v claude >/dev/null 2>&1; then
           need_claude=true
         fi
-        npm_prefix="$(npm prefix -g)"
         {
-          echo "need_codex=${need_codex}"
           echo "need_claude=${need_claude}"
-          echo "codex_key=sepo-cli-codex-${{ runner.os }}-${{ runner.arch }}-${CODEX_VERSION:-latest-${week}}"
-          echo "claude_key=sepo-cli-claude-${{ runner.os }}-${{ runner.arch }}-${CLAUDE_VERSION:-latest-${week}}"
-          echo "codex_paths=${npm_prefix}/lib/node_modules/@openai/codex"$'\n'"${npm_prefix}/bin/codex"
+          echo "claude_key=sepo-cli-claude-${{ runner.os }}-${{ runner.arch }}-${CLAUDE_VERSION:-latest-${week}}-${{ hashFiles('.github/actions/setup-agent-runtime/action.yml', '.agent/package-lock.json', '.agent/model-defaults.json') }}"
         } >> "$GITHUB_OUTPUT"
-
-    - name: Restore Codex CLI cache
-      if: ${{ steps.cli.outputs.need_codex == 'true' }}
-      id: cli_codex
-      continue-on-error: true
-      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-      with:
-        path: ${{ steps.cli.outputs.codex_paths }}
-        key: ${{ steps.cli.outputs.codex_key }}
 
     - name: Restore Claude CLI cache
       if: ${{ steps.cli.outputs.need_claude == 'true' }}
@@ -254,11 +240,6 @@ runs:
           echo "Codex CLI already available."
           exit 0
         fi
-        echo "$(npm prefix -g)/bin" >> "$GITHUB_PATH"
-        if [ -x "$(npm prefix -g)/bin/codex" ]; then
-          echo "Codex CLI restored from cache."
-          exit 0
-        fi
 
         pkg="@openai/codex"
         if [ -n "$CODEX_VERSION" ]; then
@@ -266,14 +247,7 @@ runs:
         fi
 
         npm install -g "$pkg"
-
-    - name: Save Codex CLI cache
-      if: ${{ steps.cli.outputs.need_codex == 'true' && steps.cli_codex.outputs.cache-hit != 'true' }}
-      continue-on-error: true
-      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-      with:
-        path: ${{ steps.cli.outputs.codex_paths }}
-        key: ${{ steps.cli.outputs.codex_key }}
+        echo "$(npm prefix -g)/bin" >> "$GITHUB_PATH"
 
     - name: Install Claude CLI
       if: ${{ inputs.install_claude == 'true' }}
