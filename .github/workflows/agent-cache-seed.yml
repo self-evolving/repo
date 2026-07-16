@@ -42,7 +42,11 @@ jobs:
           ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
 
-      - name: Warm runtime caches
+      - name: Warm runtime and Claude CLI caches
         uses: ./.github/actions/setup-agent-runtime
         with:
           cache_mode: full
+          # Also warm the Claude CLI cache: on hosted pools this absorbs the
+          # weekly and rotation-driven downloads; on self-hosted pools with a
+          # preinstalled CLI the need check makes it a no-op.
+          install_claude: "true"

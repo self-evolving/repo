@@ -195,9 +195,11 @@ runs:
 
     # A missing standalone Claude CLI gets the same exact-key cache treatment
     # as the runtime: best-effort restore, immediate miss-gated save, never a
-    # post-job save. Unpinned ("latest") installs key on an ISO-week bucket;
-    # pinned versions key exactly. The producer action, adapter lock state,
-    # and bundled model defaults form a reviewed compatibility fingerprint.
+    # post-job save. Mutable channels key on an ISO-week bucket; pinned
+    # versions key exactly. The key fingerprints only the producer action:
+    # the weekly bucket bounds staleness and the execution probe below
+    # rejects incompatible binaries, so runtime-release rotation would add
+    # downloads without adding safety.
     # Preinstalled CLIs (self-hosted runners) skip the cache entirely.
     # Codex already arrives through codex-acp in .agent/node_modules, so the
     # runtime dependency cache owns it rather than an unreachable second cache.
@@ -231,7 +233,7 @@ runs:
         fi
         {
           echo "need_claude=${need_claude}"
-          echo "claude_key=sepo-cli-claude-${platform}-${channel}-${{ hashFiles('.github/actions/setup-agent-runtime/action.yml', '.agent/package-lock.json', '.agent/model-defaults.json') }}"
+          echo "claude_key=sepo-cli-claude-${platform}-${channel}-${{ hashFiles('.github/actions/setup-agent-runtime/action.yml') }}"
         } >> "$GITHUB_OUTPUT"
 
     - name: Restore Claude CLI cache

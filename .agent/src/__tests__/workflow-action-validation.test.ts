@@ -241,13 +241,15 @@ test("standalone CLI caching follows the runtime cache discipline", () => {
     /--version >\/dev\/null/,
     "restored binaries are probed by execution, not just executability",
   );
-  for (const compatibilityInput of [
-    ".github/actions/setup-agent-runtime/action.yml",
-    ".agent/package-lock.json",
-    ".agent/model-defaults.json",
-  ]) {
-    assert.ok(keysRun.includes(`'${compatibilityInput}'`), `CLI key fingerprints ${compatibilityInput}`);
-  }
+  assert.ok(
+    keysRun.includes("'.github/actions/setup-agent-runtime/action.yml'"),
+    "CLI key fingerprints the producer action",
+  );
+  // The weekly bucket and execution probe own staleness and compatibility;
+  // fingerprinting runtime files would rotate the key on every release and
+  // hand the download to the first user-facing run.
+  assert.doesNotMatch(keysRun, /package-lock\.json/, "CLI key must not rotate with the lockfile");
+  assert.doesNotMatch(keysRun, /model-defaults\.json/, "CLI key must not rotate with model defaults");
 
   // Every redirected output write is a complete NAME=VALUE line. This
   // rejects shell concatenation that expands a value across physical lines,
@@ -274,4 +276,18 @@ test("standalone CLI caching follows the runtime cache discipline", () => {
   const save = steps[saveIndex];
   assert.equal(save["continue-on-error"], true, "Claude save stays best-effort");
   assert.match(String(save.if), /cache-hit != 'true'/, "Claude save runs only on a miss");
+});
+
+test("cache seed warms the Claude CLI cache", () => {
+  const workflow = readYaml(".github/workflows/agent-cache-seed.yml");
+  assert.ok(isRecord(workflow) && isRecord(workflow.jobs), "seed workflow should define jobs");
+  const seed = (workflow.jobs as Record<string, unknown>).seed as Record<string, unknown>;
+  const steps = seed.steps as Array<Record<string, unknown>>;
+  const setup = steps.find((step) => typeof step.uses === "string" && step.uses.includes("setup-agent-runtime"));
+  assert.ok(setup && isRecord(setup.with), "seed should call setup-agent-runtime");
+  assert.equal(
+    String((setup.with as Record<string, unknown>).install_claude),
+    "true",
+    "seed absorbs CLI cache misses so user-facing runs do not pay them",
+  );
 });
