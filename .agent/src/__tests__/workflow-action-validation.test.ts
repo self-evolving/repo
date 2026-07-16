@@ -241,15 +241,16 @@ test("standalone CLI caching follows the runtime cache discipline", () => {
     /--version >\/dev\/null/,
     "restored binaries are probed by execution, not just executability",
   );
-  assert.ok(
-    keysRun.includes("'.github/actions/setup-agent-runtime/action.yml'"),
-    "CLI key fingerprints the producer action",
-  );
-  // The weekly bucket and execution probe own staleness and compatibility;
-  // fingerprinting runtime files would rotate the key on every release and
-  // hand the download to the first user-facing run.
-  assert.doesNotMatch(keysRun, /package-lock\.json/, "CLI key must not rotate with the lockfile");
-  assert.doesNotMatch(keysRun, /model-defaults\.json/, "CLI key must not rotate with model defaults");
+  // The compatibility fingerprint covers everything that sets a floor the
+  // cached CLI must satisfy; rotation is absorbed by the seed's push and
+  // weekly-schedule triggers rather than user-facing runs.
+  for (const compatibilityInput of [
+    ".github/actions/setup-agent-runtime/action.yml",
+    ".agent/package-lock.json",
+    ".agent/model-defaults.json",
+  ]) {
+    assert.ok(keysRun.includes(`'${compatibilityInput}'`), `CLI key fingerprints ${compatibilityInput}`);
+  }
 
   // Every redirected output write is a complete NAME=VALUE line. This
   // rejects shell concatenation that expands a value across physical lines,
@@ -281,6 +282,17 @@ test("standalone CLI caching follows the runtime cache discipline", () => {
 test("cache seed warms the Claude CLI cache", () => {
   const workflow = readYaml(".github/workflows/agent-cache-seed.yml");
   assert.ok(isRecord(workflow) && isRecord(workflow.jobs), "seed workflow should define jobs");
+
+  // Trigger/bucket alignment: the CLI key rotates on ISO weeks (Monday
+  // 00:00 UTC), and low-trust triggers cannot save default-branch caches,
+  // so the seed must fire on a matching weekly schedule.
+  const on = (workflow as Record<string, unknown>).on as Record<string, unknown>;
+  assert.ok(Array.isArray(on.schedule), "seed should have a schedule trigger");
+  const crons = (on.schedule as Array<Record<string, unknown>>).map((entry) => String(entry.cron));
+  assert.ok(
+    crons.some((cron) => /^\S+ \S+ \* \* (1|MON)$/i.test(cron)),
+    "seed schedule fires weekly on Monday, aligned with the %G-%V bucket rollover",
+  );
   const seed = (workflow.jobs as Record<string, unknown>).seed as Record<string, unknown>;
   const steps = seed.steps as Array<Record<string, unknown>>;
   const setup = steps.find((step) => typeof step.uses === "string" && step.uses.includes("setup-agent-runtime"));

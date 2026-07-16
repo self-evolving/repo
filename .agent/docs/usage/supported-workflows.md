@@ -25,7 +25,7 @@ title: "Supported workflows"
 | `agent-self-improvement.yml` | `schedule` (every 6h), `workflow_dispatch` | Opt-in liveness-first self-improvement planner that chooses a new issue, existing issue, or existing PR, then dispatches the orchestrator | Auto |
 | `agent-update.yml` | `schedule` (1st and 15th), `workflow_dispatch` | Checks for Sepo agent infrastructure updates and opens a PR only when updates are available | Auto |
 | `agent-onboarding.yml` | `workflow_dispatch` | First-run setup check that creates built-in labels and opens or updates an agent-tracked setup issue | None |
-| `agent-cache-seed.yml` | `push` to the default branch touching `.agent/**` or the setup action, `workflow_dispatch` | Warms the exact-key runtime setup and Claude CLI caches from the trusted default branch so user-facing runs rarely pay the first-miss cost | None |
+| `agent-cache-seed.yml` | `push` to the default branch touching `.agent/**` or the setup action, weekly `schedule` at the ISO-week rollover, `workflow_dispatch` | Warms the exact-key runtime setup and Claude CLI caches from the trusted default branch so user-facing runs rarely pay the first-miss cost | None |
 | `test-scripts.yml` | `pull_request`, `workflow_dispatch` | CI for helper tests, YAML parsing, and shell syntax | None |
 
 All packaged `agent-*.yml` workflow jobs honor `AGENT_ENABLED=false` as a

@@ -15,6 +15,12 @@ on:
     paths:
       - ".agent/**"
       - ".github/actions/setup-agent-runtime/**"
+  schedule:
+    # Aligned with the CLI cache's ISO-week bucket (date -u +%G-%V), which
+    # rolls over at Monday 00:00 UTC: low-trust triggers cannot save
+    # default-branch caches, so without this a quiet week boundary leaves
+    # every hosted run re-downloading the CLI until the next runtime push.
+    - cron: "5 0 * * 1"
   workflow_dispatch: {}
 
 permissions:
