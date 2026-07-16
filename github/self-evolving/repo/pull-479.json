@@ -220,10 +220,83 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 62001a23fd237faff9905cd019de8a5450a922c7 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #479 replaces #478’s deferred-install design with Claude-only caching inside the existing runtime setup action, addressing the repeated download latency measured in #454. It adds weekly or exact cache keys, compatibility fingerprints, platform partitioning, execution probing, immediate saves, documentation, and structural tests. Current head `62001a2` is mergeable with green CI. Earlier output-format, duplicate-Codex-cache, rolling-channel, documentation, metadata, and Rosetta issues are fixed; two cache-lifecycle gaps remain.\n\n## Review\n\nThe design is sound and installation fallback preserves correctness, so neither remaining issue is blocking. Claude concluded SHIP, while Codex identified both warnings and the rubrics reviewer independently corroborated the musl issue; current code and Anthropic’s documentation support retaining them.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Native updater bypasses the cache version contract | WARNING | The restored native CLI can background-update outside the immutable cache lifecycle, causing repeated downloads and potentially advancing an exact `claude_version` before the agent launch. |\n| musl hosts can share the glibc cache key | WARNING | The current `ldd --version` discriminator can fail on Alpine under Bash `pipefail`, storing a musl binary under the glibc key. Execution fallback works, but the hit cannot repair the immutable cache. |\n\n## Progress\n\n- Head `62001a2` remains mergeable and its live `check` job succeeds; reviewer validation also passed the build, 756 runtime tests, 90 workflow/action tests, 5 documentation tests, and 15 shell tests.\n- Earlier invalid-output, duplicate Codex cache, mutable-channel, documentation, metadata, Rosetta, and presence-only probe findings are resolved.\n- Added an [inline updater-lifecycle finding](https://github.com/self-evolving/repo/pull/479#discussion_r3591509574) and a [same-agent reply clarifying the remaining musl gap](https://github.com/self-evolving/repo/pull/479#discussion_r3591509652).\n- No comments were minimized and no threads were resolved. The fixed Codex thread was left untouched because it is outdated and not viewer-resolvable.\n- Optional cache-layout, exact-pin fingerprint churn, redundant `PATH`, and test-hardening notes remain intentionally outside required work.\n\n## Issue Details\n\n<details>\n<summary>Native updater bypasses the cache version contract</summary>\n\n**Cause:** The [install guard](https://github.com/self-evolving/repo/blob/62001a23fd237faff9905cd019de8a5450a922c7/.github/actions/setup-agent-runtime/action.yml#L267-L283) launches `claude --version` without disabling updates. Native installations check for updates on startup and apply them on the next launch, while `DISABLE_AUTOUPDATER=1` disables that behavior. [Anthropic installation documentation](https://code.claude.com/docs/en/installation#auto-updates)\n\n**Candidate solutions:** Disable auto-updates for action-managed cached installations during both the probe and later agent steps, while leaving valid preinstalled self-hosted CLIs unchanged. Alternatively, explicitly incorporate updater writes into a repairable cache lifecycle. Add cache-hit and exact-version regression coverage.\n\n**Comments:** The execution probe prevents setup failure, but it does not preserve the promised download savings or exact-pin behavior.\n\n</details>\n\n<details>\n<summary>musl hosts can share the glibc cache key</summary>\n\n**Cause:** The [platform resolver](https://github.com/self-evolving/repo/blob/62001a23fd237faff9905cd019de8a5450a922c7/.github/actions/setup-agent-runtime/action.yml#L223-L231) uses `ldd --version | grep musl`. Anthropic’s [current installer](https://claude.ai/install.sh) instead checks musl loader files or runs `ldd /bin/ls`; on Alpine, `ldd --version` can print musl while exiting nonzero, making the condition false under `pipefail`.\n\n**Candidate solutions:** Mirror the installer’s musl checks and add executable fixtures covering glibc, Alpine/musl, native ARM, and Rosetta rather than relying only on token-presence assertions.\n\n**Comments:** Claude considered platform partitioning fixed, but Codex and the rubrics reviewer found this narrower current-head gap. The probe preserves correctness, yet an immutable cache hit prevents saving the repaired binary.\n\n</details>\n\n## Recommended Next Step\n\n`FIX_PR`: Both warnings require localized setup-action and regression-test changes suitable for an automated fix pass.\n\n## Final Verdict\n\nMINOR_ISSUES\n\n## Action Items\n\n- [ ] Disable native auto-updates for action-managed cached Claude installations or integrate updater writes into the cache lifecycle, with exact-version and cache-hit coverage.\n- [ ] Match Anthropic’s musl platform detection and add executable glibc/musl platform fixtures.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-2`",
       "createdAt": "2026-07-15T23:49:32Z",
       "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/479#issuecomment-4986385678",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABKVfODw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "One more hardening pass from a fresh re-read of the whole PR: the compatibility fingerprint (producer action + lockfile + model-defaults) interacted badly with seeding — the key rotated on every runtime release, but the seed only warmed the runtime caches, so every rotation's 13s download landed on the first user-facing Claude run. Fixed both sides:\n\n- **Seed warms the CLI cache** (`install_claude: \"true\"` on the seed's setup call) — hosted pools absorb weekly/rotation misses in the background job; self-hosted pools with preinstalled CLIs no-op via the `need_claude` check.\n- **Fingerprint slimmed to the producer action only** — the weekly channel bucket bounds staleness and the execution probe rejects incompatible binaries, so lockfile/model-defaults rotation added downloads without adding safety. Test-pinned against re-fattening.\n\nPost-merge soak items on record: confirm a `sepo-cli-claude-*` cache entry actually appears after the first hosted save (the `~/.local/share/claude` path is unverifiable in CI), and separately verify the global `npm install -g @openai/codex` step is vestigial since the packaged-adapter switch — if nothing shells out to the global `codex`, that step and the `install_codex` plumbing can go in a follow-up.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)",
+      "createdAt": "2026-07-16T05:40:13Z",
+      "includesCreatedEdit": false,
       "isMinimized": false,
       "minimizedReason": "",
       "reactionGroups": [],
-      "url": "https://github.com/self-evolving/repo/pull/479#issuecomment-4986385678",
+      "url": "https://github.com/self-evolving/repo/pull/479#issuecomment-4988587535",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABKWJ10g",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review",
+      "createdAt": "2026-07-16T07:26:55Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/479#issuecomment-4989285842",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABKWNBeg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Selected model is at capacity. Please try a different model.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-2`",
+      "createdAt": "2026-07-16T07:34:01Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/479#issuecomment-4989337978",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABKWaBXQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: f45d8d48b571a1334ab9f3d37e07056d89838298 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\nSelected model is at capacity. Please try a different model.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-2`",
+      "createdAt": "2026-07-16T08:01:56Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/479#issuecomment-4989550941",
       "viewerDidAuthor": true
     }
   ],
@@ -242,15 +315,33 @@
       "changeType": "MODIFIED"
     },
     {
+      "path": ".agent/docs/usage/supported-workflows.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/scripts/test/cli-cache-keys.test.cjs",
+      "additions": 128,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
       "path": ".agent/src/__tests__/workflow-action-validation.test.ts",
-      "additions": 88,
+      "additions": 132,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
       "path": ".github/actions/setup-agent-runtime/action.yml",
-      "additions": 76,
+      "additions": 95,
       "deletions": 12,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-cache-seed.yml",
+      "additions": 11,
+      "deletions": 1,
       "changeType": "MODIFIED"
     }
   ],
@@ -341,10 +432,100 @@
       "commit": {
         "oid": "62001a23fd237faff9905cd019de8a5450a922c7"
       }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABGNXGXA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-07-16T08:01:17Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "f45d8d48b571a1334ab9f3d37e07056d89838298"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABGNXLhA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-07-16T08:01:26Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "f45d8d48b571a1334ab9f3d37e07056d89838298"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABGNa8NA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "",
+      "submittedAt": "2026-07-16T08:10:26Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "dda793d97e1246eca440678f4b999c6682baff94"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABGNa8vA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "",
+      "submittedAt": "2026-07-16T08:10:28Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "951b4eeea210aecf71d40151102f1fdaae7edbeb"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABGNa9QQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "",
+      "submittedAt": "2026-07-16T08:10:29Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "951b4eeea210aecf71d40151102f1fdaae7edbeb"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABGNa98A",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "",
+      "submittedAt": "2026-07-16T08:10:31Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "951b4eeea210aecf71d40151102f1fdaae7edbeb"
+      }
     }
   ],
   "state": "OPEN",
   "title": "Cache the Claude CLI binary in setup-agent-runtime",
-  "updatedAt": "2026-07-15T23:49:32Z",
+  "updatedAt": "2026-07-16T08:10:26Z",
   "url": "https://github.com/self-evolving/repo/pull/479"
 }
