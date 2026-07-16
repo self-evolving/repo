@@ -230,8 +230,19 @@ test("standalone CLI caching follows the runtime cache discipline", () => {
   assert.match(keysRun, /latest\}-\$\{week\}/, "mutable channels carry the week bucket");
   // Installer-resolved platform partitions the key beyond runner.os/arch.
   assert.match(keysRun, /uname -m/, "key uses the native machine architecture");
-  assert.match(keysRun, /musl/, "key distinguishes musl from glibc");
+  assert.match(keysRun, /libc\.musl-\*\.so\.1/, "musl detection mirrors the installer's loader-file check");
+  assert.match(keysRun, /ldd \/bin\/ls/, "musl detection mirrors the installer's ldd fallback");
+  assert.match(keysRun, /\|\| true/, "musl ldd fallback neutralizes pipefail");
   assert.match(keysRun, /proc_translated/, "key distinguishes Rosetta translation");
+  assert.match(
+    keysRun,
+    /DISABLE_AUTOUPDATER=1/,
+    "action-managed installs disable the CLI auto-updater",
+  );
+  assert.ok(
+    keysRun.includes('if [ "${need_claude}" = "true" ]'),
+    "auto-updater opt-out is gated on the install being action-managed",
+  );
   assert.match(keysRun, /claude_key=sepo-cli-claude-\$\{platform\}-\$\{channel\}/, "key composes platform and channel");
   assert.ok(isRecord(keys.env), "CLI keys step reads inputs via env");
 
@@ -255,13 +266,18 @@ test("standalone CLI caching follows the runtime cache discipline", () => {
   // Every redirected output write is a complete NAME=VALUE line. This
   // rejects shell concatenation that expands a value across physical lines,
   // which GitHub's output-file parser treats as an invalid bare second line.
-  const outputWrites = keysRun
+  const echoLines = keysRun
     .split("\n")
     .map((line) => line.trim())
     .filter((line) => line.startsWith("echo "));
-  assert.ok(outputWrites.length > 0, "CLI key step should emit outputs");
-  for (const outputWrite of outputWrites) {
-    assert.match(outputWrite, /^echo "[a-z][a-z0-9_]*=[^"]*"$/, `unsupported GitHub output write: ${outputWrite}`);
+  assert.ok(echoLines.length > 0, "CLI key step should emit outputs");
+  for (const echoLine of echoLines) {
+    if (echoLine.includes('$GITHUB_ENV')) {
+      // Persisted-env writes are self-contained single lines.
+      assert.match(echoLine, /^echo "[A-Z][A-Z0-9_]*=[^"]*" >> "\$GITHUB_ENV"$/, `unsupported GitHub env write: ${echoLine}`);
+      continue;
+    }
+    assert.match(echoLine, /^echo "[a-z][a-z0-9_]*=[^"]*"$/, `unsupported GitHub output write: ${echoLine}`);
   }
 
   // Restore is best-effort and skipped when Claude is already present on a
