@@ -1,0 +1,350 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "baseRefName": "main",
+  "body": "Replaces the closed #478 with the simpler approach: cache the binary where the install already happens — no new actions, no workflow changes, no flag plumbing. Measured motivation (lolipopshock/rl-lit run 29309332883, `ubuntu-latest`, warm runtime caches): portal setup = 2.6s runtime restore + **13.1s Claude CLI download**, and every agent-running job pays the download again.\n\nScope note: this caches the **Claude CLI only**. Codex needs no standalone cache — it arrives via `codex-acp` inside `.agent/node_modules`, which the runtime dependency cache already owns.\n\n## How\n\nSame discipline as the runtime cache, inside the existing install path of `setup-agent-runtime`:\n\n- `Resolve Claude CLI cache key`: env-indirected inputs; `need_claude` short-circuits everything when the CLI is already present (self-hosted). Keys compose the **installer-resolved native platform** (`uname -m` plus musl and Rosetta discriminators — mixed pools can't share incompatible binaries), the **channel** (empty/`latest`/`stable` all rotate on an ISO-week bucket so a mutable channel can't outlive its week; validated pins key exactly), and a reviewed compatibility fingerprint (producer action, adapter lock state, bundled model defaults).\n- Best-effort restore (failure ⇒ normal download); the install guard **probes the restored binary by execution** (`--version`), not mere executability, so an incompatible restore falls through to the installer; immediate miss-gated save, never post-job; SHA-pinned `actions/cache` v6.1.0 throughout.\n\nStructural tests pin: env-indirection, single-line output writes, channel case, platform discriminators, key composition, execution probe, need-gated best-effort restore, and save-immediately-after-install ordering.\n\n## Expected effect (hosted runners)\n\nEvery Claude-running job — portal, answer, implement, fix-pr, the claude reviewer lane — drops ~11s (13s download → ~1.5–2s restore) after the first weekly warm. Portal setup lands at ~4–6s total; combined with #474's fast-ack, the 👀 target stays ~T+7s. Self-hosted runners with preinstalled CLIs are untouched by construction.\n\nKnown trade, on the record: hosted repos ride a CLI up to 7 days old rather than always-latest; pinning `claude_version` restores exact behavior.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABKSOR2w",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review",
+      "createdAt": "2026-07-15T20:51:35Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/479#issuecomment-4985164251",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABKSTs3g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 68 | FAIL | 6 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | fail | 0/8 | [`codex_paths`](https://github.com/self-evolving/repo/blob/2505921b27628f8625a9cf203d244eb01557f499/.github/actions/setup-agent-runtime/action.yml#L219-L225) uses invalid multiline `GITHUB_OUTPUT` formatting despite the repository’s [heredoc-safe output pattern](https://github.com/self-evolving/repo/blob/2505921b27628f8625a9cf203d244eb01557f499/.agent/src/output.ts#L1-L18). |\n| coding_workflow / generic | Couple runtime-dependent defaults | partial | 4/8 | [CLI keys](https://github.com/self-evolving/repo/blob/2505921b27628f8625a9cf203d244eb01557f499/.github/actions/setup-agent-runtime/action.yml#L193-L224) include only OS, architecture, and version/week. Unlike the [runtime keys](https://github.com/self-evolving/repo/blob/2505921b27628f8625a9cf203d244eb01557f499/.github/actions/setup-agent-runtime/action.yml#L102-L120), they omit a producer/model/adapter fingerprint. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | The implementation adds no new action or flag and preserves `cache_mode: off` plus exact `codex_version`/`claude_version` pins as escape hatches. |\n| coding_workflow / generic | Verify immutable dependency references | pass | 8/8 | The added cache steps use `55cc8345863c7cc4c66a329aec7e433d2d1c52a9`, independently confirmed as the authoritative `actions/cache` v6.1.0 tag commit. |\n| coding_workflow / generic | Keep docs in sync | partial | 4/7 | The [internal-action row](https://github.com/self-evolving/repo/blob/2505921b27628f8625a9cf203d244eb01557f499/.agent/docs/usage/internal-actions.md#L7-L10) mentions CLI caching, but the [`cache_mode` contract](https://github.com/self-evolving/repo/blob/2505921b27628f8625a9cf203d244eb01557f499/.github/actions/setup-agent-runtime/action.yml#L29-L42) and [runtime-dependency overview](https://github.com/self-evolving/repo/blob/2505921b27628f8625a9cf203d244eb01557f499/.agent/docs/technical-details/key-concepts.md#L120-L126) still describe runtime-only caching. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The PR changes only the setup action, focused structural coverage, and its corresponding documentation. |\n\n## Notes\n\n- The live `check` job passes, as do `check:workflow`, `check:docs`, and `check:shell` locally. The [new test](https://github.com/self-evolving/repo/blob/2505921b27628f8625a9cf203d244eb01557f499/.agent/src/__tests__/workflow-action-validation.test.ts#L191-L229) is structural and does not parse the generated output file, so it misses the blocker.\n- Smallest required follow-up: emit `codex_paths` with heredoc syntax or separate single-line outputs and add an output-protocol regression test. Also fingerprint CLI cache keys with reviewed compatibility inputs and document how `cache_mode` governs CLI caches.\n\n## Findings\n\n- **BLOCKING — Reuse existing code:** The key-resolution step writes `codex_paths=<package-path>\\n<bin-path>` to `GITHUB_OUTPUT`. GitHub’s runner accepts only `NAME=VALUE` or `NAME<<DELIMITER`; the second bare path triggers `Invalid format` ([runner parser](https://github.com/actions/runner/blob/802fd9c0bf3716a3b3da056a79913931820e2776/src/Runner.Worker/FileCommandManager.cs#L391-L438)). Because this output is always written whenever either CLI is requested with caching enabled, normal default-`full` Codex and Claude setup paths fail before restore or installation.\n- **WARNING — Couple runtime-dependent defaults:** A reviewed model, adapter, or installer update during the same ISO week can reuse a CLI cached before that update. Add a producer/compatibility fingerprint—such as the setup action, bundled model defaults, and relevant adapter lock state—to the weekly key.\n- **WARNING — Keep docs in sync:** Document that both `modules` and `full` cache provider CLIs, while `off` disables those caches, including the pinned-versus-weekly behavior.\n\n## Final Rubric Verdict\n\nFAIL\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-3`",
+      "createdAt": "2026-07-15T21:03:36Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/479#issuecomment-4985253086",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABKSaIdw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 2505921b27628f8625a9cf203d244eb01557f499 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #479 replaces closed PR #478’s deferred-install design with CLI caching inside `setup-agent-runtime`. It adds weekly cache keys for unpinned Codex and Claude installations, exact keys for pinned versions, and immediate best-effort saves. The goal is to reduce repeated provider downloads across hosted jobs without changing workflows or self-hosted behavior. The current implementation has one setup-breaking defect, and its new Codex-specific cache cannot execute.\n\n## Review\n\nThe design is appropriately scoped, but the current head requires rework. All reviewers confirmed the output-format blocker; current-head inspection also confirms the Codex reachability issue, while reviewers disagreed on whether cache compatibility fingerprints are required.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Invalid multiline output aborts cache-enabled setup | BLOCKING | [`codex_paths`](https://github.com/self-evolving/repo/blob/2505921b27628f8625a9cf203d244eb01557f499/.github/actions/setup-agent-runtime/action.yml#L219-L225) becomes two physical output-file lines without heredoc syntax. The runner rejects the second line, failing default cache-enabled Codex and Claude setup before restoration or installation. |\n| Codex cache is unreachable | WARNING | Runtime dependencies already place the bundled `codex` executable on `PATH` before [`need_codex`](https://github.com/self-evolving/repo/blob/2505921b27628f8625a9cf203d244eb01557f499/.github/actions/setup-agent-runtime/action.yml#L210-L213) is calculated. Consequently, the new global Codex restore/save path never runs. |\n| CLI cache keys lack compatibility fingerprints | WARNING | The keys contain only OS, architecture, and version/week. Runtime, adapter, model-default, or cache-layout changes can therefore continue restoring an incompatible artifact under an unchanged key. |\n| cache_mode documentation understates CLI caching | WARNING | The implementation caches CLIs in both `modules` and `full` modes, while the [input contract](https://github.com/self-evolving/repo/blob/2505921b27628f8625a9cf203d244eb01557f499/.github/actions/setup-agent-runtime/action.yml#L29-L42) and [documentation](https://github.com/self-evolving/repo/blob/2505921b27628f8625a9cf203d244eb01557f499/.agent/docs/usage/internal-actions.md#L7-L10) still describe `modules` as caching only `node_modules`. |\n\n## Progress\n\n- Current head `2505921` has a passing `check` job; reviewer verification also passed 756 runtime, 90 workflow/action, 5 documentation, and 15 shell tests. Those tests are structural and do not exercise the output-file protocol or Codex gate reachability.\n- The SHA-pinned cache action, split restore/save design, immediate best-effort saves, and `cache_mode: off` fallback are otherwise well aligned with existing runtime-cache discipline.\n- PR #478 was intentionally closed in favor of this simpler approach; PR #474 remains the separate fast-ack component of the broader #454 latency work.\n- Posted one distinct [inline comment for the unreachable Codex cache](https://github.com/self-evolving/repo/pull/479#discussion_r3590792585). The output blocker was already covered by the existing top-level rubrics review, so it was not duplicated inline; no replies, minimizations, or thread resolutions were performed.\n\n## Issue Details\n\n<details>\n<summary>Invalid multiline output aborts cache-enabled setup</summary>\n\n**Cause:** The `$'\\n'` expansion writes `codex_paths=…` followed by a bare path. GitHub output files require each value to use `NAME=VALUE` or `NAME<<DELIMITER`.\n\n**Candidate solutions:** Emit package and executable paths as two single-line outputs and combine them under `path: |`, or emit `codex_paths` with proper heredoc syntax. Add a regression assertion covering the output protocol.\n\n**Comments:** All three reviewers agree this is blocking. The green test suite does not execute the generated output file.\n\n</details>\n\n<details>\n<summary>Codex cache is unreachable</summary>\n\n**Cause:** `.agent/node_modules/.bin` is added to `PATH` before runtime dependencies are restored or installed. The locked `codex-acp` dependency supplies `@openai/codex`, so `command -v codex` succeeds and `need_codex` remains false.\n\n**Candidate solutions:** Remove the redundant global Codex cache and narrow the feature claims, or define an explicit bundled-versus-global selection contract that makes the cache reachable. Cover the selected behavior with a regression test.\n\n**Comments:** Claude verified that the proposed cached paths are complete but did not account for the earlier gate; Codex identified the reachability issue, and current-head inspection confirms it.\n\n</details>\n\n<details>\n<summary>CLI cache keys lack compatibility fingerprints</summary>\n\n**Cause:** Neither the producing action nor relevant adapter/model compatibility state participates in the key.\n\n**Candidate solutions:** Add an explicit cache-schema/producer fingerprint plus reviewed compatibility inputs such as the setup action, adapter lock state, and model defaults.\n\n**Comments:** Claude considered OS/architecture/version sufficient because artifacts are upstream-produced and branch-scoped. The other reviewers correctly distinguish cache-poisoning safety from stale runtime compatibility, so the warning remains.\n\n</details>\n\n<details>\n<summary>cache_mode documentation understates CLI caching</summary>\n\n**Cause:** CLI restore/save runs for every mode except `off`, but the action input and runtime documentation retain runtime-only descriptions.\n\n**Candidate solutions:** Document that `modules` and `full` enable provider CLI caching, `off` disables it, and unpinned versus pinned installations use weekly versus exact keys.\n\n**Comments:** Reviewers differed between INFO and WARNING severity; this synthesis treats the inaccurate public action contract as required documentation work.\n\n</details>\n\n## Recommended Next Step\n\n`FIX_PR`: The output protocol and unreachable Codex path require localized branch changes and regression coverage suitable for an automated fix pass.\n\n## Final Verdict\n\nNEEDS_REWORK\n\n## Action Items\n\n- [ ] Replace the invalid multiline `codex_paths` output with a supported representation and add output-protocol regression coverage.\n- [ ] Remove the unreachable Codex cache or establish an explicit reachable selection/cache contract, with regression coverage.\n- [ ] Add reviewed producer and compatibility fingerprints to CLI cache keys.\n- [ ] Align the `cache_mode` input and runtime documentation with CLI caching behavior.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-2`",
+      "createdAt": "2026-07-15T21:18:20Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/479#issuecomment-4985358455",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABKSnw8w",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /fix-pr ",
+      "createdAt": "2026-07-15T21:46:44Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/479#issuecomment-4985581811",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABKSpIxQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `cache-agent-clis`. Requested by @lolipopshock.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Removed the unreachable duplicate Codex cache; bundled Codex remains owned by the runtime dependency cache.\n- Fixed GitHub output formatting and added action, adapter-lock, and model-default fingerprints to Claude cache keys.\n- Updated `cache_mode` documentation and added regression coverage for output protocol and cache ownership.\n- Checks passed: build, workflow/action (90), docs (5), and shell (15). Verified the `actions/cache@v6.1.0` SHA upstream.\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — fix-pr · 6m38s · 41 steps**\n\nLast message\n> {\"summary\":\"- Removed the unreachable duplicate Codex cache; bundled Codex remains owned by the runtime dependency cache.\\n- Fixed GitHub output formatting and added action, adapter-lock, and model-default fingerprints to Claude cache keys…\n\nActivity\n\n- 🔧 Used tool `git status --short --branch && git diff --check && git diff --name-only` (completed)\n- 💬 Message \"All directly relevant lanes pass: workflow/action 90/90, docs 5/5, and shell 15/15. I’m doing the final branch/head and diff-integrity check now; no PR comment or commit will be created.\"\n- 🔧 Used tool `git diff --numstat origin/main && git diff --shortstat origin/main` (completed)\n- 🔧 Used tool `git diff --check && git status --short --branch && git diff --name-status` (completed)\n- 📖 Read `gh pr view 479 --repo self-evolving/repo --json headRefOid,state,comments,reviews --jq '{headRefOid,state,lastComment:(…` (completed)\n- 💬 Message \"{\"summary\":\"- Removed the unreachable duplicate Codex cache; bundled Codex remains owned by the runtime dependency cache.\\n- Fixed GitHub output formatting and added action, adapter-lock, and model-default fingerprints to Claude cache keys…\"\n</details>\n\n<!-- sepo-progress:run-29453137357 -->\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-5`",
+      "createdAt": "2026-07-15T21:49:01Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/479#issuecomment-4985604293",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABKStJ9Q",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review ",
+      "createdAt": "2026-07-15T21:56:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/479#issuecomment-4985670133",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABKSySSw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 96 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The implementation follows the measured latency work in [#454](https://github.com/self-evolving/repo/issues/454) and deliberately replaces the more complex [#478](https://github.com/self-evolving/repo/pull/478). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | [Claude caching](https://github.com/self-evolving/repo/blob/6f5deae2f93111d4a8e236a584bbb08a6207eac5/.github/actions/setup-agent-runtime/action.yml#L196-L278) reuses the existing split restore/save discipline, while Codex remains owned by the runtime dependency cache instead of adding a duplicate path. |\n| coding_workflow / generic | Couple runtime-dependent defaults | partial | 6/8 | The [key](https://github.com/self-evolving/repo/blob/6f5deae2f93111d4a8e236a584bbb08a6207eac5/.github/actions/setup-agent-runtime/action.yml#L204-L220) fingerprints the action, adapter lock state, and model defaults, and buckets an empty version weekly. However, explicit rolling selectors `latest` and `stable`, both accepted by the official installer, receive permanent keys. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | No new setting or action is introduced; [`cache_mode: off`](https://github.com/self-evolving/repo/blob/6f5deae2f93111d4a8e236a584bbb08a6207eac5/.github/actions/setup-agent-runtime/action.yml#L29-L45) disables caching and exact version pins remain available. |\n| coding_workflow / generic | Verify immutable dependency references | pass | 8/8 | The added restore/save steps pin `actions/cache` to `55cc8345863c7cc4c66a329aec7e433d2d1c52a9`, independently confirmed as the authoritative [v6.1.0 commit](https://github.com/actions/cache/commit/55cc8345863c7cc4c66a329aec7e433d2d1c52a9). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | [Runtime concepts](https://github.com/self-evolving/repo/blob/6f5deae2f93111d4a8e236a584bbb08a6207eac5/.agent/docs/technical-details/key-concepts.md#L119-L126) and [internal-action documentation](https://github.com/self-evolving/repo/blob/6f5deae2f93111d4a8e236a584bbb08a6207eac5/.agent/docs/usage/internal-actions.md#L7-L10) accurately cover Codex ownership, Claude caching, modes, and fallback behavior. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The [four-file diff](https://github.com/self-evolving/repo/pull/479/files) is confined to the setup action, focused structural coverage, and matching documentation. |\n\n## Notes\n\n- Current head `6f5deae` has a successful [Test Scripts run](https://github.com/self-evolving/repo/actions/runs/29453661741). Independent verification passed the build plus 90 workflow/action, 5 documentation, and 15 shell tests.\n- The earlier invalid-output and unreachable-Codex-cache findings are fixed.\n- Smallest useful follow-up: weekly-bucket `latest` and `stable`, or reject them and accept only exact semantic versions, with focused coverage.\n\n## Findings\n\n- **WARNING — Couple runtime-dependent defaults:** `${CLAUDE_VERSION:-latest-${week}}` buckets only an empty value. `claude_version: latest` or `stable` therefore creates a non-rotating cache despite selecting a moving release channel. Normalize rolling selectors into the weekly key before treating only exact versions as permanent.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-1`",
+      "createdAt": "2026-07-15T22:08:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/479#issuecomment-4985754187",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABKS4-pw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 6f5deae2f93111d4a8e236a584bbb08a6207eac5 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #479 replaces #478’s deferred-install design with caching inside `setup-agent-runtime`, targeting the repeated Claude CLI download identified during #454’s latency work. The current head correctly narrows standalone caching to Claude while leaving Codex in the existing runtime dependency cache. It adds best-effort restore/save behavior, compatibility fingerprints, documentation, and regression coverage. Head `6f5deae` is mergeable with passing CI, but two cache-identity gaps remain.\n\n## Review\n\nThe earlier output-format, duplicate-Codex-cache, documentation, and fingerprint findings are resolved. Claude recommended SHIP, while Codex and the rubrics reviewer identified rolling-alias concerns; current validation also confirms the installer-platform issue.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Rolling Claude aliases do not rotate | WARNING | The [key expression](https://github.com/self-evolving/repo/blob/6f5deae2f93111d4a8e236a584bbb08a6207eac5/.github/actions/setup-agent-runtime/action.yml#L204-L220) weekly-buckets only an empty version. Supported mutable selectors `latest` and `stable` therefore receive permanent keys. |\n| Cache key omits installer-resolved platform | WARNING | OS and runner architecture do not distinguish Linux glibc/musl or Rosetta-native architecture. An incompatible restored binary then passes the [presence/executable guard](https://github.com/self-evolving/repo/blob/6f5deae2f93111d4a8e236a584bbb08a6207eac5/.github/actions/setup-agent-runtime/action.yml#L255-L267) without being executed. |\n| PR metadata describes removed Codex caching | INFO | The [title and description](https://github.com/self-evolving/repo/pull/479) still claim a separate Codex cache and Codex-specific performance gains that are absent from the current implementation. |\n\n## Progress\n\n- The invalid multiline output and unreachable Codex cache are fixed, with regression coverage confirming Codex remains owned by cached runtime dependencies.\n- Reviewer verification passed build, 90 workflow/action tests, 5 documentation tests, 15 shell tests, and 756 runtime tests; current CI is green.\n- Posted a distinct [inline platform-key finding](https://github.com/self-evolving/repo/pull/479#discussion_r3591148759). The rolling-alias issue was already covered by the current rubrics review, so it was not duplicated inline.\n- Marked the superseded same-agent Codex-cache comment outdated; no replies were added and no threads were resolved.\n\n## Issue Details\n\n<details>\n<summary>Rolling Claude aliases do not rotate</summary>\n\n**Cause:** `${CLAUDE_VERSION:-latest-${week}}` applies the weekly suffix only when the input is empty. Explicit `latest` and `stable` values are mutable installer channels, not exact pins.\n\n**Candidate solutions:** Normalize empty, `latest`, and `stable` to weekly keys while reserving exact keys for validated semantic versions. Add fixtures for all four cases.\n\n**Comments:** Codex and the rubrics reviewer raised this warning. Claude returned SHIP while treating supplied versions as exact; the current installer contract confirms both mutable aliases are supported.\n\n</details>\n\n<details>\n<summary>Cache key omits installer-resolved platform</summary>\n\n**Cause:** The installer distinguishes `linux-x64`, `linux-x64-musl`, and native ARM under Rosetta, while the cache key contains only `runner.os` and `runner.arch`.\n\n**Candidate solutions:** Compute the same native-platform discriminator used by the installer and include it in the key. Add focused glibc, musl, and Rosetta fixtures; optionally probe the restored CLI before skipping installation.\n\n**Comments:** Codex identified this independently, and inspection of the current official installer confirms the platform distinctions. Claude considered the normal hosted-runner path sound, so this primarily protects mixed self-hosted pools.\n\n</details>\n\n<details>\n<summary>PR metadata describes removed Codex caching</summary>\n\n**Cause:** The fix round removed the standalone Codex cache without updating the original title and body.\n\n**Candidate solutions:** Describe the change as standalone Claude caching and clarify that Codex remains covered by `.agent/node_modules`.\n\n**Comments:** This is metadata-only and is intentionally excluded from automated branch-change action items.\n\n</details>\n\n## Recommended Next Step\n\n`FIX_PR`: The two warnings require localized cache-key and regression-test changes that are safe for an automated fix pass.\n\n## Final Verdict\n\nMINOR_ISSUES\n\n## Action Items\n\n- [ ] Weekly-bucket empty, `latest`, and `stable` Claude selectors while keeping validated semantic versions exact, with focused tests.\n- [ ] Partition Claude caches by installer-resolved native platform, with glibc, musl, and Rosetta coverage.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-1`",
+      "createdAt": "2026-07-15T22:25:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/479#issuecomment-4985863847",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABKTPEqg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review",
+      "createdAt": "2026-07-15T23:22:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/479#issuecomment-4986225834",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABKTTPYg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 96 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The implementation follows the measured latency work in [#454](https://github.com/self-evolving/repo/issues/454) and deliberately replaces the broader design in [#478](https://github.com/self-evolving/repo/pull/478). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | [Claude caching](https://github.com/self-evolving/repo/blob/62001a23fd237faff9905cd019de8a5450a922c7/.github/actions/setup-agent-runtime/action.yml#L196-L293) reuses the existing immediate restore/save discipline, while Codex remains owned by the runtime dependency cache. |\n| coding_workflow / generic | Couple runtime-dependent defaults | partial | 6/8 | The [cache key](https://github.com/self-evolving/repo/blob/62001a23fd237faff9905cd019de8a5450a922c7/.github/actions/setup-agent-runtime/action.yml#L204-L235) rotates mutable channels and fingerprints the action, adapter lock, and model defaults. Its musl test is narrower than [Anthropic’s current installer](https://claude.ai/install.sh), however. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | The [existing inputs](https://github.com/self-evolving/repo/blob/62001a23fd237faff9905cd019de8a5450a922c7/.github/actions/setup-agent-runtime/action.yml#L29-L45) remain the only controls: `cache_mode: off` disables caching, while version pins preserve exact selection. |\n| coding_workflow / generic | Verify immutable dependency references | pass | 8/8 | Both new cache steps pin `actions/cache` to `55cc8345863c7cc4c66a329aec7e433d2d1c52a9`, independently confirmed as the authoritative [v6.1.0 commit](https://github.com/actions/cache/commit/55cc8345863c7cc4c66a329aec7e433d2d1c52a9). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | [Runtime concepts](https://github.com/self-evolving/repo/blob/62001a23fd237faff9905cd019de8a5450a922c7/.agent/docs/technical-details/key-concepts.md#L119-L126) and [internal-action documentation](https://github.com/self-evolving/repo/blob/62001a23fd237faff9905cd019de8a5450a922c7/.agent/docs/usage/internal-actions.md#L6-L10) cover cache modes, Codex ownership, Claude pinning, and fallback behavior. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The [four-file diff](https://github.com/self-evolving/repo/pull/479/files) is confined to runtime setup, focused regression coverage, and matching documentation. |\n\n## Notes\n\n- Current head `62001a2` is unchanged and its live `check` job passes. Independent verification passed the build, 90 workflow/action tests, 5 documentation tests, and 15 shell tests.\n- The earlier invalid-output, duplicate-Codex-cache, rolling-channel, and Rosetta findings are fixed.\n- Smallest useful follow-up: mirror the installer’s complete musl detection and add behavioral platform-key fixtures instead of only structural regex assertions.\n\n## Findings\n\n- **WARNING — Couple runtime-dependent defaults:** The key identifies musl only through `ldd --version`, while Anthropic’s installer also checks `/lib/libc.musl-{x86_64,aarch64}.so.1` and `ldd /bin/ls`. On a supported musl host where `ldd --version` is absent or does not identify musl, the cache can share a glibc key. The [execution probe](https://github.com/self-evolving/repo/blob/62001a23fd237faff9905cd019de8a5450a922c7/.github/actions/setup-agent-runtime/action.yml#L267-L283) preserves correctness by reinstalling, but the restored `cache-hit` remains true, so the [save step](https://github.com/self-evolving/repo/blob/62001a23fd237faff9905cd019de8a5450a922c7/.github/actions/setup-agent-runtime/action.yml#L285-L293) cannot repair that cache and affected jobs repeatedly download the CLI.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-4`",
+      "createdAt": "2026-07-15T23:34:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/479#issuecomment-4986294114",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABKTY1Dg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 62001a23fd237faff9905cd019de8a5450a922c7 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #479 replaces #478’s deferred-install design with Claude-only caching inside the existing runtime setup action, addressing the repeated download latency measured in #454. It adds weekly or exact cache keys, compatibility fingerprints, platform partitioning, execution probing, immediate saves, documentation, and structural tests. Current head `62001a2` is mergeable with green CI. Earlier output-format, duplicate-Codex-cache, rolling-channel, documentation, metadata, and Rosetta issues are fixed; two cache-lifecycle gaps remain.\n\n## Review\n\nThe design is sound and installation fallback preserves correctness, so neither remaining issue is blocking. Claude concluded SHIP, while Codex identified both warnings and the rubrics reviewer independently corroborated the musl issue; current code and Anthropic’s documentation support retaining them.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Native updater bypasses the cache version contract | WARNING | The restored native CLI can background-update outside the immutable cache lifecycle, causing repeated downloads and potentially advancing an exact `claude_version` before the agent launch. |\n| musl hosts can share the glibc cache key | WARNING | The current `ldd --version` discriminator can fail on Alpine under Bash `pipefail`, storing a musl binary under the glibc key. Execution fallback works, but the hit cannot repair the immutable cache. |\n\n## Progress\n\n- Head `62001a2` remains mergeable and its live `check` job succeeds; reviewer validation also passed the build, 756 runtime tests, 90 workflow/action tests, 5 documentation tests, and 15 shell tests.\n- Earlier invalid-output, duplicate Codex cache, mutable-channel, documentation, metadata, Rosetta, and presence-only probe findings are resolved.\n- Added an [inline updater-lifecycle finding](https://github.com/self-evolving/repo/pull/479#discussion_r3591509574) and a [same-agent reply clarifying the remaining musl gap](https://github.com/self-evolving/repo/pull/479#discussion_r3591509652).\n- No comments were minimized and no threads were resolved. The fixed Codex thread was left untouched because it is outdated and not viewer-resolvable.\n- Optional cache-layout, exact-pin fingerprint churn, redundant `PATH`, and test-hardening notes remain intentionally outside required work.\n\n## Issue Details\n\n<details>\n<summary>Native updater bypasses the cache version contract</summary>\n\n**Cause:** The [install guard](https://github.com/self-evolving/repo/blob/62001a23fd237faff9905cd019de8a5450a922c7/.github/actions/setup-agent-runtime/action.yml#L267-L283) launches `claude --version` without disabling updates. Native installations check for updates on startup and apply them on the next launch, while `DISABLE_AUTOUPDATER=1` disables that behavior. [Anthropic installation documentation](https://code.claude.com/docs/en/installation#auto-updates)\n\n**Candidate solutions:** Disable auto-updates for action-managed cached installations during both the probe and later agent steps, while leaving valid preinstalled self-hosted CLIs unchanged. Alternatively, explicitly incorporate updater writes into a repairable cache lifecycle. Add cache-hit and exact-version regression coverage.\n\n**Comments:** The execution probe prevents setup failure, but it does not preserve the promised download savings or exact-pin behavior.\n\n</details>\n\n<details>\n<summary>musl hosts can share the glibc cache key</summary>\n\n**Cause:** The [platform resolver](https://github.com/self-evolving/repo/blob/62001a23fd237faff9905cd019de8a5450a922c7/.github/actions/setup-agent-runtime/action.yml#L223-L231) uses `ldd --version | grep musl`. Anthropic’s [current installer](https://claude.ai/install.sh) instead checks musl loader files or runs `ldd /bin/ls`; on Alpine, `ldd --version` can print musl while exiting nonzero, making the condition false under `pipefail`.\n\n**Candidate solutions:** Mirror the installer’s musl checks and add executable fixtures covering glibc, Alpine/musl, native ARM, and Rosetta rather than relying only on token-presence assertions.\n\n**Comments:** Claude considered platform partitioning fixed, but Codex and the rubrics reviewer found this narrower current-head gap. The probe preserves correctness, yet an immutable cache hit prevents saving the repaired binary.\n\n</details>\n\n## Recommended Next Step\n\n`FIX_PR`: Both warnings require localized setup-action and regression-test changes suitable for an automated fix pass.\n\n## Final Verdict\n\nMINOR_ISSUES\n\n## Action Items\n\n- [ ] Disable native auto-updates for action-managed cached Claude installations or integrate updater writes into the cache lifecycle, with exact-version and cache-hit coverage.\n- [ ] Match Anthropic’s musl platform detection and add executable glibc/musl platform fixtures.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-2`",
+      "createdAt": "2026-07-15T23:49:32Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/479#issuecomment-4986385678",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-07-15T20:47:38Z",
+  "files": [
+    {
+      "path": ".agent/docs/technical-details/key-concepts.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/internal-actions.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/workflow-action-validation.test.ts",
+      "additions": 88,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/setup-agent-runtime/action.yml",
+      "additions": 76,
+      "deletions": 12,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "cache-agent-clis",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 479,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABGKFAwA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-07-15T21:16:28Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "2505921b27628f8625a9cf203d244eb01557f499"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABGKd2Sw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-07-15T22:22:58Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "6f5deae2f93111d4a8e236a584bbb08a6207eac5"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABGKmciQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "",
+      "submittedAt": "2026-07-15T22:50:50Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "62001a23fd237faff9905cd019de8a5450a922c7"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABGK2ixA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-07-15T23:48:10Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "62001a23fd237faff9905cd019de8a5450a922c7"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABGK2jIg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-07-15T23:48:11Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "62001a23fd237faff9905cd019de8a5450a922c7"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Cache the Claude CLI binary in setup-agent-runtime",
+  "updatedAt": "2026-07-15T23:49:32Z",
+  "url": "https://github.com/self-evolving/repo/pull/479"
+}

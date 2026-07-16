@@ -1,0 +1,77 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "baseRefName": "main",
+  "body": "Implements the remaining piece of #454 Task 3, motivated by measured production data from a consumer repo (lolipopshock/rl-lit issue 12, run 29309332883, `ubuntu-latest`): with warm runtime caches, portal setup spent **2.6s restoring the runtime and 13.1s downloading the Claude CLI** — on the answer-first default path, where the portal never invokes a model. The 👀 landed at T+32s; ~13s of that was a download the job never used (and the answer job re-downloads it on its own VM regardless).\n\n## The ordering invariant\n\nNothing heavier than the restored runtime may precede the first user-visible reaction:\n\n- New `install-agent-cli` composite: the two CLI install steps extracted verbatim; `setup-agent-runtime` delegates to it, so every route job stays byte-identical.\n- The portal's setup call passes `install_codex`/`install_claude` as hard `\"false\"`.\n- Dedicated, gated install steps sit immediately before the only three portal steps that can run a model — opt-in dispatch triage, the follow-up intent gate, and implement metadata — sharing each step's exact condition, so the download happens only when needed and always after the reaction.\n- The portal's early answer-provider resolution is removed: its only consumer was the setup install flags (the follow-up gate uses its own provider step; the answer job keeps its own resolution).\n\nEnvelope tests pin all of it: literal-false setup flags, no CLI-installing step (composite or inline) before the reaction, per-model-step gated installs sharing conditions, and setup-agent-runtime containing no inline installer.\n\n## Expected effect (hosted runners)\n\nPortal setup ~17s → ~4s; 👀 ~T+32s → ~T+19s on current main, and ~T+7s once #474's pre-checkout fast-ack lands. Default-path portals stop consuming CLI download bandwidth entirely. Self-hosted runners with preinstalled CLIs were already short-circuiting and are unaffected.\n\nNotes: no CHANGELOG edit per the release-time convention (#477). Expected textual conflict with #474 in the portal steps region — whichever merges second rebases trivially.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)",
+  "closedAt": "2026-07-15T20:44:39Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABKSLIKQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "Superseded by the simpler approach: cache the CLI binaries inside the existing install steps (same restore/save discipline as the runtime cache) instead of deferring installation with a companion action. Caching helps every CLI-installing job, not just the portal, and adds no new actions or flag plumbing.",
+      "createdAt": "2026-07-15T20:44:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/478#issuecomment-4985112617",
+      "viewerDidAuthor": false
+    }
+  ],
+  "createdAt": "2026-07-15T20:19:23Z",
+  "files": [
+    {
+      "path": ".agent/docs/usage/internal-actions.md",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 58,
+      "deletions": 10,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/workflow-action-validation.test.ts",
+      "additions": 21,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/install-agent-cli/action.yml",
+      "additions": 66,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/actions/setup-agent-runtime/action.yml",
+      "additions": 7,
+      "deletions": 37,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 38,
+      "deletions": 35,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "lazy-portal-cli-install",
+  "labels": [],
+  "mergedAt": null,
+  "number": 478,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "CLOSED",
+  "title": "Defer portal CLI installation until a model step needs it",
+  "updatedAt": "2026-07-15T20:44:41Z",
+  "url": "https://github.com/self-evolving/repo/pull/478"
+}
