@@ -318,4 +318,16 @@ test("cache seed warms the Claude CLI cache", () => {
     "true",
     "seed absorbs CLI cache misses so user-facing runs do not pay them",
   );
+
+  // The weekly cron is scheduled activity and honors AGENT_SCHEDULE_POLICY;
+  // push and manual dispatch warm unconditionally.
+  const gate = steps.find((step) => typeof step.uses === "string" && step.uses.includes("scheduled-activity-gate"));
+  assert.ok(gate && isRecord(gate.with), "seed should resolve the schedule policy gate");
+  assert.equal(String((gate.with as Record<string, unknown>).workflow), "agent-cache-seed.yml");
+  assert.match(String(gate.if), /github\.event_name == 'schedule'/, "gate applies only to cron runs");
+  assert.match(
+    String(setup.if),
+    /github\.event_name != 'schedule' \|\| steps\.schedule_gate\.outputs\.skip != 'true'/,
+    "warming skips only when schedule policy disables the cron run",
+  );
 });
