@@ -288,36 +288,17 @@ test("standalone CLI caching follows the runtime cache discipline", () => {
   assert.match(String(restore.if), /need_claude == 'true'/, "Claude restore is gated on the CLI being missing");
 
   // Save is miss-gated, best-effort, and immediate so nothing is archived at
-  // job end after a caller can switch branches. The payload is staged inside
-  // the workspace because actions/cache archives out-of-workspace paths
-  // relative to the producer workspace, which breaks across HOME/workspace
-  // layouts; hydration rebuilds HOME after a hit and the stage is always
-  // removed.
-  const stageIndex = indexOf("Stage Claude CLI for caching");
+  // job end after a caller can switch branches. Paths are HOME-scoped by
+  // declared scope contract: the cache targets the uniform hosted-runner
+  // layout, self-hosted pools preinstall the CLI, and the execution probe
+  // makes any layout mismatch degrade to the uncached status quo.
   const saveIndex = indexOf("Save Claude CLI cache");
-  const cleanIndex = indexOf("Clean Claude CLI cache stage");
-  assert.equal(stageIndex, indexOf("Install Claude CLI") + 1, "staging immediately follows installation");
-  assert.equal(saveIndex, stageIndex + 1, "Claude save immediately follows staging");
-  assert.equal(cleanIndex, saveIndex + 1, "the workspace stage is removed right after saving");
+  assert.equal(saveIndex, indexOf("Install Claude CLI") + 1, "Claude save immediately follows installation");
   const save = steps[saveIndex];
   assert.equal(save["continue-on-error"], true, "Claude save stays best-effort");
   assert.match(String(save.if), /cache-hit != 'true'/, "Claude save runs only on a miss");
-  assert.match(String(steps[cleanIndex].if), /always\(\)/, "stage cleanup runs even after failures");
-
-  for (const name of ["Restore Claude CLI cache", "Save Claude CLI cache"]) {
-    const cacheStep = steps[indexOf(name)];
-    assert.equal(
-      String((cacheStep.with as Record<string, unknown>).path).trim(),
-      ".sepo-cli-stage/claude",
-      `${name} uses a workspace-relative payload`,
-    );
-  }
-  const hydrateIndex = indexOf("Hydrate Claude CLI from cache");
-  assert.ok(
-    hydrateIndex > indexOf("Restore Claude CLI cache") && hydrateIndex < indexOf("Install Claude CLI"),
-    "hydration sits between restore and installation",
-  );
-  assert.match(String(steps[hydrateIndex].if), /cache-hit == 'true'/, "hydration runs only on a hit");
+  const actionText = readFileSync(path.join(repoRoot, ".github/actions/setup-agent-runtime/action.yml"), "utf8");
+  assert.match(actionText, /Scope contract/, "the hosted-layout scope decision is stated in place");
 });
 
 test("cache seed warms the Claude CLI cache", () => {
