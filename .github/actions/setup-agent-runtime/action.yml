@@ -225,21 +225,6 @@ runs:
           ""|latest|stable) channel="${CLAUDE_VERSION:-latest}-${week}" ;;
           *) channel="${CLAUDE_VERSION}" ;;
         esac
-        # The installer resolves finer platforms than runner.os/arch: Linux
-        # glibc vs musl, and macOS ARM behind Rosetta reporting x86_64.
-        # Mirror the installer's musl detector (musl loader file, then
-        # ldd /bin/ls) and neutralize pipefail: on Alpine, ldd prints musl
-        # but exits nonzero, which would silently fail a piped condition
-        # under this shell's -o pipefail default.
-        platform="$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m)"
-        if [ "$(uname -s)" = "Linux" ]; then
-          if ls /lib/libc.musl-*.so.1 >/dev/null 2>&1 || { ldd /bin/ls 2>&1 || true; } | grep -qi musl; then
-            platform="${platform}-musl"
-          fi
-        fi
-        if [ "$(sysctl -in sysctl.proc_translated 2>/dev/null || echo 0)" = "1" ]; then
-          platform="${platform}-rosetta"
-        fi
         if [ "${need_claude}" = "true" ] && [ -z "${DISABLE_AUTOUPDATER:-}" ]; then
           # Action-managed installs must not self-update: the version probe
           # is one launch and the agent run is the next, so background
@@ -254,17 +239,18 @@ runs:
         fi
         {
           echo "need_claude=${need_claude}"
-          echo "claude_key=sepo-cli-claude-${platform}-${channel}-${{ hashFiles('.github/actions/setup-agent-runtime/action.yml', '.agent/package-lock.json', '.agent/model-defaults.json') }}"
+          echo "claude_key=sepo-cli-claude-${{ runner.os }}-${{ runner.arch }}-${channel}-${{ hashFiles('.github/actions/setup-agent-runtime/action.yml', '.agent/package-lock.json', '.agent/model-defaults.json') }}"
         } >> "$GITHUB_OUTPUT"
 
-    # Scope contract: these HOME-scoped cache paths assume the uniform
-    # GitHub-hosted runner layout, where every producer and consumer shares
-    # the same HOME/workspace geometry — hosted runners are where the CLI
-    # download cost lives. Self-hosted pools are expected to preinstall the
-    # CLI (the need check then bypasses caching entirely), and on any
-    # layout mismatch the execution probe below rejects the restore and
-    # falls back to a fresh install, so the worst case anywhere is the
-    # uncached status quo, never a broken CLI.
+    # Scope contract: this cache targets the uniform GitHub-hosted runner
+    # fleet — one HOME/workspace geometry and one libc per os/arch pair —
+    # which is where the CLI download cost lives, so runner.os/arch keys
+    # and HOME-scoped paths are exact within scope. Self-hosted pools are
+    # expected to preinstall the CLI (the need check then bypasses caching
+    # entirely), and outside the contract — exotic layouts, musl, Rosetta —
+    # the execution probe below rejects any incompatible restore and falls
+    # back to a fresh install, so the worst case anywhere is the uncached
+    # status quo, never a broken CLI.
     - name: Restore Claude CLI cache
       if: ${{ steps.cli.outputs.need_claude == 'true' }}
       id: cli_claude

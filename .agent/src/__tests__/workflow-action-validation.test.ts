@@ -228,12 +228,10 @@ test("standalone CLI caching follows the runtime cache discipline", () => {
   // else is treated as an exact pin.
   assert.match(keysRun, /""\|latest\|stable\)/, "empty, latest, and stable share the mutable-channel case");
   assert.match(keysRun, /latest\}-\$\{week\}/, "mutable channels carry the week bucket");
-  // Installer-resolved platform partitions the key beyond runner.os/arch.
-  assert.match(keysRun, /uname -m/, "key uses the native machine architecture");
-  assert.match(keysRun, /libc\.musl-\*\.so\.1/, "musl detection mirrors the installer's loader-file check");
-  assert.match(keysRun, /ldd \/bin\/ls/, "musl detection mirrors the installer's ldd fallback");
-  assert.match(keysRun, /\|\| true/, "musl ldd fallback neutralizes pipefail");
-  assert.match(keysRun, /proc_translated/, "key distinguishes Rosetta translation");
+  // runner.os/arch is exact within the hosted scope contract; finer
+  // platform detection (musl, Rosetta) is out of scope by declared
+  // contract and covered by the execution probe's fresh-install fallback.
+  assert.match(keysRun, /sepo-cli-claude-\$\{\{ runner\.os \}\}-\$\{\{ runner\.arch \}\}-\$\{channel\}/, "key composes runner platform and channel");
   assert.match(
     keysRun,
     /DISABLE_AUTOUPDATER=1/,
@@ -244,7 +242,6 @@ test("standalone CLI caching follows the runtime cache discipline", () => {
     "the opt-out is need-gated and preserves any pre-set operator policy",
   );
   assert.match(keysRun, /FORCE_AUTOUPDATE_PLUGINS/, "the plugin-update escape hatch is documented in place");
-  assert.match(keysRun, /claude_key=sepo-cli-claude-\$\{platform\}-\$\{channel\}/, "key composes platform and channel");
   assert.ok(isRecord(keys.env), "CLI keys step reads inputs via env");
 
   const installProbe = steps[indexOf("Install Claude CLI")];

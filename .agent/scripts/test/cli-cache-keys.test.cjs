@@ -1,10 +1,8 @@
 "use strict";
 
 // Executes the Claude CLI cache-key script extracted from
-// setup-agent-runtime against stubbed platform tools, proving the
-// installer-faithful platform resolution and channel bucketing behave —
-// including the Alpine case where ldd prints musl but exits nonzero under
-// this shell's pipefail default.
+// setup-agent-runtime, proving channel bucketing (mutable channels rotate
+// weekly, pins key exactly) and the need-gated auto-updater opt-out.
 
 const { strict: assert } = require("node:assert");
 const { spawnSync } = require("node:child_process");
@@ -38,7 +36,7 @@ function stub(dir, name, lines) {
   chmodSync(path, 0o755);
 }
 
-function runKeys({ unameS, unameM, lddExit = 1, lddOut = "", translated = "0", version = "", installClaude = "true", extraEnv = {} }) {
+function runKeys({ version = "", installClaude = "true", extraEnv = {} } = {}) {
   const tempDir = mkdtempSync(join(tmpdir(), "cli-keys-"));
   const outputPath = join(tempDir, "output.txt");
   const envPath = join(tempDir, "env.txt");
@@ -47,24 +45,7 @@ function runKeys({ unameS, unameM, lddExit = 1, lddOut = "", translated = "0", v
   writeFileSync(outputPath, "");
   writeFileSync(envPath, "");
 
-  stub(tempDir, "uname", [
-    'case "$1" in',
-    `  -s) echo "${unameS}" ;;`,
-    `  -m) echo "${unameM}" ;;`,
-    `  *) echo "${unameS}" ;;`,
-    "esac",
-  ]);
-  stub(tempDir, "ldd", [`printf '%s\\n' "${lddOut}"`, `exit ${lddExit}`]);
-  stub(tempDir, "sysctl", [`echo "${translated}"`]);
   stub(tempDir, "date", ['echo "2026-29"']);
-  stub(tempDir, "tr", ['exec /usr/bin/tr "$@"']);
-  stub(tempDir, "grep", ['exec /usr/bin/grep "$@"']);
-  stub(tempDir, "ls", [
-    // The musl loader-file probe must miss in fixtures; delegate real ls
-    // for anything else so the glob check exits nonzero.
-    'if [[ "$*" == *libc.musl* ]]; then exit 2; fi',
-    'exec /bin/ls "$@"',
-  ]);
 
   const result = spawnSync("bash", ["-e", "-o", "pipefail", scriptPath], {
     encoding: "utf8",
@@ -94,41 +75,29 @@ function runKeys({ unameS, unameM, lddExit = 1, lddOut = "", translated = "0", v
   return { outputs, persistedEnv, result };
 }
 
-test("cli cache key resolves installer-faithful platforms", () => {
-  const glibc = runKeys({ unameS: "Linux", unameM: "x86_64", lddOut: "ldd (GNU libc) 2.39", lddExit: 0 });
-  assert.equal(glibc.result.status, 0, glibc.result.stderr);
-  assert.match(glibc.outputs.claude_key, /^sepo-cli-claude-linux-x86_64-latest-2026-29-/);
-
-  // Alpine: ldd prints musl but exits nonzero — pipefail must not swallow it.
-  const musl = runKeys({ unameS: "Linux", unameM: "x86_64", lddOut: "musl libc (x86_64)", lddExit: 1 });
-  assert.equal(musl.result.status, 0, musl.result.stderr);
-  assert.match(musl.outputs.claude_key, /^sepo-cli-claude-linux-x86_64-musl-latest-2026-29-/);
-
-  const rosetta = runKeys({ unameS: "Darwin", unameM: "x86_64", translated: "1" });
-  assert.equal(rosetta.result.status, 0, rosetta.result.stderr);
-  assert.match(rosetta.outputs.claude_key, /^sepo-cli-claude-darwin-x86_64-rosetta-latest-2026-29-/);
-});
-
 test("cli cache key buckets mutable channels and pins exact versions", () => {
-  const stable = runKeys({ unameS: "Linux", unameM: "aarch64", version: "stable" });
+  const unpinned = runKeys();
+  assert.match(unpinned.outputs.claude_key, /-latest-2026-29-/);
+
+  const stable = runKeys({ version: "stable" });
   assert.match(stable.outputs.claude_key, /-stable-2026-29-/);
 
-  const pinned = runKeys({ unameS: "Linux", unameM: "aarch64", version: "1.2.3" });
+  const pinned = runKeys({ version: "1.2.3" });
   assert.match(pinned.outputs.claude_key, /-1\.2\.3-/);
   assert.doesNotMatch(pinned.outputs.claude_key, /2026-29/);
 });
 
 test("action-managed installs disable the auto-updater; preinstalled do not", () => {
-  const managed = runKeys({ unameS: "Linux", unameM: "x86_64" });
+  const managed = runKeys();
   assert.equal(managed.outputs.need_claude, "true");
   assert.match(managed.persistedEnv, /DISABLE_AUTOUPDATER=1/);
 
-  const skipped = runKeys({ unameS: "Linux", unameM: "x86_64", installClaude: "false" });
+  const skipped = runKeys({ installClaude: "false" });
   assert.equal(skipped.outputs.need_claude, "false");
   assert.doesNotMatch(skipped.persistedEnv, /DISABLE_AUTOUPDATER/);
 
   // A pre-set operator policy is preserved untouched.
-  const preset = runKeys({ unameS: "Linux", unameM: "x86_64", extraEnv: { DISABLE_AUTOUPDATER: "0" } });
+  const preset = runKeys({ extraEnv: { DISABLE_AUTOUPDATER: "0" } });
   assert.equal(preset.outputs.need_claude, "true");
   assert.doesNotMatch(preset.persistedEnv, /DISABLE_AUTOUPDATER/);
 });
