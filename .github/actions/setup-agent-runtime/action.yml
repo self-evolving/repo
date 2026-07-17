@@ -240,12 +240,16 @@ runs:
         if [ "$(sysctl -in sysctl.proc_translated 2>/dev/null || echo 0)" = "1" ]; then
           platform="${platform}-rosetta"
         fi
-        if [ "${need_claude}" = "true" ]; then
+        if [ "${need_claude}" = "true" ] && [ -z "${DISABLE_AUTOUPDATER:-}" ]; then
           # Action-managed installs must not self-update: the version probe
           # is one launch and the agent run is the next, so background
           # updates would race the run, silently advance pinned versions,
-          # and be re-downloaded on every immutable cache hit. Preinstalled
-          # self-hosted CLIs keep their operator's update policy.
+          # and be re-downloaded on every immutable cache hit. Per Anthropic
+          # docs this also disables plugin/marketplace auto-updates — the
+          # right default for ephemeral CI determinism; operators can set
+          # FORCE_AUTOUPDATE_PLUGINS=1 to restore plugin updates, and any
+          # pre-set DISABLE_AUTOUPDATER value is preserved untouched.
+          # Preinstalled self-hosted CLIs keep their operator's policy.
           echo "DISABLE_AUTOUPDATER=1" >> "$GITHUB_ENV"
         fi
         {
@@ -253,16 +257,34 @@ runs:
           echo "claude_key=sepo-cli-claude-${platform}-${channel}-${{ hashFiles('.github/actions/setup-agent-runtime/action.yml', '.agent/package-lock.json', '.agent/model-defaults.json') }}"
         } >> "$GITHUB_OUTPUT"
 
+    # The cache payload is staged inside the workspace: actions/cache
+    # archives out-of-workspace paths relative to the producer's workspace,
+    # so a HOME-scoped archive restored on a runner with a different
+    # HOME/workspace layout lands outside HOME and re-downloads on every
+    # immutable hit. Workspace-relative paths archive and extract stably on
+    # any layout; hydrate/stage steps copy between the stage and HOME.
     - name: Restore Claude CLI cache
       if: ${{ steps.cli.outputs.need_claude == 'true' }}
       id: cli_claude
       continue-on-error: true
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
-        path: |
-          ~/.local/bin/claude
-          ~/.local/share/claude
+        path: .sepo-cli-stage/claude
         key: ${{ steps.cli.outputs.claude_key }}
+
+    - name: Hydrate Claude CLI from cache
+      if: ${{ steps.cli.outputs.need_claude == 'true' && steps.cli_claude.outputs.cache-hit == 'true' }}
+      shell: bash
+      run: |
+        mkdir -p "$HOME/.local/bin" "$HOME/.local/share"
+        if [ -e ".sepo-cli-stage/claude/bin-claude" ]; then
+          cp -a ".sepo-cli-stage/claude/bin-claude" "$HOME/.local/bin/claude"
+        fi
+        if [ -d ".sepo-cli-stage/claude/share-claude" ]; then
+          rm -rf "$HOME/.local/share/claude"
+          cp -a ".sepo-cli-stage/claude/share-claude" "$HOME/.local/share/claude"
+        fi
+        rm -rf .sepo-cli-stage
 
     - name: Install Codex CLI
       if: ${{ inputs.install_codex == 'true' }}
@@ -301,12 +323,27 @@ runs:
           curl -fsSL https://claude.ai/install.sh | bash
         fi
 
+    - name: Stage Claude CLI for caching
+      if: ${{ steps.cli.outputs.need_claude == 'true' && steps.cli_claude.outputs.cache-hit != 'true' }}
+      shell: bash
+      run: |
+        mkdir -p .sepo-cli-stage/claude
+        if [ -e "$HOME/.local/bin/claude" ]; then
+          cp -a "$HOME/.local/bin/claude" ".sepo-cli-stage/claude/bin-claude"
+        fi
+        if [ -d "$HOME/.local/share/claude" ]; then
+          cp -a "$HOME/.local/share/claude" ".sepo-cli-stage/claude/share-claude"
+        fi
+
     - name: Save Claude CLI cache
       if: ${{ steps.cli.outputs.need_claude == 'true' && steps.cli_claude.outputs.cache-hit != 'true' }}
       continue-on-error: true
       uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
-        path: |
-          ~/.local/bin/claude
-          ~/.local/share/claude
+        path: .sepo-cli-stage/claude
         key: ${{ steps.cli.outputs.claude_key }}
+
+    - name: Clean Claude CLI cache stage
+      if: ${{ always() && steps.cli.outputs.need_claude == 'true' }}
+      shell: bash
+      run: rm -rf .sepo-cli-stage

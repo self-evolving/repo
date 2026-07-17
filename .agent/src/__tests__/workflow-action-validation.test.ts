@@ -240,9 +240,10 @@ test("standalone CLI caching follows the runtime cache discipline", () => {
     "action-managed installs disable the CLI auto-updater",
   );
   assert.ok(
-    keysRun.includes('if [ "${need_claude}" = "true" ]'),
-    "auto-updater opt-out is gated on the install being action-managed",
+    keysRun.includes('if [ "${need_claude}" = "true" ] && [ -z "${DISABLE_AUTOUPDATER:-}" ]'),
+    "the opt-out is need-gated and preserves any pre-set operator policy",
   );
+  assert.match(keysRun, /FORCE_AUTOUPDATE_PLUGINS/, "the plugin-update escape hatch is documented in place");
   assert.match(keysRun, /claude_key=sepo-cli-claude-\$\{platform\}-\$\{channel\}/, "key composes platform and channel");
   assert.ok(isRecord(keys.env), "CLI keys step reads inputs via env");
 
@@ -287,12 +288,36 @@ test("standalone CLI caching follows the runtime cache discipline", () => {
   assert.match(String(restore.if), /need_claude == 'true'/, "Claude restore is gated on the CLI being missing");
 
   // Save is miss-gated, best-effort, and immediate so nothing is archived at
-  // job end after a caller can switch branches.
+  // job end after a caller can switch branches. The payload is staged inside
+  // the workspace because actions/cache archives out-of-workspace paths
+  // relative to the producer workspace, which breaks across HOME/workspace
+  // layouts; hydration rebuilds HOME after a hit and the stage is always
+  // removed.
+  const stageIndex = indexOf("Stage Claude CLI for caching");
   const saveIndex = indexOf("Save Claude CLI cache");
-  assert.equal(saveIndex, indexOf("Install Claude CLI") + 1, "Claude save immediately follows installation");
+  const cleanIndex = indexOf("Clean Claude CLI cache stage");
+  assert.equal(stageIndex, indexOf("Install Claude CLI") + 1, "staging immediately follows installation");
+  assert.equal(saveIndex, stageIndex + 1, "Claude save immediately follows staging");
+  assert.equal(cleanIndex, saveIndex + 1, "the workspace stage is removed right after saving");
   const save = steps[saveIndex];
   assert.equal(save["continue-on-error"], true, "Claude save stays best-effort");
   assert.match(String(save.if), /cache-hit != 'true'/, "Claude save runs only on a miss");
+  assert.match(String(steps[cleanIndex].if), /always\(\)/, "stage cleanup runs even after failures");
+
+  for (const name of ["Restore Claude CLI cache", "Save Claude CLI cache"]) {
+    const cacheStep = steps[indexOf(name)];
+    assert.equal(
+      String((cacheStep.with as Record<string, unknown>).path).trim(),
+      ".sepo-cli-stage/claude",
+      `${name} uses a workspace-relative payload`,
+    );
+  }
+  const hydrateIndex = indexOf("Hydrate Claude CLI from cache");
+  assert.ok(
+    hydrateIndex > indexOf("Restore Claude CLI cache") && hydrateIndex < indexOf("Install Claude CLI"),
+    "hydration sits between restore and installation",
+  );
+  assert.match(String(steps[hydrateIndex].if), /cache-hit == 'true'/, "hydration runs only on a hit");
 });
 
 test("cache seed warms the Claude CLI cache", () => {

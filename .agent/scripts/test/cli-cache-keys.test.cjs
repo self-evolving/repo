@@ -38,7 +38,7 @@ function stub(dir, name, lines) {
   chmodSync(path, 0o755);
 }
 
-function runKeys({ unameS, unameM, lddExit = 1, lddOut = "", translated = "0", version = "", installClaude = "true" }) {
+function runKeys({ unameS, unameM, lddExit = 1, lddOut = "", translated = "0", version = "", installClaude = "true", extraEnv = {} }) {
   const tempDir = mkdtempSync(join(tmpdir(), "cli-keys-"));
   const outputPath = join(tempDir, "output.txt");
   const envPath = join(tempDir, "env.txt");
@@ -75,6 +75,7 @@ function runKeys({ unameS, unameM, lddExit = 1, lddOut = "", translated = "0", v
       GITHUB_ENV: envPath,
       HOME: tempDir,
       PATH: `${tempDir}:/usr/bin:/bin`,
+      ...extraEnv,
     },
   });
 
@@ -125,4 +126,9 @@ test("action-managed installs disable the auto-updater; preinstalled do not", ()
   const skipped = runKeys({ unameS: "Linux", unameM: "x86_64", installClaude: "false" });
   assert.equal(skipped.outputs.need_claude, "false");
   assert.doesNotMatch(skipped.persistedEnv, /DISABLE_AUTOUPDATER/);
+
+  // A pre-set operator policy is preserved untouched.
+  const preset = runKeys({ unameS: "Linux", unameM: "x86_64", extraEnv: { DISABLE_AUTOUPDATER: "0" } });
+  assert.equal(preset.outputs.need_claude, "true");
+  assert.doesNotMatch(preset.persistedEnv, /DISABLE_AUTOUPDATER/);
 });
