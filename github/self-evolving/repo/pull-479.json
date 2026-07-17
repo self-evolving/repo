@@ -205,8 +205,8 @@
       "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 96 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The implementation follows the measured latency work in [#454](https://github.com/self-evolving/repo/issues/454) and deliberately replaces the broader design in [#478](https://github.com/self-evolving/repo/pull/478). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | [Claude caching](https://github.com/self-evolving/repo/blob/62001a23fd237faff9905cd019de8a5450a922c7/.github/actions/setup-agent-runtime/action.yml#L196-L293) reuses the existing immediate restore/save discipline, while Codex remains owned by the runtime dependency cache. |\n| coding_workflow / generic | Couple runtime-dependent defaults | partial | 6/8 | The [cache key](https://github.com/self-evolving/repo/blob/62001a23fd237faff9905cd019de8a5450a922c7/.github/actions/setup-agent-runtime/action.yml#L204-L235) rotates mutable channels and fingerprints the action, adapter lock, and model defaults. Its musl test is narrower than [Anthropic’s current installer](https://claude.ai/install.sh), however. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | The [existing inputs](https://github.com/self-evolving/repo/blob/62001a23fd237faff9905cd019de8a5450a922c7/.github/actions/setup-agent-runtime/action.yml#L29-L45) remain the only controls: `cache_mode: off` disables caching, while version pins preserve exact selection. |\n| coding_workflow / generic | Verify immutable dependency references | pass | 8/8 | Both new cache steps pin `actions/cache` to `55cc8345863c7cc4c66a329aec7e433d2d1c52a9`, independently confirmed as the authoritative [v6.1.0 commit](https://github.com/actions/cache/commit/55cc8345863c7cc4c66a329aec7e433d2d1c52a9). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | [Runtime concepts](https://github.com/self-evolving/repo/blob/62001a23fd237faff9905cd019de8a5450a922c7/.agent/docs/technical-details/key-concepts.md#L119-L126) and [internal-action documentation](https://github.com/self-evolving/repo/blob/62001a23fd237faff9905cd019de8a5450a922c7/.agent/docs/usage/internal-actions.md#L6-L10) cover cache modes, Codex ownership, Claude pinning, and fallback behavior. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The [four-file diff](https://github.com/self-evolving/repo/pull/479/files) is confined to runtime setup, focused regression coverage, and matching documentation. |\n\n## Notes\n\n- Current head `62001a2` is unchanged and its live `check` job passes. Independent verification passed the build, 90 workflow/action tests, 5 documentation tests, and 15 shell tests.\n- The earlier invalid-output, duplicate-Codex-cache, rolling-channel, and Rosetta findings are fixed.\n- Smallest useful follow-up: mirror the installer’s complete musl detection and add behavioral platform-key fixtures instead of only structural regex assertions.\n\n## Findings\n\n- **WARNING — Couple runtime-dependent defaults:** The key identifies musl only through `ldd --version`, while Anthropic’s installer also checks `/lib/libc.musl-{x86_64,aarch64}.so.1` and `ldd /bin/ls`. On a supported musl host where `ldd --version` is absent or does not identify musl, the cache can share a glibc key. The [execution probe](https://github.com/self-evolving/repo/blob/62001a23fd237faff9905cd019de8a5450a922c7/.github/actions/setup-agent-runtime/action.yml#L267-L283) preserves correctness by reinstalling, but the restored `cache-hit` remains true, so the [save step](https://github.com/self-evolving/repo/blob/62001a23fd237faff9905cd019de8a5450a922c7/.github/actions/setup-agent-runtime/action.yml#L285-L293) cannot repair that cache and affected jobs repeatedly download the CLI.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-4`",
       "createdAt": "2026-07-15T23:34:38Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/479#issuecomment-4986294114",
       "viewerDidAuthor": true
@@ -293,10 +293,68 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: f45d8d48b571a1334ab9f3d37e07056d89838298 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\nSelected model is at capacity. Please try a different model.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-2`",
       "createdAt": "2026-07-16T08:01:56Z",
       "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/479#issuecomment-4989550941",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABKceR2Q",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review ",
+      "createdAt": "2026-07-16T19:42:51Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/479#issuecomment-4995912153",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABKck7SQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The [PR description](https://github.com/self-evolving/repo/pull/479) grounds the change in measured latency work from [#454](https://github.com/self-evolving/repo/issues/454) and explicitly replaces the broader design in [#478](https://github.com/self-evolving/repo/pull/478). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | [Claude caching](https://github.com/self-evolving/repo/blob/951b4eeea210aecf71d40151102f1fdaae7edbeb/.github/actions/setup-agent-runtime/action.yml#L196-L312) extends the existing immediate restore/save discipline; [coverage](https://github.com/self-evolving/repo/blob/951b4eeea210aecf71d40151102f1fdaae7edbeb/.agent/src/__tests__/workflow-action-validation.test.ts#L201-L218) confirms Codex remains owned by cached runtime dependencies rather than duplicating its cache. |\n| coding_workflow / generic | Couple runtime-dependent defaults | pass | 8/8 | The [key resolver](https://github.com/self-evolving/repo/blob/951b4eeea210aecf71d40151102f1fdaae7edbeb/.github/actions/setup-agent-runtime/action.yml#L217-L265) couples caches to platform, channel/week, producer action, adapter lock, and bundled model defaults; the [trusted seed](https://github.com/self-evolving/repo/blob/951b4eeea210aecf71d40151102f1fdaae7edbeb/.github/workflows/agent-cache-seed.yml#L13-L58) warms every rotation source. Executable fixtures cover glibc, Alpine/musl, Rosetta, channel bucketing, and updater isolation. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | The [existing action inputs](https://github.com/self-evolving/repo/blob/951b4eeea210aecf71d40151102f1fdaae7edbeb/.github/actions/setup-agent-runtime/action.yml#L29-L45) remain the only controls: `cache_mode: off` disables caching, exact versions remain pinnable, and no additional action or configuration surface is introduced. |\n| coding_workflow / generic | Verify immutable dependency references | pass | 8/8 | Both [restore](https://github.com/self-evolving/repo/blob/951b4eeea210aecf71d40151102f1fdaae7edbeb/.github/actions/setup-agent-runtime/action.yml#L256-L265) and [save](https://github.com/self-evolving/repo/blob/951b4eeea210aecf71d40151102f1fdaae7edbeb/.github/actions/setup-agent-runtime/action.yml#L304-L312) pin `actions/cache` to `55cc8345863c7cc4c66a329aec7e433d2d1c52a9`, independently verified as the upstream [v6.1.0 commit](https://github.com/actions/cache/commit/55cc8345863c7cc4c66a329aec7e433d2d1c52a9). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | [Runtime concepts](https://github.com/self-evolving/repo/blob/951b4eeea210aecf71d40151102f1fdaae7edbeb/.agent/docs/technical-details/key-concepts.md#L119-L126), [internal-action documentation](https://github.com/self-evolving/repo/blob/951b4eeea210aecf71d40151102f1fdaae7edbeb/.agent/docs/usage/internal-actions.md#L6-L10), and [workflow documentation](https://github.com/self-evolving/repo/blob/951b4eeea210aecf71d40151102f1fdaae7edbeb/.agent/docs/usage/supported-workflows.md#L23-L29) describe cache ownership, modes, pinning, fallback, and weekly warming. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The [seven-file diff](https://github.com/self-evolving/repo/pull/479/files) is confined to runtime setup, cache seeding, focused regression coverage, and corresponding documentation. |\n\n## Notes\n\n- Head `951b4eee` remained mergeable and unchanged at final verification; the live [`check` job](https://github.com/self-evolving/repo/actions/runs/29482517510/job/87569297119) passes.\n- Independent current-head verification passed the build, 756 runtime tests, 91 workflow/action tests, 5 documentation tests, and 18 shell/behavioral tests.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- No rubric-specific findings at the current head.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-2`",
+      "createdAt": "2026-07-16T19:56:30Z",
+      "includesCreatedEdit": false,
       "isMinimized": false,
       "minimizedReason": "",
       "reactionGroups": [],
-      "url": "https://github.com/self-evolving/repo/pull/479#issuecomment-4989550941",
+      "url": "https://github.com/self-evolving/repo/pull/479#issuecomment-4996021065",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABKcrK8g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 951b4eeea210aecf71d40151102f1fdaae7edbeb -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #479 replaces #478’s deferred-install design with Claude-only caching inside `setup-agent-runtime`, continuing the latency work tracked in #454. It adds platform-aware weekly or exact cache keys, compatibility fingerprints, execution probing, updater suppression, and immediate best-effort saves. The cache-seed workflow also gains a weekly trigger to warm new keys before user-facing runs. The core cache implementation is sound, but the scheduled seed has one policy-integration gap.\n\n## Review\n\nCurrent head `951b4ee` is mergeable with green CI, and prior cache correctness findings are resolved. Claude and the rubrics reviewer considered the PR shippable, while Codex identified a schedule-policy bypass that current code and documentation confirm.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Weekly cache seed bypasses schedule policy | WARNING | The [new scheduled path](https://github.com/self-evolving/repo/blob/951b4eeea210aecf71d40151102f1fdaae7edbeb/.github/workflows/agent-cache-seed.yml#L51-L58) proceeds directly to runtime and Claude warming, so `AGENT_SCHEDULE_POLICY` cannot disable this recurring work without disabling every Sepo entry point. |\n\n## Progress\n\n- Earlier invalid-output, duplicate Codex cache, mutable-channel, platform, updater, fingerprint, and rollover-warming findings are fixed.\n- Live `check` and portal checks pass; the PR remains mergeable at the reviewed head.\n- Posted a distinct [inline schedule-policy comment](https://github.com/self-evolving/repo/pull/479#discussion_r3598583313).\n- No replies, minimizations, or thread resolutions were performed; existing threads are not viewer-resolvable and some include human replies.\n- Optional cleanup and post-merge cache-path soak checks remain non-blocking.\n\n## Issue Details\n\n<details>\n<summary>Weekly cache seed bypasses schedule policy</summary>\n\n**Cause:** The PR adds a weekly cron but transitions directly from checkout to `setup-agent-runtime`. The documented [`AGENT_SCHEDULE_POLICY`](https://github.com/self-evolving/repo/blob/951b4eeea210aecf71d40151102f1fdaae7edbeb/.agent/docs/architecture/memory.md#L124-L146) contract controls scheduled workflows, and the shared gate exists specifically to stop disabled runs before runtime or provider setup.\n\n**Candidate solutions:** Invoke `scheduled-activity-gate` after checkout with `workflow: agent-cache-seed.yml`, condition the warming step on `skip != 'true'`, and test that disabled cron runs skip while `push` and `workflow_dispatch` continue warming caches.\n\n**Comments:** This preserves default weekly warming while honoring explicit disabled policies. The existing seed thread concerns adding the rollover trigger, not whether that trigger respects schedule policy.\n\n</details>\n\n## Recommended Next Step\n\n`FIX_PR`: The remaining issue is a localized workflow-and-test change suitable for an automated fix pass.\n\n## Final Verdict\n\nMINOR_ISSUES\n\n## Action Items\n\n- [ ] Gate scheduled cache warming through `AGENT_SCHEDULE_POLICY` and add cron-versus-push/manual regression coverage.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-4`",
+      "createdAt": "2026-07-16T20:09:07Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/479#issuecomment-4996123378",
       "viewerDidAuthor": true
     }
   ],
@@ -328,7 +386,7 @@
     },
     {
       "path": ".agent/src/__tests__/workflow-action-validation.test.ts",
-      "additions": 132,
+      "additions": 144,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
@@ -340,7 +398,7 @@
     },
     {
       "path": ".github/workflows/agent-cache-seed.yml",
-      "additions": 11,
+      "additions": 24,
       "deletions": 1,
       "changeType": "MODIFIED"
     }
@@ -522,10 +580,40 @@
       "commit": {
         "oid": "951b4eeea210aecf71d40151102f1fdaae7edbeb"
       }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABGSxKOg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-07-16T20:08:00Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "951b4eeea210aecf71d40151102f1fdaae7edbeb"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABGUCLzw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "",
+      "submittedAt": "2026-07-17T01:03:13Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "951b4eeea210aecf71d40151102f1fdaae7edbeb"
+      }
     }
   ],
   "state": "OPEN",
   "title": "Cache the Claude CLI binary in setup-agent-runtime",
-  "updatedAt": "2026-07-16T08:10:26Z",
+  "updatedAt": "2026-07-17T01:03:13Z",
   "url": "https://github.com/self-evolving/repo/pull/479"
 }
