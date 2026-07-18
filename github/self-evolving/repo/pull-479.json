@@ -394,8 +394,8 @@
       "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The [PR description](https://github.com/self-evolving/repo/pull/479) grounds the change in latency work from [#454](https://github.com/self-evolving/repo/issues/454) and explains why it supersedes [#478](https://github.com/self-evolving/repo/pull/478). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Claude caching extends the existing setup action’s split restore/save pattern, while weekly warming reuses the existing [`scheduled-activity-gate`](https://github.com/self-evolving/repo/blob/4abc275b58ae6a03bc5ad1ead1dd950c1612454d/.github/workflows/agent-cache-seed.yml#L51-L71). Codex remains owned by the runtime dependency cache. |\n| coding_workflow / generic | Couple runtime-dependent defaults | pass | 8/8 | The [cache key](https://github.com/self-evolving/repo/blob/4abc275b58ae6a03bc5ad1ead1dd950c1612454d/.github/actions/setup-agent-runtime/action.yml#L217-L254) couples platform, mutable channel/week or exact pin, producer action, adapter lock state, and model defaults. The [trusted seed](https://github.com/self-evolving/repo/blob/4abc275b58ae6a03bc5ad1ead1dd950c1612454d/.github/workflows/agent-cache-seed.yml#L13-L71) warms both change-driven and weekly rotations. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | No new public cache knob was added: the existing [`cache_mode`](https://github.com/self-evolving/repo/blob/4abc275b58ae6a03bc5ad1ead1dd950c1612454d/.github/actions/setup-agent-runtime/action.yml#L29-L45) controls the behavior, exact `claude_version` pins remain supported, preinstalled CLIs bypass caching, and scheduled warming honors `AGENT_SCHEDULE_POLICY`. |\n| coding_workflow / generic | Verify immutable dependency references | pass | 8/8 | Both new cache steps use `actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9`; independent upstream verification confirms that commit is the authoritative [`v6.1.0`](https://github.com/actions/cache/releases/tag/v6.1.0) tag target. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The cache modes and ownership are documented in [key concepts](https://github.com/self-evolving/repo/blob/4abc275b58ae6a03bc5ad1ead1dd950c1612454d/.agent/docs/technical-details/key-concepts.md#L120-L126), [internal actions](https://github.com/self-evolving/repo/blob/4abc275b58ae6a03bc5ad1ead1dd950c1612454d/.agent/docs/usage/internal-actions.md#L7-L10), and the [workflow reference](https://github.com/self-evolving/repo/blob/4abc275b58ae6a03bc5ad1ead1dd950c1612454d/.agent/docs/usage/supported-workflows.md#L27-L29). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The [diff](https://github.com/self-evolving/repo/pull/479/files) is confined to the existing setup action and cache-seed workflow, their focused executable/structural tests, and three matching documentation lines. |\n\n## Notes\n\n- Current head `4abc275` addresses the earlier cache-ownership, compatibility, platform, updater, rollover-warming, and schedule-policy findings.\n- Independent current-head verification passed 91 workflow/action tests, 5 documentation checks, and 18 shell/executable tests; the live `check` job also passes.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings on the current head.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-1`",
       "createdAt": "2026-07-17T05:54:51Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/479#issuecomment-4999469262",
       "viewerDidAuthor": true
@@ -409,10 +409,120 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 4abc275b58ae6a03bc5ad1ead1dd950c1612454d -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #479 replaces #478’s deferred-install design with Claude-only caching inside `setup-agent-runtime`, continuing the latency work tracked in #454. Codex remains covered by the runtime dependency cache. The implementation adds platform-aware weekly or exact keys, compatibility fingerprints, execution probing, updater suppression, and immediate best-effort saves. A weekly, schedule-policy-gated workflow warms rotated caches. The core design works, but two edge cases remain.\n\n## Review\n\nCurrent head `4abc275` is mergeable with green CI, and all earlier correctness findings are resolved. Claude and the rubrics reviewer recommended shipping; Codex identified two current edge cases that independent inspection confirms as warnings rather than blockers.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Cache archives are not portable across runner layouts | WARNING | HOME-scoped entries are archived relative to the producer workspace but restored relative to the consumer workspace. Same-platform runners with different HOME/workspace layouts can exact-hit yet restore outside HOME and repeatedly redownload Claude. |\n| Updater suppression also disables plugin updates | WARNING | `DISABLE_AUTOUPDATER=1` prevents the CLI race but also disables marketplace and plugin updates. Action-managed runs therefore silently change plugin policy while preinstalled self-hosted CLIs do not. |\n| PR description understates workflow scope | INFO | The description still says “no workflow changes,” although the final diff adds weekly scheduled warming and schedule-policy integration. This is metadata-only. |\n\n## Progress\n\n- Earlier output-format, duplicate Codex cache, mutable-channel, platform, compatibility, updater-race, rollover-warming, and schedule-policy findings are fixed.\n- Live CI passes; reviewer verification also passed 756 runtime, 91 workflow/action, 5 documentation, and 18 shell/behavioral tests.\n- Posted a new [cache-layout inline comment](https://github.com/self-evolving/repo/pull/479#discussion_r3600806400).\n- Added a [plugin-policy reply](https://github.com/self-evolving/repo/pull/479#discussion_r3600806490) to the existing same-agent updater thread.\n- No comments were minimized and no threads were resolved.\n\n## Issue Details\n\n<details>\n<summary>Cache archives are not portable across runner layouts</summary>\n\n**Cause:** The pinned cache action [records matches relative to `GITHUB_WORKSPACE`](https://github.com/actions/cache/blob/55cc8345863c7cc4c66a329aec7e433d2d1c52a9/dist/restore-only/index.js#L43318-L43333) and [extracts them relative to the consumer workspace](https://github.com/actions/cache/blob/55cc8345863c7cc4c66a329aec7e433d2d1c52a9/dist/restore-only/index.js#L94128-L94134). The key and cache version do not distinguish workspace-to-HOME layout.\n\n**Candidate solutions:** Stage the cached payload under the workspace and reconstruct the HOME launcher after restoration, or fingerprint the HOME/workspace relationship in the key. Add a producer/consumer-layout regression fixture.\n\n**Comments:** The execution probe preserves correctness, but an immutable exact hit skips saving the repaired installation, causing repeated downloads. This narrows Claude’s self-healing assessment to correctness rather than cache performance.\n\n</details>\n\n<details>\n<summary>Updater suppression also disables plugin updates</summary>\n\n**Cause:** [Anthropic documents](https://code.claude.com/docs/en/discover-plugins#configure-auto-updates) that `DISABLE_AUTOUPDATER` disables both Claude Code and plugin/marketplace updates; `FORCE_AUTOUPDATE_PLUGINS=1` preserves plugin updates.\n\n**Candidate solutions:** Preserve incoming caller policy and enable plugin updates when the action itself introduces the CLI opt-out, with coverage. Alternatively, explicitly document the broader policy change and escape hatch.\n\n**Comments:** The existing updater fix correctly prevents cached CLI mutation; this warning concerns its additional plugin-policy side effect.\n\n</details>\n\n## Recommended Next Step\n\n`FIX_PR`: Both warnings have localized action, documentation, and regression-test fixes suitable for an automated pass.\n\n## Final Verdict\n\nMINOR_ISSUES\n\n## Action Items\n\n- [ ] Make Claude cache restoration portable across differing HOME/workspace layouts and add a two-layout regression test.\n- [ ] Preserve or explicitly contract plugin-update behavior when injecting `DISABLE_AUTOUPDATER`, with coverage.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-6`",
       "createdAt": "2026-07-17T06:23:05Z",
       "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/479#issuecomment-4999655897",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABKnkeRA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review ",
+      "createdAt": "2026-07-17T21:16:08Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/479#issuecomment-5007547972",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABKnpttQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 88 | PARTIAL | 8 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The [PR description](https://github.com/self-evolving/repo/pull/479) grounds the change in latency issue [#454](https://github.com/self-evolving/repo/issues/454) and explains why it supersedes [#478](https://github.com/self-evolving/repo/pull/478). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | [Claude caching](https://github.com/self-evolving/repo/blob/89bad4929b1fa51f7a5031c7990285dfb5d0d168/.github/actions/setup-agent-runtime/action.yml#L196-L344) extends the existing immediate restore/save pattern, while Codex remains owned by cached runtime dependencies. |\n| coding_workflow / generic | Couple runtime-dependent defaults | partial | 6/8 | The [key](https://github.com/self-evolving/repo/blob/89bad4929b1fa51f7a5031c7990285dfb5d0d168/.github/actions/setup-agent-runtime/action.yml#L217-L258) couples platform, channel/week or pin, action, adapter lock, and model defaults. However, the cached launcher remains coupled to the producer’s absolute home path. |\n| coding_workflow / generic | Minimal defaults, native escape hatches | pass | 8/8 | The [existing inputs](https://github.com/self-evolving/repo/blob/89bad4929b1fa51f7a5031c7990285dfb5d0d168/.github/actions/setup-agent-runtime/action.yml#L29-L45) remain the only cache controls; `off`, exact pins, preinstalled CLIs, schedule policy, and updater-policy environment variables provide native escape hatches. |\n| coding_workflow / generic | Verify immutable dependency references | pass | 8/8 | Restore and save pin `actions/cache` to `55cc8345863c7cc4c66a329aec7e433d2d1c52a9`; the upstream [`v6.1.0` tag](https://github.com/actions/cache/releases/tag/v6.1.0) resolves to that [commit](https://github.com/actions/cache/commit/55cc8345863c7cc4c66a329aec7e433d2d1c52a9). |\n| coding_workflow / generic | Keep docs in sync | partial | 5/7 | The docs cover ownership, modes, weekly warming, and updater policy, but [claim layout portability](https://github.com/self-evolving/repo/blob/89bad4929b1fa51f7a5031c7990285dfb5d0d168/.agent/docs/usage/internal-actions.md#L6-L10) that the preserved absolute launcher symlink does not provide. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The [eight-file diff](https://github.com/self-evolving/repo/pull/479/files) is confined to runtime setup, cache seeding, focused tests, matching documentation, and the staging ignore. |\n| coding_workflow / generic | Surface stateful failures | partial | 4/7 | The execution probe safely reinstalls after an unusable hit, but the hit remains immutable and [prevents saving the repaired installation](https://github.com/self-evolving/repo/blob/89bad4929b1fa51f7a5031c7990285dfb5d0d168/.github/actions/setup-agent-runtime/action.yml#L308-L344); no warning or producer/consumer-home regression test covers this state. |\n\n## Notes\n\n- Head `89bad492` is mergeable and its live [`check` job](https://github.com/self-evolving/repo/actions/runs/29560211378/job/87820842056) passes. Independent verification passed the build, 91 workflow/action tests, 5 documentation tests, and 18 shell/behavioral tests.\n- Anthropic documents the native launcher as a symlink into `~/.local/share/claude/versions/`. The action copies that launcher with `cp -a` during both [staging and hydration](https://github.com/self-evolving/repo/blob/89bad4929b1fa51f7a5031c7990285dfb5d0d168/.github/actions/setup-agent-runtime/action.yml#L275-L287), which preserves its absolute target. A direct two-directory reproduction confirmed the hydrated link still pointed to the producer home.\n- Smallest useful follow-up: cache a dereferenced launcher or recreate its symlink against the consumer’s `$HOME`, then add an executable producer-home/consumer-home fixture.\n\n## Findings\n\n- **WARNING — Couple runtime-dependent defaults / Surface stateful failures / Keep docs in sync:** On runners sharing a cache key but using different home directories, the hydrated Claude launcher points into the producer’s home. The probe falls back to downloading Claude, but `cache-hit == 'true'` suppresses the save path, so every affected run repeats the download while the workflow reports success. The current [structural test](https://github.com/self-evolving/repo/blob/89bad4929b1fa51f7a5031c7990285dfb5d0d168/.agent/src/__tests__/workflow-action-validation.test.ts#L290-L320) verifies workspace staging without exercising launcher relocation.\n\n## Final Rubric Verdict\n\nPARTIAL\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-4`",
+      "createdAt": "2026-07-17T21:29:26Z",
+      "includesCreatedEdit": false,
       "isMinimized": false,
       "minimizedReason": "",
       "reactionGroups": [],
-      "url": "https://github.com/self-evolving/repo/pull/479#issuecomment-4999655897",
+      "url": "https://github.com/self-evolving/repo/pull/479#issuecomment-5007633845",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABKnsxqg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 89bad4929b1fa51f7a5031c7990285dfb5d0d168 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #479 replaces #478’s deferred-install design with Claude-only caching inside `setup-agent-runtime`, supporting the latency work tracked in #454. It adds platform-aware weekly or pinned cache keys, compatibility fingerprints, execution probing, updater controls, and trusted scheduled warming. Codex remains covered by the runtime dependency cache. Current head `89bad492` is mergeable with green CI, but launcher relocation across different home directories remains incomplete.\n\n## Review\n\nThe design is focused and fail-safe, and all reviewers converged on one non-blocking cache-portability warning. A current-head reproduction confirmed that the restored launcher can be omitted or remain tied to the producer’s home, negating the intended speedup on mixed-layout runners.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Cached Claude launcher is not relocatable across HOME layouts | WARNING | Staging and hydration use `cp -a`, preserving the launcher’s absolute producer-home symlink; the hydrate guard can then skip the dangling link on a different-home consumer. Installation fallback succeeds, but the immutable cache hit prevents saving the repair, causing repeated downloads. |\n\n## Progress\n\n- Earlier output-format, duplicate Codex cache, mutable-channel, platform/musl, updater-policy, rollover-warming, schedule-policy, and archive-placement findings are fixed.\n- The live `check` succeeds; reviewer verification passed the build, 91 workflow/action tests, 5 documentation checks, and 18 shell/behavioral tests.\n- Added a [clarifying reply to the existing same-agent cache-layout thread](https://github.com/self-evolving/repo/pull/479#discussion_r3606297481); no duplicate thread was opened.\n- No comments were minimized or threads resolved. The relevant thread contains a human reply and is not viewer-resolvable.\n- Immutable-hit repair limitations, uncached updater behavior, and the brief weekly rollover window remain optional INFO-level tradeoffs.\n\n## Issue Details\n\n<details>\n<summary>Cached Claude launcher is not relocatable across HOME layouts</summary>\n\n**Cause:** Both [staging and hydration](https://github.com/self-evolving/repo/blob/89bad4929b1fa51f7a5031c7990285dfb5d0d168/.github/actions/setup-agent-runtime/action.yml#L275-L335) preserve the native launcher’s absolute symlink target. On another home layout, the link is dangling when hydration tests it with `-e`, so it is skipped; accepting the symlink or reordering restoration alone would still retain the producer path.\n\n**Candidate solutions:** Recreate the launcher against the consumer’s `$HOME`, or cache a relocatable launcher/resolved version. Add an executable two-home round-trip test that makes the producer unavailable before verifying the restored CLI.\n\n**Comments:** All reviewers classify this as a warning. Claude emphasized the dangling-link guard and ordering; Codex and the rubric review established that reconstructing the launcher is necessary because a guard-only fix still preserves the absolute producer path.\n\n</details>\n\n## Recommended Next Step\n\n`FIX_PR`: The remaining defect has a localized action-and-test fix suitable for an automated pass.\n\n## Final Verdict\n\nMINOR_ISSUES\n\n## Action Items\n\n- [ ] Rebuild the cached Claude launcher for the consumer’s `$HOME` and add an executable producer-home/consumer-home round-trip regression test.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-2`",
+      "createdAt": "2026-07-17T21:37:17Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/479#issuecomment-5007684010",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABKoi0wg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "Final simplification pass, licensed by the scope contract: with the cache scoped to the uniform hosted fleet, `runner.os`/`runner.arch` is exact — so the uname/musl/Rosetta detection block, its fixtures, and their tool stubs are gone. What remains is the whole story in one breath: **key = os/arch + channel (mutable channels rotate weekly, pins exact) + compatibility fingerprint → need-gated best-effort restore → probe-or-install (auto-updates disabled for managed installs) → immediate miss-gated save**, warmed by the seed on runtime pushes and the policy-gated weekly cron. Every remaining line has a one-sentence justification; everything outside the contract degrades to a fresh install via the probe. This is the merge candidate.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)",
+      "createdAt": "2026-07-17T23:42:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/479#issuecomment-5008569538",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABKoxdbg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer take a final look at the code? ",
+      "createdAt": "2026-07-18T00:30:21Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/479#issuecomment-5008809326",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABKoyF6A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "I found one remaining issue, so my verdict is **MINOR_ISSUES — one localized fix before merge**.\n\n- The documented GitHub-hosted-only cache scope is not enforced. [Cache resolution](https://github.com/self-evolving/repo/blob/8d50128c7dcb64772ed20afd7712c1720b6d3f6b/.github/actions/setup-agent-runtime/action.yml#L209-L263) still runs on self-hosted runners when Claude is missing—a supported installation path in the [self-hosted guide](https://github.com/self-evolving/repo/blob/8d50128c7dcb64772ed20afd7712c1720b6d3f6b/.agent/docs/setup/self-hosted-github-action-runner.md#L20-L26). Because `actions/cache` archives paths relative to the producer workspace and extracts relative to the consumer workspace, a hosted-produced cache can unpack outside a differently laid-out self-hosted runner’s `$HOME`. The execution probe restores CLI functionality but does not undo those misplaced persistent files. Gate Claude restore/save on `runner.environment != 'self-hosted'` and test that condition; this enforces the chosen scope without reviving the staging machinery.\n\nEverything else looks ready: head `8d50128c` is mergeable and clean, [CI passes](https://github.com/self-evolving/repo/actions/runs/29621389459/job/88016990543), the full `test:ci` suite and `git diff --check` pass independently, the Claude channel/updater behavior matches [Anthropic’s documentation](https://code.claude.com/docs/en/installation), and the cache SHA resolves to `actions/cache` v6.1.0.\n\nAlso refresh the PR description: it still claims uname/musl/Rosetta discrimination and corresponding tests, which the final simplification removed.\n\nIf you want Sepo to apply the fix, send: `@sepo-agent /fix-pr enforce the GitHub-hosted-only Claude cache scope, add regression coverage, and align the scope documentation and PR description`\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — answer · 11m16s · 61 steps**\n\nLast message\n> I found one remaining issue, so my verdict is **MINOR_ISSUES — one localized fix before merge**. - The documented GitHub-hosted-only cache scope is not enforced. [Cache resolution](https://github.com/self-evolving/repo/blob/8d50128c7dcb647…\n\nActivity\n\n- 🔍 Searched `\"rg -n 'function getCacheVersion|getCacheVersion\\\\(' dist/restore-only/index.js | sed -n '1,80p' && sed -n '93460,93530…` (completed)\n- 🔧 Used tool `\"sed -n '43385,43425p' dist/restore-only/index.js && sed -n '92965,93015p' dist/restore-only/index.js && sed -n '94680,…` (completed)\n- 💬 Message \"The full `test:ci` suite passes on the current head, `git diff --check` is clean, and the pinned cache-action SHA resolves correctly upstream. I found one narrow gap: the new “GitHub-hosted only” scope is documented but not enforced, so a…\"\n- 💬 Message \"The full `test:ci` suite passes from the current head, the live check remains green, and the pinned `actions/cache` SHA independently resolves to v6.1.0. I found one narrow scope-enforcement problem: the code documents caching as GitHub-ho…\"\n- 📖 Read `gh pr view 479 --repo self-evolving/repo --json headRefOid,mergeable,mergeStateStatus,state,statusCheckRollup --jq '{he…` (completed)\n- 💬 Message \"I found one remaining issue, so my verdict is **MINOR_ISSUES — one localized fix before merge**. - The documented GitHub-hosted-only cache scope is not enforced. [Cache resolution](https://github.com/self-evolving/repo/blob/8d50128c7dcb647…\"\n</details>\n\n<!-- sepo-progress:run-29623237070 -->\n\n---\n`codex` | `gpt-5.6-sol` | `max` | `Macmini-runner-3`",
+      "createdAt": "2026-07-18T00:32:09Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/479#issuecomment-5008819688",
       "viewerDidAuthor": true
     }
   ],
@@ -438,19 +548,19 @@
     },
     {
       "path": ".agent/scripts/test/cli-cache-keys.test.cjs",
-      "additions": 134,
+      "additions": 103,
       "deletions": 0,
       "changeType": "ADDED"
     },
     {
       "path": ".agent/src/__tests__/workflow-action-validation.test.ts",
-      "additions": 169,
+      "additions": 147,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
       "path": ".github/actions/setup-agent-runtime/action.yml",
-      "additions": 132,
+      "additions": 93,
       "deletions": 12,
       "changeType": "MODIFIED"
     },
@@ -458,12 +568,6 @@
       "path": ".github/workflows/agent-cache-seed.yml",
       "additions": 24,
       "deletions": 1,
-      "changeType": "MODIFIED"
-    },
-    {
-      "path": ".gitignore",
-      "additions": 1,
-      "deletions": 0,
       "changeType": "MODIFIED"
     }
   ],
@@ -734,10 +838,40 @@
       "commit": {
         "oid": "89bad4929b1fa51f7a5031c7990285dfb5d0d168"
       }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABGbUBJw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-07-17T21:36:08Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "89bad4929b1fa51f7a5031c7990285dfb5d0d168"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABGb-5tg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "",
+      "submittedAt": "2026-07-17T23:38:11Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "89bad4929b1fa51f7a5031c7990285dfb5d0d168"
+      }
     }
   ],
   "state": "OPEN",
   "title": "Cache the Claude CLI binary in setup-agent-runtime",
-  "updatedAt": "2026-07-17T06:30:10Z",
+  "updatedAt": "2026-07-18T00:43:35Z",
   "url": "https://github.com/self-evolving/repo/pull/479"
 }

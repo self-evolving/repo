@@ -1,0 +1,227 @@
+{
+  "author": {
+    "id": "U_kgDOBZxQpw",
+    "is_bot": false,
+    "login": "zixiaowang17",
+    "name": ""
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n- add an opt-in, private-repository-only managed Codex auth flow for GitHub-hosted runners\n- encrypt `auth.json` with AES-256-GCM, keep the key in an Actions secret, and serialize refresh/write-back with a repository-variable lock\n- restore before Codex runs, persist after session backup, remove plaintext auth, and report the mode during onboarding\n- add a seed command that selects hosted runners and owner-only trigger access\n\n## Security\n- plaintext Codex auth is never stored in a repository variable or committed\n- encrypted state is bound to the target repository\n- runtime rejects public repositories and self-hosted runners\n- the App needs Variables read/write, not Secrets write\n\n## Validation\n- `npm --prefix .agent test`\n- 761 runtime tests passed\n- 90 workflow tests passed\n- docs and shell checks passed\n\nThis follows OpenAI managed CI auth guidance for trusted private automation while keeping `OPENAI_API_KEY` as the recommended default.",
+  "closedAt": "2026-07-18T00:52:20Z",
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABKo6c8w",
+      "author": {
+        "login": "zixiaowang17"
+      },
+      "authorAssociation": "NONE",
+      "body": "Closing at the requester’s direction; this change will remain local to their Sepo installation.",
+      "createdAt": "2026-07-18T00:52:19Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/480#issuecomment-5008956659",
+      "viewerDidAuthor": false
+    }
+  ],
+  "createdAt": "2026-07-18T00:51:04Z",
+  "files": [
+    {
+      "path": ".agent/action-templates/agent-action-template.yml",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 3,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/overview/quick-start.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/setup/setup-guide.md",
+      "additions": 60,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/package.json",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/codex-managed-auth-cli.test.ts",
+      "additions": 181,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/codex-managed-auth.test.ts",
+      "additions": 105,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 61,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/onboarding-check-cli.test.ts",
+      "additions": 5,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/codex-managed-auth.ts",
+      "additions": 263,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/onboarding-check.ts",
+      "additions": 2,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/codex-managed-auth.ts",
+      "additions": 252,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/onboarding.ts",
+      "additions": 4,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/run-agent-task/action.yml",
+      "additions": 36,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-daily-summary.yml",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-fix-pr.yml",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-implement.yml",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-memory-bootstrap.yml",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-memory-pr-closed.yml",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-memory-scan.yml",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-onboarding.yml",
+      "additions": 1,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-orchestrator.yml",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-project-manager.yml",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-review.yml",
+      "additions": 4,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 13,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-rubrics-initialization.yml",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-rubrics-review.yml",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-rubrics-update.yml",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-self-approve.yml",
+      "additions": 3,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-self-improvement.yml",
+      "additions": 12,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-update.yml",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/codex-managed-auth",
+  "labels": [],
+  "mergedAt": null,
+  "number": 480,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "CLOSED",
+  "title": "feat: support managed Codex auth on hosted runners",
+  "updatedAt": "2026-07-18T00:52:22Z",
+  "url": "https://github.com/self-evolving/repo/pull/480"
+}
