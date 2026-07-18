@@ -1,14 +1,21 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 - 2026-07-18
 
 ### Added
 
+- An opt-in agent self-improvement workflow can now plan, authorize, and apply improvements to Sepo through scheduled or manual runs, with deterministic decision handling, trusted proposal reuse, visible traces, and retry and deduplication safeguards.
+- Local-runner tooling now supports Linux x64 and arm64 hosts alongside macOS, including platform-aware runner downloads, Linux cleanup through cron, dependency guidance, and `LOCAL_RUNNER_ROOT` for relocating runner state.
 - `setup-agent-runtime` now caches `.agent/node_modules` and `.agent/dist` with exact-key semantics by default (`cache_mode: full`; `off` restores the unconditional path). Caches save immediately after install/build — never at job end — key on OS/arch/Node/manifest/lockfile/source hashes, and a push-triggered seed workflow warms them on runtime changes so user-facing runs rarely pay the first miss.
+- Hosted Claude runs now cache the Claude CLI with weekly keys for moving channels and exact keys for pinned versions. Restores are execution-probed and best-effort, saves happen immediately, and trusted seed runs warm each rotation; self-hosted runners keep using their locally managed CLI.
 
 ### Changed
 
 - Mentions without a slash command now route directly to the inline answer path by default instead of running model-backed dispatch triage; change-shaped answers end with a copyable follow-up command (such as `/implement` or `/fix-pr`) that the user can send explicitly. Set `AGENT_TRIAGE_MODE=agent` to restore route inference for uncommanded mentions. Explicit slash routes, `agent/*` labels, access policy, and unmentioned follow-up gating are unaffected.
+- The bundled Codex runtime now uses `@agentclientprotocol/codex-acp` 1.1.2 and ACPX 0.12.0, defaults to `gpt-5.6-sol` with maximum reasoning, and adapts model, reasoning, and named-session handling to the updated adapter contract.
+- The Test Scripts workflow now runs by default only in `self-evolving/repo`, limits pull-request triggers to Sepo-owned paths, and supports `AGENT_TEST_RUNS_ON` with `AGENT_RUNS_ON` and `ubuntu-latest` fallbacks. Downstream repositories can opt in with `AGENT_TEST_SCRIPTS_ENABLED=true`.
+- Sepo's repository entry documentation is now a concise landing page, while `.agent/README.md` remains the durable Sepo-owned entry point for adopters. Root agent guidance now uses `AGENTS.md`, with a `CLAUDE.md` bridge, and install links include the hosted App path.
+- Release notes are now authored by the dedicated release preparation workflow from changes merged since the previous tag; normal pull requests no longer maintain the changelog.
 - The entrypoint mention pre-filter now checks only the active trigger title, body, comment, or review text and skips bot-authored events before allocating a runner, eliminating no-op runs from quoted handles elsewhere in the payload or from the agent's own comments.
 
 ## 0.4.0 - 2026-06-26
