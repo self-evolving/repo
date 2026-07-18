@@ -37,6 +37,7 @@ export interface OnboardingOptions {
   openaiConfigured: boolean;
   claudeConfigured: boolean;
   anthropicConfigured: boolean;
+  codexManagedConfigured: boolean;
   memoryRef: string;
   rubricsRef: string;
   runUrl: string;
@@ -180,6 +181,7 @@ function authStatusBody(opts: OnboardingOptions): string {
 function credentialNames(opts: OnboardingOptions): string[] {
   const names: string[] = [];
   if (opts.openaiConfigured) names.push("`OPENAI_API_KEY`");
+  if (opts.codexManagedConfigured) names.push("managed Codex account auth");
   if (opts.claudeConfigured) names.push("`CLAUDE_CODE_OAUTH_TOKEN`");
   if (opts.anthropicConfigured) names.push("`ANTHROPIC_API_KEY`");
   return names;
@@ -203,7 +205,7 @@ function modelStatusBody(opts: OnboardingOptions, links: OnboardingLinks): strin
   if (names.length === 0) {
     return [
       "- [ ] Model credentials: not configured",
-      `  - Add \`OPENAI_API_KEY\`, \`CLAUDE_CODE_OAUTH_TOKEN\`, or \`ANTHROPIC_API_KEY\` in ${link("repository Actions secrets", links.actionsSecretsUrl)}.`,
+      `  - Add \`OPENAI_API_KEY\`, managed Codex account auth, \`CLAUDE_CODE_OAUTH_TOKEN\`, or \`ANTHROPIC_API_KEY\`; see ${link("repository Actions secrets", links.actionsSecretsUrl)} and the ${link("setup guide", SEPO_SETUP_GUIDE_URL)}.`,
       "  - Optional: configure `AGENT_DEFAULT_PROVIDER`.",
       ...providerDetailBody(opts),
     ].join("\n");
@@ -245,7 +247,7 @@ function remainingSetupBody(
     items.push(`${link("Install the Sepo GitHub App", SEPO_APP_INSTALL_URL)} or choose another auth path from the ${link("setup guide", SEPO_SETUP_GUIDE_URL)}.`);
   }
   if (credentialNames(opts).length === 0) {
-    items.push(`Configure one model provider credential in ${link("repository Actions secrets", links.actionsSecretsUrl)}.`);
+    items.push(`Configure one model provider credential; see ${link("repository Actions secrets", links.actionsSecretsUrl)} and the ${link("setup guide", SEPO_SETUP_GUIDE_URL)}.`);
   }
   if (!memoryReady) {
     items.push(`Run ${link("Agent / Memory / Initialization", links.memoryWorkflowUrl)} to initialize memory branch \`${opts.memoryRef}\`.`);

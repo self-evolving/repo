@@ -64,6 +64,15 @@ jobs:
           ref: ${{ github.event.repository.default_branch }}
           token: ${{ github.token }}
 
+      - name: Resolve GitHub auth
+        id: auth
+        uses: ./.github/actions/resolve-github-auth
+        with:
+          app_id: ${{ secrets.AGENT_APP_ID }}
+          app_private_key: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
+          pat: ${{ secrets.AGENT_PAT }}
+          fallback_token: ${{ github.token }}
+
       - name: Resolve self-improvement provider
         id: provider
         uses: ./.github/actions/resolve-agent-provider
@@ -97,6 +106,9 @@ jobs:
           github_token: ${{ github.token }}
           secondary_github_token: ${{ secrets.AGENT_SECONDARY_GITHUB_TOKEN }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          codex_auth_mode: ${{ vars.AGENT_CODEX_AUTH_MODE || '' }}
+          codex_auth_key: ${{ secrets.CODEX_AUTH_KEY }}
+          codex_auth_token: ${{ steps.auth.outputs.token }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           model: ${{ steps.provider.outputs.model }}

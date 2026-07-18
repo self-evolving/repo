@@ -54,6 +54,66 @@ repositories, so it is not the recommended first install path.
 See [Developer notes](../technical-details/developer-notes.md#known-limitations)
 for the hosted app installation limitation.
 
+## Managed Codex account auth on GitHub-hosted runners
+
+The recommended automation credential is still `OPENAI_API_KEY`. For a trusted
+private repository that specifically needs ChatGPT-managed Codex entitlements,
+Sepo also supports the [advanced CI auth flow documented by OpenAI](https://learn.chatgpt.com/docs/auth/ci-cd-auth). Do not
+enable this mode for public repositories or untrusted triggers: Codex
+[`auth.json` contains access and refresh tokens](https://learn.chatgpt.com/docs/auth)
+and must be treated like a password.
+
+Sepo never puts plaintext `auth.json` in a repository variable. Instead:
+
+- `CODEX_AUTH_STATE` is a repository variable containing AES-256-GCM ciphertext.
+- `CODEX_AUTH_KEY` is a repository Actions secret containing the separate
+  32-byte encryption key.
+- `CODEX_AUTH_LOCK` is a short-lived repository variable used to serialize
+  restore/refresh/write-back operations across workflows.
+- `AGENT_CODEX_AUTH_MODE=managed` opts the repository into this behavior.
+
+At task start, Sepo acquires the lock, fetches the latest ciphertext at runtime,
+and decrypts it into the permission-restricted, runner-local `CODEX_HOME`. Only
+GitHub-hosted ephemeral runners are accepted. After Codex runs and its session
+bundle is backed up, Sepo validates and re-encrypts the possibly refreshed
+`auth.json`, updates `CODEX_AUTH_STATE`, removes the plaintext credential file,
+and releases the lock.
+Fetching state after lock acquisition avoids the stale snapshot problem of
+mutable repository secrets, which GitHub reads when a workflow is queued.
+
+Prerequisites:
+
+1. The repository is private and all Sepo trigger routes are restricted to
+   trusted users.
+2. The Sepo GitHub App has repository **Variables: read and write** permission.
+   For a self-managed App, update **Settings > Developer settings > GitHub Apps >
+   your app > Permissions & events > Repository permissions > Variables**, save,
+   then approve the permission update for the installation. See GitHub's
+   [GitHub App permission reference](https://docs.github.com/en/rest/authentication/permissions-required-for-github-apps#repository-permissions-for-variables).
+3. Codex uses file-backed ChatGPT authentication (`auth_mode: "chatgpt"`) and
+   the source `auth.json` contains a refresh token.
+
+From a trusted checkout with `gh` authenticated as a repository administrator:
+
+```sh
+npm --prefix .agent ci
+npm --prefix .agent run build
+npm --prefix .agent run seed:codex-auth -- \
+  --repo owner/private-repo \
+  --auth-file "${CODEX_HOME:-$HOME/.codex}/auth.json"
+```
+
+The seed command refuses public repositories, rotates `CODEX_AUTH_KEY`, uploads
+only encrypted state to `CODEX_AUTH_STATE`, sets `AGENT_CODEX_AUTH_MODE=managed`,
+selects Codex, changes `AGENT_RUNS_ON` to `["ubuntu-latest"]`, and tightens
+`AGENT_ACCESS_POLICY` to owner-only. Run it only when no Sepo job is active. If
+the ChatGPT refresh token is revoked or can no longer refresh, run `codex login`
+on a trusted machine and seed again.
+
+This implements OpenAI's advanced restore/run/persist pattern for ephemeral CI.
+It does not turn a ChatGPT login into a general OpenAI API key, and the account
+credential remains suitable only for trusted private automation.
+
 ## Bring your own GitHub App
 
 If you want a fully self-managed setup, configure:

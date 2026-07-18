@@ -99,6 +99,18 @@ inputs:
     description: "OpenAI API key for Codex"
     required: false
     default: ""
+  codex_auth_mode:
+    description: "Optional Codex authentication mode; set to managed for encrypted ChatGPT auth state"
+    required: false
+    default: ""
+  codex_auth_key:
+    description: "Base64 encryption key from the CODEX_AUTH_KEY repository secret"
+    required: false
+    default: ""
+  codex_auth_token:
+    description: "Optional GitHub token with Variables read/write permission; defaults to github_token"
+    required: false
+    default: ""
   claude_oauth_token:
     description: "Claude Code OAuth token"
     required: false
@@ -439,6 +451,18 @@ runs:
         node .agent/dist/cli/progress-report.js > "${AGENT_PROGRESS_LOG_FILE}" 2>&1 &
         echo "$!" > "${AGENT_PROGRESS_PID_FILE}"
 
+    - name: Restore managed Codex authentication
+      if: >-
+        steps.agent_run_gate.outputs.should_run == 'true' &&
+        inputs.agent == 'codex' &&
+        inputs.codex_auth_mode == 'managed'
+      shell: bash
+      env:
+        CODEX_AUTH_KEY: ${{ inputs.codex_auth_key }}
+        INPUT_GITHUB_TOKEN: ${{ inputs.codex_auth_token || inputs.github_token }}
+        RUNNER_ENVIRONMENT: ${{ runner.environment }}
+      run: node .agent/dist/cli/codex-managed-auth.js restore
+
     - name: Run agent task
       if: ${{ steps.agent_run_gate.outputs.should_run == 'true' }}
       id: run
@@ -673,6 +697,18 @@ runs:
         TARGET_KIND: ${{ inputs.target_kind }}
         TARGET_NUMBER: ${{ inputs.target_number }}
       run: node .agent/dist/cli/session-register.js
+
+    - name: Persist managed Codex authentication
+      if: >-
+        always() &&
+        steps.agent_run_gate.outputs.should_run == 'true' &&
+        inputs.agent == 'codex' &&
+        inputs.codex_auth_mode == 'managed'
+      shell: bash
+      env:
+        CODEX_AUTH_KEY: ${{ inputs.codex_auth_key }}
+        INPUT_GITHUB_TOKEN: ${{ inputs.codex_auth_token || inputs.github_token }}
+      run: node .agent/dist/cli/codex-managed-auth.js persist
 
     - name: Propagate agent exit code
       if: steps.agent_run_gate.outputs.should_run == 'true' && steps.run.outputs.exit_code != '0'

@@ -200,7 +200,7 @@ exit 1
     assert.match(log, /Model credentials: not configured/);
     assert.match(
       log,
-      /Add `OPENAI_API_KEY`, `CLAUDE_CODE_OAUTH_TOKEN`, or `ANTHROPIC_API_KEY` in \[repository Actions secrets\]\(https:\/\/github.com\/self-evolving\/repo\/settings\/secrets\/actions\)\./,
+      /Add `OPENAI_API_KEY`, managed Codex account auth, `CLAUDE_CODE_OAUTH_TOKEN`, or `ANTHROPIC_API_KEY`; see \[repository Actions secrets\]\(https:\/\/github.com\/self-evolving\/repo\/settings\/secrets\/actions\) and the \[setup guide\]/,
     );
     assert.match(log, /Memory: not initialized/);
     assert.match(
@@ -209,7 +209,7 @@ exit 1
     );
     assert.match(
       log,
-      /Configure one model provider credential in \[repository Actions secrets\]\(https:\/\/github.com\/self-evolving\/repo\/settings\/secrets\/actions\)\./,
+      /Configure one model provider credential; see \[repository Actions secrets\]\(https:\/\/github.com\/self-evolving\/repo\/settings\/secrets\/actions\) and the \[setup guide\]/,
     );
     assert.doesNotMatch(log, /Built-in trigger labels:/);
   } finally {
@@ -217,7 +217,7 @@ exit 1
   }
 });
 
-test("onboarding-check CLI reports configured Anthropic API key", () => {
+test("onboarding-check CLI reports configured Anthropic and managed Codex credentials", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-onboarding-"));
 
   try {
@@ -257,13 +257,14 @@ exit 1
       AGENT_PROVIDER_REASON: "ANTHROPIC_API_KEY is configured",
       ANTHROPIC_API_KEY_CONFIGURED: "true",
       AUTH_MODE: "oidc_broker",
+      CODEX_MANAGED_AUTH_CONFIGURED: "true",
       FAKE_GH_LOG: logPath,
       GITHUB_REPOSITORY: "self-evolving/repo",
     });
 
     assert.equal(result.status, 0, result.stderr);
     const log = readFileSync(logPath, "utf8");
-    assert.match(log, /Model credentials: `ANTHROPIC_API_KEY` configured/);
+    assert.match(log, /Model credentials: managed Codex account auth and `ANTHROPIC_API_KEY` configured/);
     assert.match(log, /Agent provider: `claude` \(ANTHROPIC_API_KEY is configured\)/);
     assert.doesNotMatch(log, /Model credentials: not configured/);
   } finally {

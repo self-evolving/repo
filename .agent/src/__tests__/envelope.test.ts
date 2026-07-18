@@ -1605,6 +1605,67 @@ test("shared run-agent-task exposes an optional secondary GitHub token", () => {
   assert.match(basePrompt, /Do not use the secondary token for external writes/);
 });
 
+test("managed Codex auth is wired through every run-agent-task caller and persisted after session backup", () => {
+  const action = parseYaml(readRepoFile(".github/actions/run-agent-task/action.yml")) as unknown;
+  assert.ok(isRecord(action), "run-agent-task action should parse");
+  assert.ok(isRecord(action.inputs), "run-agent-task should define inputs");
+  for (const inputName of ["codex_auth_mode", "codex_auth_key", "codex_auth_token"]) {
+    const input: unknown = action.inputs[inputName];
+    assert.ok(isRecord(input), `run-agent-task should define ${inputName}`);
+    assert.equal(input.required, false);
+  }
+
+  assert.ok(isRecord(action.runs), "run-agent-task action should define runs");
+  assert.ok(Array.isArray(action.runs.steps), "run-agent-task action should define steps");
+  const stepNames = action.runs.steps.map((step) => isRecord(step) ? step.name : undefined);
+  const restoreIndex = stepNames.indexOf("Restore managed Codex authentication");
+  const runIndex = stepNames.indexOf("Run agent task");
+  const registerIndex = stepNames.indexOf("Register session bundle artifact");
+  const persistIndex = stepNames.indexOf("Persist managed Codex authentication");
+  const propagateIndex = stepNames.indexOf("Propagate agent exit code");
+  assert.ok(restoreIndex >= 0 && restoreIndex < runIndex, "managed auth must be restored before Codex runs");
+  assert.ok(
+    persistIndex > registerIndex && persistIndex < propagateIndex,
+    "refreshed auth must be persisted after session backup and before exit propagation",
+  );
+
+  const restoreStep = action.runs.steps[restoreIndex];
+  const persistStep = action.runs.steps[persistIndex];
+  assert.ok(isRecord(restoreStep) && isRecord(restoreStep.env));
+  assert.ok(isRecord(persistStep) && isRecord(persistStep.env));
+  assert.match(String(restoreStep.if), /inputs\.agent == 'codex'/);
+  assert.match(String(restoreStep.if), /inputs\.codex_auth_mode == 'managed'/);
+  assert.equal(restoreStep.env.RUNNER_ENVIRONMENT, "${{ runner.environment }}");
+  assert.equal(
+    restoreStep.env.INPUT_GITHUB_TOKEN,
+    "${{ inputs.codex_auth_token || inputs.github_token }}",
+  );
+  assert.match(String(persistStep.if), /always\(\)/);
+
+  const workflowPaths = readdirSync(path.join(repoRoot, ".github/workflows"))
+    .filter((file) => file.endsWith(".yml"))
+    .map((file) => `.github/workflows/${file}`)
+    .concat(".agent/action-templates/agent-action-template.yml");
+  let callerCount = 0;
+  for (const workflowPath of workflowPaths) {
+    for (const { jobId, step } of readRunAgentTaskSteps(workflowPath)) {
+      callerCount += 1;
+      assert.ok(isRecord(step.with), `${workflowPath} job ${jobId} run-agent-task needs inputs`);
+      assert.equal(
+        step.with.codex_auth_mode,
+        "${{ vars.AGENT_CODEX_AUTH_MODE || '' }}",
+        `${workflowPath} job ${jobId} should pass managed auth mode`,
+      );
+      assert.equal(
+        step.with.codex_auth_key,
+        "${{ secrets.CODEX_AUTH_KEY }}",
+        `${workflowPath} job ${jobId} should pass the encryption key secret`,
+      );
+    }
+  }
+  assert.ok(callerCount > 0, "expected run-agent-task callers");
+});
+
 test("run-agent-task maps reasoning effort for Claude env and Codex session config", () => {
   const action = readRepoFile(".github/actions/run-agent-task/action.yml");
   const runSource = readRepoFile(".agent/src/run.ts");
