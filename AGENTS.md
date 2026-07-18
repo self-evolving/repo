@@ -11,4 +11,6 @@ The `agent/memory` branch contains agent project memories such as project contex
 
 The `agent/rubrics` branch contains user/team preferences that normal implementation and review runs can read. Use `/add-rubrics` to propose rubric changes in a PR targeting that branch; dedicated rubrics workflows validate and update that branch for initialization and post-merge learning.
 
+For normal pull requests, do not add or change release notes, including `.agent/CHANGELOG.md`; release notes are handled only by the dedicated release preparation workflow.
+
 Starting a project from this template? The root `README.md` is yours — replace it with your project's own. Sepo's documentation and tooling live under [`.agent/`](.agent/README.md), and Sepo's update workflow never touches your root README.
