@@ -6,8 +6,8 @@
     "name": "Shannon Shen"
   },
   "baseRefName": "main",
-  "body": "Replaces the closed #478 with the simpler approach: cache the binary where the install already happens — no new actions, no flag plumbing; the seed workflow gains a schedule-policy-gated weekly warm aligned to the key rollover. Measured motivation (lolipopshock/rl-lit run 29309332883, `ubuntu-latest`, warm runtime caches): portal setup = 2.6s runtime restore + **13.1s Claude CLI download**, and every agent-running job pays the download again.\n\nScope note: this caches the **Claude CLI only**. Codex needs no standalone cache — it arrives via `codex-acp` inside `.agent/node_modules`, which the runtime dependency cache already owns.\n\n## How\n\nSame discipline as the runtime cache, inside the existing install path of `setup-agent-runtime`:\n\n- `Resolve Claude CLI cache key`: env-indirected inputs; `need_claude` short-circuits everything when the CLI is already present (self-hosted). Keys compose the **installer-resolved native platform** (`uname -m` plus musl and Rosetta discriminators — mixed pools can't share incompatible binaries), the **channel** (empty/`latest`/`stable` all rotate on an ISO-week bucket so a mutable channel can't outlive its week; validated pins key exactly), and a reviewed compatibility fingerprint (producer action, adapter lock state, bundled model defaults).\n- Best-effort restore (failure ⇒ normal download); the install guard **probes the restored binary by execution** (`--version`), not mere executability, so an incompatible restore falls through to the installer; immediate miss-gated save, never post-job; SHA-pinned `actions/cache` v6.1.0 throughout.\n\nStructural tests pin: env-indirection, single-line output writes, channel case, platform discriminators, key composition, execution probe, need-gated best-effort restore, and save-immediately-after-install ordering.\n\n## Expected effect (hosted runners)\n\nEvery Claude-running job — portal, answer, implement, fix-pr, the claude reviewer lane — drops ~11s (13s download → ~1.5–2s restore) after the first weekly warm. Portal setup lands at ~4–6s total; combined with #474's fast-ack, the 👀 target stays ~T+7s. Self-hosted runners with preinstalled CLIs are untouched by construction.\n\nKnown trade, on the record: hosted repos ride a CLI up to 7 days old rather than always-latest; pinning `claude_version` restores exact behavior.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)",
-  "closedAt": null,
+  "body": "Caches the Claude CLI binary so hosted-runner jobs skip its ~13s download. Measured motivation (lolipopshock/rl-lit run 29309332883, `ubuntu-latest`, warm runtime caches): portal setup = 2.6s runtime restore + **13.1s Claude CLI download**, re-paid by every agent-running job. Codex needs no CLI cache — it ships via `codex-acp` inside `.agent/node_modules`, which the runtime cache owns.\n\n## Final shape (one breath)\n\nKey = `runner.os`/`runner.arch` + channel + compatibility fingerprint → need-gated best-effort restore → probe-or-install → immediate miss-gated save. Warmed by the seed workflow on runtime pushes and a schedule-policy-gated weekly cron aligned to the key's ISO-week rollover.\n\n- **Scope contract, enforced**: GitHub-hosted runners only (`runner.environment` gate) — one HOME/workspace geometry and one libc per os/arch pair, which is where the download cost lives. Self-hosted runners never touch the cache: preinstalled CLIs short-circuit via the need check, and a missing CLI installs fresh, uncached.\n- **Channels**: empty/`latest`/`stable` rotate on an ISO-week bucket; validated pins key exactly.\n- **Compatibility fingerprint**: producer action + adapter lock state + bundled model defaults — pinned model IDs set a floor the cached CLI must satisfy that the execution probe can't detect; every rotation source is trusted-warmed, so rotation never lands on user-facing runs.\n- **Execution probe**: restored binaries are run (`--version`), not just stat'd — anything incompatible degrades to a fresh install, so the worst case anywhere is the uncached status quo.\n- **Updater policy**: installs the action manages persist `DISABLE_AUTOUPDATER=1` (probe launch must not kick a background update that races the agent run or advances pins); pre-set operator values are preserved, and `FORCE_AUTOUPDATE_PLUGINS=1` is the documented plugin-updates escape hatch.\n- All cache steps SHA-pinned `actions/cache` v6.1.0, restores and saves best-effort with immediate miss-gated saves (never post-job).\n\nStructural tests pin every property above; executable fixtures run the extracted key script (channel bucketing, updater gating, env preservation).\n\n## Expected effect\n\nEvery Claude-running hosted job — portal, answer, implement, fix-pr, the claude reviewer lane — drops ~11s (13s download → ~2s restore) after the weekly warm. Known trade: hosted repos ride a CLI up to 7 days old unless `claude_version` is pinned.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)",
+  "closedAt": "2026-07-18T07:03:04Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABKSOR2w",
@@ -524,6 +524,58 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/479#issuecomment-5008819688",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABKqLtHQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer how does it look now? \r\n",
+      "createdAt": "2026-07-18T06:46:29Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/479#issuecomment-5010287901",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABKqMFgQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Looks good now — **SHIP**.\n\nThe hosted-only scope is enforced at [key resolution](https://github.com/self-evolving/repo/blob/b79ec47e46bb00cf69f3a7183811378a0ad4eb20/.github/actions/setup-agent-runtime/action.yml#L209-L216), so self-hosted runners cannot reach restore/save while their normal fresh-install path remains intact. [Regression coverage](https://github.com/self-evolving/repo/blob/b79ec47e46bb00cf69f3a7183811378a0ad4eb20/.agent/src/__tests__/workflow-action-validation.test.ts#L221-L230), documentation, and the PR description all match that contract.\n\nThe branch is clean and mergeable, [CI passes](https://github.com/self-evolving/repo/actions/runs/29634509015/job/88054335978), and independent verification passed build, 91 workflow tests, 5 documentation tests, 17 shell/behavioral tests, and `git diff --check`.\n\nNo remaining blocking or warning-level findings. The actual default-branch cache warm can only run after merge; its PR skip is expected.\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — answer · 2m04s · 10 steps**\n\nLast message\n> Looks good now — **SHIP**. The hosted-only scope is enforced at [key resolution](https://github.com/self-evolving/repo/blob/b79ec47e46bb00cf69f3a7183811378a0ad4eb20/.github/actions/setup-agent-runtime/action.yml#L209-L216), so self-hosted…\n\nActivity\n\n- ✏️ Edited `gh api --paginate repos/self-evolving/repo/issues/479/comments --jq '.[] | select(.id >= 5008809326) | {id,author:.user…` (completed)\n- 💬 Message \"The PR now has a new head (`b79ec47`) with green CI and a rewritten description that matches the intended hosted-only design. I’m inspecting the exact follow-up commit and its regression coverage now.\"\n- 🔧 Used tool `git fetch --no-tags origin refs/pull/479/head && git rev-parse FETCH_HEAD && git diff --stat 8d50128c7dcb64772ed20afd77…` (completed)\n- 💬 Message \"The follow-up is exactly scoped: it adds the `runner.environment != 'self-hosted'` guard at the key-resolution gate, which transitively skips restore/save while preserving the existing fresh-install step on self-hosted runners. The regress…\"\n- 📖 Read `set -e review_dir=\"$(mktemp -d \"${RUNNER_TEMP:-/tmp}/sepo-pr479-final.XXXXXX\")\" git archive FETCH_HEAD | tar -x -C \"$re…` (completed)\n- 💬 Message \"Looks good now — **SHIP**. The hosted-only scope is enforced at [key resolution](https://github.com/self-evolving/repo/blob/b79ec47e46bb00cf69f3a7183811378a0ad4eb20/.github/actions/setup-agent-runtime/action.yml#L209-L216), so self-hosted…\"\n</details>\n\n<!-- sepo-progress:run-29634572508 -->\n\n---\n`codex` | `gpt-5.6-sol` | `max` | `Macmini-runner-2`",
+      "createdAt": "2026-07-18T06:48:39Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/479#issuecomment-5010294145",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABKqPR4Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Update\n\nNo changes were committed to [`agent/rubrics`](https://github.com/self-evolving/repo/tree/agent/rubrics) from PR #479.\n\nNo rubric changes.\n\nPR #479’s substantive feedback was bot-authored, while `lolipopshock` is classified as `CONTRIBUTOR` and made no explicit rubric request in the conversation. No trusted maintainer endorsed those points, and several candidate lessons already overlap active rubrics.\n\nThe rubrics checkout remains clean.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-4`",
+      "createdAt": "2026-07-18T07:07:17Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/479#issuecomment-5010346465",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-07-15T20:47:38Z",
@@ -554,13 +606,13 @@
     },
     {
       "path": ".agent/src/__tests__/workflow-action-validation.test.ts",
-      "additions": 147,
+      "additions": 152,
       "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
       "path": ".github/actions/setup-agent-runtime/action.yml",
-      "additions": 93,
+      "additions": 96,
       "deletions": 12,
       "changeType": "MODIFIED"
     },
@@ -580,7 +632,7 @@
       "color": "0e8a16"
     }
   ],
-  "mergedAt": null,
+  "mergedAt": "2026-07-18T07:03:04Z",
   "number": 479,
   "reviewDecision": "",
   "reviews": [
@@ -870,8 +922,8 @@
       }
     }
   ],
-  "state": "OPEN",
+  "state": "MERGED",
   "title": "Cache the Claude CLI binary in setup-agent-runtime",
-  "updatedAt": "2026-07-18T00:43:35Z",
+  "updatedAt": "2026-07-18T07:07:17Z",
   "url": "https://github.com/self-evolving/repo/pull/479"
 }
