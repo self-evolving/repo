@@ -221,6 +221,11 @@ test("standalone CLI caching follows the runtime cache discipline", () => {
   // unpinned Claude install. The producing action, adapter lock state, and
   // model defaults all rotate the compatibility fingerprint.
   const keys = steps[indexOf("Resolve Claude CLI cache key")];
+  assert.match(
+    String(keys.if),
+    /runner\.environment != 'self-hosted'/,
+    "the hosted-only scope contract is enforced, not just documented",
+  );
   const keysRun = String(keys.run);
   assert.doesNotMatch(keysRun, /\$\{\{\s*inputs\./, "no inputs interpolated into the CLI keys script");
   assert.match(keysRun, /%G-%V/, "unpinned CLI keys rotate on an ISO-week bucket");

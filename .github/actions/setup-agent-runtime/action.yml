@@ -207,7 +207,10 @@ runs:
     # Codex already arrives through codex-acp in .agent/node_modules, so the
     # runtime dependency cache owns it rather than an unreachable second cache.
     - name: Resolve Claude CLI cache key
-      if: ${{ inputs.cache_mode != 'off' && inputs.install_claude == 'true' }}
+      # runner.environment enforces the scope contract below: self-hosted
+      # runners never touch this cache, whether or not the CLI is
+      # preinstalled — a missing CLI there still installs fresh, uncached.
+      if: ${{ inputs.cache_mode != 'off' && inputs.install_claude == 'true' && runner.environment != 'self-hosted' }}
       id: cli
       shell: bash
       env:
