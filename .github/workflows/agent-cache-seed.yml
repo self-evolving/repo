@@ -15,6 +15,12 @@ on:
     paths:
       - ".agent/**"
       - ".github/actions/setup-agent-runtime/**"
+  schedule:
+    # Aligned with the CLI cache's ISO-week bucket (date -u +%G-%V), which
+    # rolls over at Monday 00:00 UTC: low-trust triggers cannot save
+    # default-branch caches, so without this a quiet week boundary leaves
+    # every hosted run re-downloading the CLI until the next runtime push.
+    - cron: "5 0 * * 1"
   workflow_dispatch: {}
 
 permissions:
@@ -42,7 +48,24 @@ jobs:
           ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
 
-      - name: Warm runtime caches
+      # Only the weekly cron is scheduled activity; push and manual runs
+      # warm unconditionally. The gate lets AGENT_SCHEDULE_POLICY disable
+      # recurring warming without disabling every Sepo entry point.
+      - name: Resolve scheduled disabled gate
+        if: github.event_name == 'schedule'
+        id: schedule_gate
+        uses: ./.github/actions/scheduled-activity-gate
+        with:
+          github_token: ${{ github.token }}
+          schedule_policy: ${{ vars.AGENT_SCHEDULE_POLICY || '' }}
+          workflow: agent-cache-seed.yml
+
+      - name: Warm runtime and Claude CLI caches
+        if: github.event_name != 'schedule' || steps.schedule_gate.outputs.skip != 'true'
         uses: ./.github/actions/setup-agent-runtime
         with:
           cache_mode: full
+          # Also warm the Claude CLI cache: on hosted pools this absorbs the
+          # weekly and rotation-driven downloads; on self-hosted pools with a
+          # preinstalled CLI the need check makes it a no-op.
+          install_claude: "true"

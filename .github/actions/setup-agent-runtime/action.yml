@@ -28,16 +28,19 @@ inputs:
     default: ""
   cache_mode:
     description: >-
-      Runtime setup caching: "off" preserves today's unconditional
-      npm ci + build; "modules" restores .agent/node_modules keyed by the
-      manifest and lockfile hashes and skips npm ci on an exact hit;
-      "full" additionally restores .agent/dist keyed by the source tree,
-      tsconfig, and manifest hashes and skips the TypeScript build on an
-      exact hit. Exact-key hits only — any source, manifest, or lockfile
-      change (including script-only package.json edits) falls back to the
-      uncached path. Only "off", "modules", and "full" are accepted;
-      any other value fails setup with a clear error. Defaults to "full";
-      set "off" to restore the unconditional npm ci + build path.
+      Runtime and CLI caching: "off" preserves today's unconditional npm ci
+      + build and disables CLI restore/save; "modules" restores
+      .agent/node_modules keyed by the manifest and lockfile hashes and skips
+      npm ci on an exact hit; "full" additionally restores .agent/dist keyed
+      by the source tree, tsconfig, and manifest hashes and skips the
+      TypeScript build on an exact hit. Both cached modes also restore/save a
+      missing Claude CLI, keyed exactly when pinned and by ISO week when
+      unpinned. Codex is supplied by the locked runtime dependencies and is
+      covered by the modules cache instead of a duplicate global cache.
+      Exact-key hits only — relevant source, manifest, lockfile, action, or
+      model-default changes fall back to the uncached path. Only "off",
+      "modules", and "full" are accepted; any other value fails setup with a
+      clear error. Defaults to "full".
     required: false
     default: "full"
 
@@ -190,6 +193,78 @@ runs:
           exit 1
         fi
 
+    # A missing standalone Claude CLI gets the same exact-key cache treatment
+    # as the runtime: best-effort restore, immediate miss-gated save, never a
+    # post-job save. Mutable channels key on an ISO-week bucket; pinned
+    # versions key exactly. The compatibility fingerprint covers the
+    # producer action, the adapter lock state, and the bundled model
+    # defaults: pinned model IDs and adapter versions set a floor the
+    # cached CLI must satisfy that the execution probe cannot detect. Every
+    # rotation source is warmed by the seed workflow (runtime pushes and
+    # the weekly schedule aligned to the bucket), so rotation does not put
+    # downloads on user-facing runs.
+    # Preinstalled CLIs (self-hosted runners) skip the cache entirely.
+    # Codex already arrives through codex-acp in .agent/node_modules, so the
+    # runtime dependency cache owns it rather than an unreachable second cache.
+    - name: Resolve Claude CLI cache key
+      # runner.environment enforces the scope contract below: self-hosted
+      # runners never touch this cache, whether or not the CLI is
+      # preinstalled — a missing CLI there still installs fresh, uncached.
+      if: ${{ inputs.cache_mode != 'off' && inputs.install_claude == 'true' && runner.environment != 'self-hosted' }}
+      id: cli
+      shell: bash
+      env:
+        INSTALL_CLAUDE: ${{ inputs.install_claude }}
+        CLAUDE_VERSION: ${{ inputs.claude_version }}
+      run: |
+        week="$(date -u +%G-%V)"
+        need_claude=false
+        if [ "${INSTALL_CLAUDE}" = "true" ] && ! command -v claude >/dev/null 2>&1; then
+          need_claude=true
+        fi
+        # Mutable installer channels (empty, latest, stable) rotate on the
+        # ISO-week bucket; anything else is treated as an exact pin.
+        case "${CLAUDE_VERSION}" in
+          ""|latest|stable) channel="${CLAUDE_VERSION:-latest}-${week}" ;;
+          *) channel="${CLAUDE_VERSION}" ;;
+        esac
+        if [ "${need_claude}" = "true" ] && [ -z "${DISABLE_AUTOUPDATER:-}" ]; then
+          # Action-managed installs must not self-update: the version probe
+          # is one launch and the agent run is the next, so background
+          # updates would race the run, silently advance pinned versions,
+          # and be re-downloaded on every immutable cache hit. Per Anthropic
+          # docs this also disables plugin/marketplace auto-updates — the
+          # right default for ephemeral CI determinism; operators can set
+          # FORCE_AUTOUPDATE_PLUGINS=1 to restore plugin updates, and any
+          # pre-set DISABLE_AUTOUPDATER value is preserved untouched.
+          # Preinstalled self-hosted CLIs keep their operator's policy.
+          echo "DISABLE_AUTOUPDATER=1" >> "$GITHUB_ENV"
+        fi
+        {
+          echo "need_claude=${need_claude}"
+          echo "claude_key=sepo-cli-claude-${{ runner.os }}-${{ runner.arch }}-${channel}-${{ hashFiles('.github/actions/setup-agent-runtime/action.yml', '.agent/package-lock.json', '.agent/model-defaults.json') }}"
+        } >> "$GITHUB_OUTPUT"
+
+    # Scope contract: this cache targets the uniform GitHub-hosted runner
+    # fleet — one HOME/workspace geometry and one libc per os/arch pair —
+    # which is where the CLI download cost lives, so runner.os/arch keys
+    # and HOME-scoped paths are exact within scope. Self-hosted pools are
+    # expected to preinstall the CLI (the need check then bypasses caching
+    # entirely), and outside the contract — exotic layouts, musl, Rosetta —
+    # the execution probe below rejects any incompatible restore and falls
+    # back to a fresh install, so the worst case anywhere is the uncached
+    # status quo, never a broken CLI.
+    - name: Restore Claude CLI cache
+      if: ${{ steps.cli.outputs.need_claude == 'true' }}
+      id: cli_claude
+      continue-on-error: true
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ~/.local/bin/claude
+          ~/.local/share/claude
+        key: ${{ steps.cli.outputs.claude_key }}
+
     - name: Install Codex CLI
       if: ${{ inputs.install_codex == 'true' }}
       shell: bash
@@ -215,7 +290,8 @@ runs:
       env:
         CLAUDE_VERSION: ${{ inputs.claude_version }}
       run: |
-        if command -v claude >/dev/null 2>&1; then
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+        if claude --version >/dev/null 2>&1 || "$HOME/.local/bin/claude" --version >/dev/null 2>&1; then
           echo "Claude CLI already available."
           exit 0
         fi
@@ -226,4 +302,12 @@ runs:
           curl -fsSL https://claude.ai/install.sh | bash
         fi
 
-        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+    - name: Save Claude CLI cache
+      if: ${{ steps.cli.outputs.need_claude == 'true' && steps.cli_claude.outputs.cache-hit != 'true' }}
+      continue-on-error: true
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ~/.local/bin/claude
+          ~/.local/share/claude
+        key: ${{ steps.cli.outputs.claude_key }}

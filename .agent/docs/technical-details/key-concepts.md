@@ -119,7 +119,7 @@ Rubrics live on a separate `agent/rubrics` branch, governed by `AGENT_RUBRICS_PO
 
 ## Runtime dependencies
 
-The reusable workflows bootstrap the runtime in place by checking out the repository and running `.github/actions/setup-agent-runtime`, which restores exact-key caches of `.agent/node_modules` and `.agent/dist` when available (default `cache_mode: full`, warmed by `agent-cache-seed.yml`), otherwise installs dependencies inside `.agent/` and builds `.agent/dist/`, and optionally installs `codex` or `claude`.
+The reusable workflows bootstrap the runtime in place by checking out the repository and running `.github/actions/setup-agent-runtime`. With the default `cache_mode: full`, the action restores exact-key caches of `.agent/node_modules` (including the Codex CLI supplied by `codex-acp`) and `.agent/dist` when available, otherwise it installs dependencies inside `.agent/` and builds `.agent/dist/`; `agent-cache-seed.yml` warms those caches. Both `modules` and `full` also cache a missing Claude CLI, using exact keys for pinned versions and ISO-week buckets for unpinned installs. `off` disables all runtime and CLI caches while preserving the same install/build fallback behavior.
 
 Remaining runner requirements:
 
