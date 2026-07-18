@@ -127,3 +127,4 @@
 - Root guidance is AGENTS.md; approved updates rename legacy AGENT.md rather than leaving both. [[github/self-evolving/repo/pull-476.json]]
 - Runtime defaults to exact-key full caching; modules/off opt out and failed restores fall back. [[github/self-evolving/repo/pull-475.json]]
 - Claude CLI cache: hosted-only; channels rotate weekly; exact pins; self-hosted uncached. [[github/self-evolving/repo/pull-479.json]]
+- Only release preparation updates `.agent/CHANGELOG.md`; normal PRs leave release notes unchanged.
