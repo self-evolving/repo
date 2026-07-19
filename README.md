@@ -19,7 +19,7 @@ The goal of a self-evolving repo (**Sepo**) is to make a workspace for **structu
 
 ## See Sepo in practice
 
-- **Live literature**: see how Sepo live-updates and creates an evolving literature for OPD
+- **Live literature**: see how Sepo live-updates and creates an [evolving literature](https://literature-example-hcllms.vercel.app) — readers can ask questions right on the site ([repo](https://github.com/self-evolving/literature-example-hcllms))
 - **Managing websites**: we use Sepo to manage the [Augmented Mind website](https://augmented-mind.github.io) with seamless team–AI collaboration ([repo](https://github.com/augmented-mind/augmented-mind.github.io))
 - **Supporting math proving**: built on Sepo, [Lean Workspace](https://lean-workspace.sepo.site/) streamlines team–AI collaboration for writing proofs ([template](https://github.com/self-evolving/lean-workspace-template))
 - **Handling long-running repo-level auto-research**: using Sepo to continuously improve a repo for a goal (coming soon)
