@@ -17,13 +17,9 @@ The goal of a self-evolving repo (**Sepo**) is to make a workspace for **structu
 2. **Through the collaboration**, the agent grows with you: the agent memorizes project context, extracts your rubrics, and saves them in the [`agent/memory`](https://docs.sepo.sh/sepo/architecture/memory) and [`agent/rubrics`](https://docs.sepo.sh/sepo/architecture/rubrics) branches.
 3. **In the longer term**, Sepo can take over longer jobs, handle [project goals](https://docs.sepo.sh/sepo/architecture/goals), and self-improve.
 
-## Examples and projects using Sepo
+## See Sepo in practice
 
-Every site below is a live deployment of a Sepo-managed repository:
-
-| Project | What it is | Live site |
-| --- | --- | --- |
-| [Lean Workspace](https://github.com/self-evolving/lean-workspace-template) | Template for formalizing theorems in Lean with your team and agents — blueprint plan + interactive dependency canvas | [lean-workspace.sepo.site](https://lean-workspace.sepo.site/) |
-| [Literature template](https://github.com/self-evolving/literature-template) | Paper-reading sites curated through Sepo ([example instance](https://literature-example-hcllms.vercel.app)) | [literature-template.sepo.site](https://literature-template.sepo.site) |
-| [Digital garden template](https://github.com/self-evolving/digital-garden-template) | Obsidian-style vault published with Quartz and tended through Sepo | [digital-garden.sepo.site](https://digital-garden.sepo.site) |
-| [Augmented Mind](https://github.com/augmented-mind/augmented-mind.github.io) | Website maintained by asking Sepo in GitHub issues | [augmented-mind.github.io](https://augmented-mind.github.io) |
+- **Live literature**: see how Sepo live-updates and creates an evolving literature for OPD
+- **Managing websites**: we use Sepo to manage the [Augmented Mind website](https://augmented-mind.github.io) with seamless team–AI collaboration ([repo](https://github.com/augmented-mind/augmented-mind.github.io))
+- **Supporting math proving**: built on Sepo, [Lean Workspace](https://lean-workspace.sepo.site/) streamlines team–AI collaboration for writing proofs ([template](https://github.com/self-evolving/lean-workspace-template))
+- **Handling long-running repo-level auto-research**: using Sepo to continuously improve a repo for a goal (coming soon)
