@@ -1,0 +1,38 @@
+{
+  "number": 486,
+  "title": "Review using sepo for conducting repo-level autoresearch",
+  "url": "https://github.com/self-evolving/repo/discussions/486",
+  "body": "@sepo-agent /answer \r\n\r\nWith the recently added #451 , plus our goal system, as well as other components like task orchestration, how far away we are from conducting repo level autoresearch? ",
+  "createdAt": "2026-07-19T19:56:11Z",
+  "updatedAt": "2026-07-19T20:03:35Z",
+  "author": {
+    "login": "lolipopshock"
+  },
+  "category": {
+    "name": "Ideas"
+  },
+  "comments": {
+    "nodes": [
+      {
+        "id": "DC_kwDOSOhEMM4BDfKs",
+        "body": "**Short answer:** for metric-driven repository optimization, Sepo is about **three focused implementation slices plus dogfooding** from an autonomous, single-lane v0. The outer control plane largely exists; the defining experiment loop does not. Open-ended research without a stable evaluator is considerably farther away.\n\nAutoresearch’s core loop is constrained edit → fixed-budget evaluation → deterministic metric comparison → keep/discard → repeat ([README](https://github.com/karpathy/autoresearch#how-it-works), [experiment loop](https://github.com/karpathy/autoresearch/blob/master/program.md#the-experiment-loop)). Sepo now provides:\n\n- Goal issues with success criteria, child decomposition, stopping conditions, and explicit experiment guidance: [`goals.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/goals.md#L5-L70).\n- [#451](https://github.com/self-evolving/repo/pull/451), which periodically selects one goal-aligned issue or PR and dispatches orchestration: [`agent-self-improvement.md`](https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-self-improvement.md#L14-L97).\n- Meta-orchestration that delegates child issues, resumes the parent from terminal child outcomes, and runs implementation/review/fix/approval/merge chains: [`agent-orchestrator.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/architecture/agent-orchestrator.md#L97-L140).\n- Repository skills that can become experiment-specific evaluators or compute adapters: [`skills.md`](https://github.com/self-evolving/repo/blob/main/.agent/docs/customization/skills.md#L21-L80).\n- A safe promotion path for successful code through review, self-approval, and self-merge.\n\nThe critical missing layer is **structured experiment execution**. Current orchestration actions contain only `implement`, `review`, `fix-pr`, self-approve, and self-merge—there is no experiment action or result type: [`handoff.ts`](https://github.com/self-evolving/repo/blob/main/.agent/src/handoff.ts#L1-L7). Consequently, Sepo cannot yet:\n\n- define a trusted evaluator, metric direction, baseline, threshold, editable paths, and trial budget;\n- execute an isolated candidate and deterministically classify it as improved, regressed, crashed, or inconclusive;\n- retain or discard candidates without opening/reviewing a PR for every failed trial;\n- pass structured trial results back to the goal planner;\n- replan from accumulated evidence rather than coarse `done`/`failed` workflow outcomes.\n\nThe intended architecture should be:\n\n```text\n#451 portfolio selection\n  -> agent-goal issue\n  -> meta-orchestrator\n  -> experiment child\n  -> experiment skill/action\n  -> deterministic result reducer\n  -> next trial | promoted PR | stop\n```\n\nHere, #451 is the **portfolio manager**, not the per-trial loop. A skill owns how to evaluate one repository; core runtime owns trial state, comparison, budgeting, and promotion.\n\nA practical delivery sequence is:\n\n1. Add an `agent-experiment` child convention plus `ExperimentSpec` and `ExperimentResult`. V0 needs one scalar metric, direction, trusted evaluation skill/command, editable-path allowlist, baseline, minimum delta, timeout, and max trials. Record results through marker-upserted issue comments and workflow artifacts.\n\n2. Add a single-lane experiment action. Run one candidate in an isolated branch/worktree, keep the evaluator from the trusted default branch, parse the metric deterministically, and promote only improved candidates into a PR.\n\n3. Integrate it with orchestration. Return structured results to the parent goal and support `next experiment`, `promote`, and `stop`, with trial/cost budgets distinct from the existing orchestration-round budget.\n\n4. Dogfood one short, deterministic goal for 10–20 trials. Only after that add long-running submit/poll/finalize backends, parallel lanes, noisy or multi-metric evaluation, and external artifact storage.\n\nOperationally, this repository is still pre-dogfood: self-improvement is opt-in and a [recent scheduled run was skipped](https://github.com/self-evolving/repo/actions/runs/29700979285), while the [`agent-goal` issue query](https://github.com/self-evolving/repo/issues?q=is%3Aissue+label%3Aagent-goal) is currently empty.\n\nTo start the first bounded slice, send:\n\n`@sepo-agent /implement Add autoresearch v0 experiment primitives: an agent-experiment issue contract, ExperimentSpec/ExperimentResult parsing, deterministic metric comparison, a marker-upserted result ledger, and tests/docs; leave execution and orchestrator integration for follow-up PRs.`\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-3`",
+        "createdAt": "2026-07-19T20:03:34Z",
+        "url": "https://github.com/self-evolving/repo/discussions/486#discussioncomment-17691308",
+        "author": {
+          "login": "sepo-agent-app"
+        },
+        "replies": {
+          "nodes": [],
+          "pageInfo": {
+            "hasNextPage": false,
+            "endCursor": null
+          }
+        }
+      }
+    ],
+    "pageInfo": {
+      "hasNextPage": false,
+      "endCursor": null
+    }
+  }
+}
