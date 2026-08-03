@@ -6,7 +6,7 @@
     "name": "Shannon Shen"
   },
   "body": "Agent commands that are added by editing an existing comment can look accepted but do not run the requested action.\n\nPlain-language problem:\n\nA user may post a comment, then edit it a few minutes later to add a command such as `@sepo-agent /fix-pr` or `@sepo-agent /review`. The edited comment wakes the agent entrypoint, the router can parse the command, and the agent may even add an eyes reaction. However, the downstream PR action is currently guarded with `github.event.action != 'edited'`, so the requested job is skipped. From the user's point of view, the agent appeared to notice the request but then nothing happened.\n\nThis is confusing because there is no visible explanation on the PR telling the user that commands added by editing a comment are not allowed to launch PR-modifying actions.\n\nDesired behavior:\n\n- If edited comments should remain blocked for safety, the portal should not silently acknowledge them as actionable. It should post a short explanation such as: \"I noticed this command on an edited comment, but PR-modifying actions only run from new comments. Please post a new comment with the command.\"\n- Alternatively, support edited comments safely by detecting that a trusted user added a valid explicit command and dispatching the requested action exactly once.\n- Avoid adding reactions or status signals that imply the action is running when the downstream action will be skipped.\n- Add tests covering edited issue comments and edited PR comments for explicit `/review` and `/fix-pr` commands.\n\nWhy this matters:\n\nThis failure mode is easy to hit when users refine a comment after posting it. The current behavior creates a silent no-op and makes it hard to tell whether the agent is broken, waiting, or deliberately refusing to run.",
-  "closedAt": null,
+  "closedAt": "2026-08-03T06:09:49Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABH31m8A",
@@ -212,6 +212,21 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/437#issuecomment-4831149243",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABM7vDow",
+      "author": {
+        "login": "github-actions"
+      },
+      "authorAssociation": "NONE",
+      "body": "Closing because this agent issue has had no activity for 30 days.",
+      "createdAt": "2026-08-03T06:09:48Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/437#issuecomment-5162910627",
+      "viewerDidAuthor": false
     }
   ],
   "createdAt": "2026-06-28T00:19:28Z",
@@ -224,8 +239,8 @@
     }
   ],
   "number": 437,
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Make edited-comment agent commands explicit instead of silent no-ops",
-  "updatedAt": "2026-06-29T09:51:34Z",
+  "updatedAt": "2026-08-03T06:09:49Z",
   "url": "https://github.com/self-evolving/repo/issues/437"
 }
