@@ -221,6 +221,15 @@ test("shared base prompt exists and contains the metadata contract", () => {
   assert.match(base, /Do not repeatedly retry deterministic failures/);
 });
 
+test("shared base prompt prefers GitHub-compatible LaTeX blocks", () => {
+  const base = readRepoFile(".github/prompts/_base.md");
+
+  assert.match(
+    base,
+    /When including LaTeX in GitHub-facing Markdown, prefer display-math blocks delimited by `\$\$`\./,
+  );
+});
+
 test("route prompts do not duplicate the base metadata header", () => {
   const reviewPrompt = readRepoFile(".github/prompts/review.md");
   const implementPrompt = readRepoFile(".github/prompts/agent-implement.md");
