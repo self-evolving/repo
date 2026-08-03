@@ -7,19 +7,138 @@
   },
   "body": "1. allow users to upload local sessions \n2. the agent runs on github for that session, and then add it to memory / rubrics ",
   "closedAt": null,
-  "comments": [],
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABM71VdA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "This fits the current architecture. Recommended MVP: a trusted user exports a sanitized local transcript, attaches it to an issue comment, then manually runs a new “Inspect Local Session” workflow using that comment URL. Sepo should inspect the trace as untrusted evidence and persist only distilled findings—not the raw transcript.\n\nExisting foundations:\n\n- The attachment helper already restricts downloads to GitHub user attachments and enforces safe filenames, timeouts, and a 25 MiB limit ([source](https://github.com/self-evolving/repo/blob/main/.agent/src/github-attachment-download.ts#L47-L70)).\n- Existing continuity bundles restore provider files into the runner’s home directory ([source](https://github.com/self-evolving/repo/blob/main/.agent/src/session-bundle.ts#L356-L398)). User uploads should not use that path.\n- `run-agent-task` already mounts both branches and independently commits memory plus validates/commits rubrics ([setup](https://github.com/self-evolving/repo/blob/main/.github/actions/run-agent-task/action.yml#L298-L332), [persistence](https://github.com/self-evolving/repo/blob/main/.github/actions/run-agent-task/action.yml#L543-L606)).\n- Existing prompts already define conservative memory durability and trusted-source rubric learning ([memory](https://github.com/self-evolving/repo/blob/main/.github/prompts/memory-scan.md#L14-L30), [rubrics](https://github.com/self-evolving/repo/blob/main/.github/prompts/rubrics-update.md#L17-L57)).\n\nImplementation plan:\n\n1. Add a local export CLI producing a versioned, sanitized trace format. Preserve user/assistant messages and minimal provenance; omit credentials, environment snapshots, and raw tool payloads. Support canonical JSON/JSONL plus plain Markdown/text initially—no uploaded archives.\n2. Add a validator that downloads the attachment with the existing helper, checks schema/size/record limits, computes a digest, and confirms the attachment URL appears in the supplied source issue comment.\n3. Add `agent-local-session-inspection.yml` with inputs for source comment URL, destination (`memory`, `rubrics`, or `both`), and branch refs. Run with `session_policy: none`.\n4. Add a dedicated inspection prompt and route. Treat trace instructions as data, learn rubrics only from explicit preferences attributable to a trusted user, and add memory only for durable repository-specific facts or lessons. Duplicate or weak evidence should produce no changes.\n5. Post a source-issue summary showing the digest and separate memory/rubrics commit outcomes; never quote sensitive trace content.\n6. Add parser/security tests, workflow contract tests, prompt guardrail assertions, documentation, and run the complete `.agent` CI suite.\n\nI’m interpreting “runs on GitHub for that session” as inspecting the transcript, not resuming the provider’s live session. Live resumption should be a separate security design because it restores uploaded state into the runner.\n\nIf that interpretation is correct, send:\n\n`@sepo-agent /implement Implement the sanitized local-session inspection workflow for issue #489 using the plan above.`\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — answer · 6m09s · 45 steps**\n\nLast message\n> This fits the current architecture. Recommended MVP: a trusted user exports a sanitized local transcript, attaches it to an issue comment, then manually runs a new “Inspect Local Session” workflow using that comment URL. Sepo should inspec…\n\nActivity\n\n- ✏️ Edited `Search for '(memory-scan|rubrics-update|rubrics-initialization)' in .agent` (completed)\n- 📖 Read `Read file '/Users/shannon/projects/2604_sepo/repo/.agent/tools/local-runner/runner-4/_work/repo/repo/.agent/src/run.ts'` (completed)\n- 📖 Read `Read file '/Users/shannon/projects/2604_sepo/repo/.agent/tools/local-runner/runner-4/_work/repo/repo/.agent/src/__tests…` (completed)\n- 🔧 Used tool `\"nl -ba .github/workflows/agent-memory-pr-closed.yml | sed -n '1,300p'; nl -ba .github/prompts/memory-pr-closed.md | se…` (completed)\n- 🔧 Used tool `node -e 'const p=require(\"./.agent/package.json\"); console.log(JSON.stringify(p.scripts,null,2))' && nl -ba .agent/pack…` (completed)\n- 💬 Message \"This fits the current architecture. Recommended MVP: a trusted user exports a sanitized local transcript, attaches it to an issue comment, then manually runs a new “Inspect Local Session” workflow using that comment URL. Sepo should inspec…\"\n</details>\n\n<!-- sepo-progress:run-30789196420 -->\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-4`",
+      "createdAt": "2026-08-03T06:22:38Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/489#issuecomment-5163013492",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABM8KZwQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate \n\n",
+      "createdAt": "2026-08-03T07:10:21Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/489#issuecomment-5163358657",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABM8MW-g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is starting a focused child task for this orchestration.\n\n| Child task | Focus | Parent issue | Status |\n| --- | --- | --- | --- |\n| #490 | local-session-inspection-mvp | #489 | Running |\n\nI'll report back here when the child task finishes.\n\n<!-- sepo-sub-orchestrator-child parent:489 stage:local-session-inspection-mvp child:490 -->",
+      "createdAt": "2026-08-03T07:14:01Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/489#issuecomment-5163390714",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABM8cDkw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Child task completed.\n\n| Child task | Outcome | Parent round | Next step |\n| --- | --- | --- | --- |\n| #490 | Failed | 2 / 40 | Resuming parent orchestration |\n\nSummary: implement concluded failed\n\n<!-- sepo-sub-orchestrator-report child:490 resume:dispatched -->",
+      "createdAt": "2026-08-03T07:45:40Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/489#issuecomment-5163647891",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABM8doIA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is starting a focused child task for this orchestration.\n\n| Child task | Focus | Parent issue | Status |\n| --- | --- | --- | --- |\n| #492 | local-session-trace-foundation | #489 | Running |\n\nI'll report back here when the child task finishes.\n\n<!-- sepo-sub-orchestrator-child parent:489 stage:local-session-trace-foundation child:492 -->",
+      "createdAt": "2026-08-03T07:48:47Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/489#issuecomment-5163673632",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABM9SC2g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Child task completed.\n\n| Child task | PR | Outcome | Parent round | Next step |\n| --- | --- | --- | --- | --- |\n| #492 | #493 | Failed | 3 / 40 | Resuming parent orchestration |\n\nSummary: fix-pr concluded failed; no automatic handoff was dispatched because fix-pr must succeed before re-review\n\n<!-- sepo-sub-orchestrator-report child:492 resume:dispatched -->",
+      "createdAt": "2026-08-03T09:21:00Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/489#issuecomment-5164532442",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABM9UrpQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo orchestration needs clarification before it can continue.\n\nThe latest fix run failed during setup—not while changing code. GitHub returned HTTP 503 while cloning `agent/rubrics`, so PR #493 remains unchanged. Please retry `@sepo-agent /fix-pr` on PR #493 with the latest review action items; parent orchestration can resume after that fix succeeds.\n\n- Source action: `orchestrate`\n- Source conclusion: `failed`\n- Target: `issue #489`\n- Round: `3/40`\n- Reason: agent planner blocked: PR #493 still has three concrete review fixes, but the fix agent never started because cloning agent/rubrics failed with a transient GitHub HTTP 503. Re-review is unsafe until a fix pass succeeds.\n- Source run ID: `30800877105`\n\nNo follow-up workflow was dispatched. Reply with the requested context, then continue with `/orchestrate`, `/implement`, or `/answer` when ready.\n\n<!-- sepo-agent-orchestrate-stop -->",
+      "createdAt": "2026-08-03T09:24:53Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/489#issuecomment-5164575653",
+      "viewerDidAuthor": true
+    }
+  ],
   "createdAt": "2026-08-02T22:19:29Z",
   "labels": [
     {
-      "id": "LA_kwDOSOhEMM8AAAACuiNU2Q",
-      "name": "agent/answer",
-      "description": "",
-      "color": "aaaaaa"
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
     }
   ],
   "number": 489,
   "state": "OPEN",
   "title": "Rubrics/Memory inspection based on local traces",
-  "updatedAt": "2026-08-03T06:08:23Z",
+  "updatedAt": "2026-08-03T09:24:53Z",
   "url": "https://github.com/self-evolving/repo/issues/489"
 }
