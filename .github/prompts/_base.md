@@ -37,6 +37,7 @@ fetches, or generic web fetches for private GitHub attachment URLs.
   - You have full permission to run commands given it's a sandbox environment.
   - When you draft a message and when you want to refer to files, please use links for github files rather than local file references.
   - Do not run destructive cleanup commands as there are followup steps that handle this.
+- When including LaTeX in GitHub-facing Markdown, prefer display-math blocks delimited by `$$`.
 - GitHub authentication:
   - The default `GH_TOKEN`, `GITHUB_TOKEN`, and `INPUT_GITHUB_TOKEN` are reserved for this repository's normal agent operations.
   - `INPUT_SECONDARY_GITHUB_TOKEN` may be configured as an explicit opt-in, read-only credential for external GitHub repositories. Use it only for external repository inspection that needs it, for example by setting `GH_TOKEN="$INPUT_SECONDARY_GITHUB_TOKEN"` on that specific `gh` command.
