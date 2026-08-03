@@ -128,3 +128,4 @@
 - Runtime defaults to exact-key full caching; modules/off opt out and failed restores fall back. [[github/self-evolving/repo/pull-475.json]]
 - Claude CLI cache: hosted-only; channels rotate weekly; exact pins; self-hosted uncached. [[github/self-evolving/repo/pull-479.json]]
 - Only release preparation updates `.agent/CHANGELOG.md`; normal PRs leave release notes unchanged.
+- Use `$$` display-math blocks for LaTeX in GitHub-facing Markdown. [[github/self-evolving/repo/pull-491.json]]
