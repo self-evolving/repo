@@ -1,4 +1,7 @@
 import { strict as assert } from "node:assert";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
 
 import {
@@ -129,6 +132,49 @@ test("export CLI refuses archive input and existing or in-place output", () => {
   });
   assert.equal(inPlaceCode, 2);
   assert.match(inPlaceError.read(), /Input and output paths must be different/);
+});
+
+test("export CLI rejects an oversized regular file during size preflight", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "local-session-export-"));
+  const inputPath = join(tempDir, "session.txt");
+  writeFileSync(inputPath, "123456789");
+
+  try {
+    const stderr = createBufferWriter();
+    const code = runExportLocalSessionTraceCli({
+      argv: ["--input", inputPath],
+      stdout: createBufferWriter().writer,
+      stderr: stderr.writer,
+      maxInputBytes: 8,
+    });
+
+    assert.equal(code, 1);
+    assert.match(stderr.read(), /Local-session input exceeds 8 bytes/);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("export CLI stops reading stdin after the first over-limit byte", () => {
+  const source = Buffer.from("User: this input is too large");
+  const stderr = createBufferWriter();
+  let sourceOffset = 0;
+  const code = runExportLocalSessionTraceCli({
+    argv: ["--input", "-"],
+    stdout: createBufferWriter().writer,
+    stderr: stderr.writer,
+    maxInputBytes: 8,
+    readInputChunk(_fd, buffer, offset, length) {
+      const chunk = source.subarray(sourceOffset, sourceOffset + length);
+      buffer.set(chunk, offset);
+      sourceOffset += chunk.byteLength;
+      return chunk.byteLength;
+    },
+  });
+
+  assert.equal(code, 1);
+  assert.equal(sourceOffset, 9);
+  assert.match(stderr.read(), /Local-session input exceeds 8 bytes/);
 });
 
 test("export CLI validates arguments and supports help", () => {

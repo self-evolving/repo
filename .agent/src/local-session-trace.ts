@@ -63,6 +63,23 @@ const ARCHIVE_EXTENSIONS = new Set([
 ]);
 const TEXT_BLOCK_TYPES = new Set(["text", "input_text", "output_text"]);
 const DIRECT_MESSAGE_TYPES = new Set(["", "message", "user", "assistant", "human", "ai"]);
+const SENSITIVE_BLOCK_NAMES = new Set([
+  "env",
+  "env_context",
+  "env_snapshot",
+  "environment",
+  "environment_context",
+  "environment_snapshot",
+  "function_call",
+  "function_result",
+  "tool_call",
+  "tool_output",
+  "tool_result",
+  "tool_use",
+]);
+const MAX_SENSITIVE_BLOCK_NAME_LENGTH = Math.max(
+  ...[...SENSITIVE_BLOCK_NAMES].map((name) => name.length),
+);
 
 export class LocalSessionTraceError extends Error {
   constructor(message: string) {
@@ -129,20 +146,117 @@ function normalizeTimestamp(value: unknown, required: boolean, label: string): s
   return parsed.toISOString();
 }
 
+interface SensitiveTag {
+  closing: boolean;
+  end: number;
+  name: string;
+  selfClosing: boolean;
+}
+
+function isTagNameCharacter(value: string): boolean {
+  const code = value.charCodeAt(0);
+  return (
+    (code >= 48 && code <= 57)
+    || (code >= 65 && code <= 90)
+    || (code >= 97 && code <= 122)
+    || value === "_"
+    || value === "-"
+  );
+}
+
+function isTagWhitespace(value: string): boolean {
+  return value === " " || value === "\t" || value === "\n" || value === "\r" || value === "\f";
+}
+
+function sensitiveTagAt(content: string, start: number): SensitiveTag | null {
+  let cursor = start + 1;
+  const closing = content[cursor] === "/";
+  if (closing) cursor += 1;
+
+  const nameStart = cursor;
+  while (
+    cursor < content.length
+    && cursor - nameStart <= MAX_SENSITIVE_BLOCK_NAME_LENGTH
+    && isTagNameCharacter(content[cursor])
+  ) {
+    cursor += 1;
+  }
+  if (
+    cursor === nameStart
+    || (cursor < content.length && isTagNameCharacter(content[cursor]))
+  ) {
+    return null;
+  }
+
+  const name = content.slice(nameStart, cursor).toLowerCase();
+  if (!SENSITIVE_BLOCK_NAMES.has(name)) return null;
+  if (
+    cursor < content.length
+    && content[cursor] !== ">"
+    && content[cursor] !== "/"
+    && !isTagWhitespace(content[cursor])
+  ) {
+    return null;
+  }
+
+  const close = content.indexOf(">", cursor);
+  if (close < 0) {
+    return closing
+      ? null
+      : { closing: false, end: content.length, name, selfClosing: false };
+  }
+
+  if (closing) {
+    for (let index = cursor; index < close; index += 1) {
+      if (!isTagWhitespace(content[index])) return null;
+    }
+  }
+
+  let finalCharacter = close - 1;
+  while (finalCharacter >= cursor && isTagWhitespace(content[finalCharacter])) {
+    finalCharacter -= 1;
+  }
+  return {
+    closing,
+    end: close + 1,
+    name,
+    selfClosing: !closing && content[finalCharacter] === "/",
+  };
+}
+
 function removeSensitiveBlocks(content: string): string {
-  return content
-    .replace(
-      /<(env(?:ironment)?(?:_(?:context|snapshot))?)\b[^>]*>[\s\S]*?<\/\1\s*>/gi,
-      "",
-    )
-    .replace(
-      /<(tool_(?:use|call|result|output)|function_(?:call|result))\b[^>]*>[\s\S]*?<\/\1\s*>/gi,
-      "",
-    )
-    .replace(
-      /<(env(?:ironment)?(?:_(?:context|snapshot))?|tool_(?:use|call|result|output)|function_(?:call|result))\b[^>]*\/>/gi,
-      "",
-    );
+  const output: string[] = [];
+  const openBlocks: string[] = [];
+  let cursor = 0;
+
+  while (cursor < content.length) {
+    const tagStart = content.indexOf("<", cursor);
+    if (tagStart < 0) {
+      if (openBlocks.length === 0) output.push(content.slice(cursor));
+      break;
+    }
+    if (openBlocks.length === 0) output.push(content.slice(cursor, tagStart));
+
+    const tag = sensitiveTagAt(content, tagStart);
+    if (!tag) {
+      if (openBlocks.length === 0) output.push("<");
+      cursor = tagStart + 1;
+      continue;
+    }
+    cursor = tag.end;
+
+    if (tag.closing) {
+      if (openBlocks.length === 0) {
+        output.push(content.slice(tagStart, tag.end));
+      } else if (openBlocks[openBlocks.length - 1] === tag.name) {
+        openBlocks.pop();
+      }
+    } else if (!tag.selfClosing) {
+      openBlocks.push(tag.name);
+    }
+  }
+
+  return output.join("");
 }
 
 /**
@@ -318,6 +432,7 @@ function firstTimestamp(candidate: JsonObject, outer: JsonObject): string | unde
  */
 function extractMessage(value: unknown): LocalSessionTraceMessage | null {
   if (!isObject(value)) return null;
+  if (value.isMeta === true || value.isSidechain === true) return null;
 
   let candidate = value;
   const outerType = String(value.type || "").trim().toLowerCase();
@@ -523,7 +638,7 @@ function parseRoleDelimitedText(
   const messages: LocalSessionTraceMessage[] = [];
   let activeRole: LocalSessionRole | null = null;
   let activeLines: string[] = [];
-  let fence = "";
+  let fence: { marker: string; length: number } | null = null;
   let sawMarker = false;
 
   const flush = (): void => {
@@ -538,8 +653,9 @@ function parseRoleDelimitedText(
     const fenceMatch = line.match(/^\s*(`{3,}|~{3,})/);
     if (fenceMatch) {
       const marker = fenceMatch[1][0];
-      if (!fence) fence = marker;
-      else if (fence === marker) fence = "";
+      const length = fenceMatch[1].length;
+      if (!fence) fence = { marker, length };
+      else if (fence.marker === marker && length >= fence.length) fence = null;
     }
 
     const marker = fence

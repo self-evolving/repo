@@ -3,8 +3,10 @@
 // CLI: export a local agent transcript as a versioned, sanitized trace.
 
 import {
+  closeSync,
   existsSync,
-  readFileSync,
+  openSync,
+  readSync,
   statSync,
   writeFileSync,
 } from "node:fs";
@@ -23,6 +25,15 @@ import {
 interface WritableLike {
   write(chunk: string): void;
 }
+
+type InputChunkReader = (
+  fd: number,
+  buffer: Uint8Array,
+  offset: number,
+  length: number,
+) => number;
+
+const INPUT_READ_CHUNK_BYTES = 64 * 1024;
 
 interface ParsedArgs {
   input: string;
@@ -130,6 +141,50 @@ function pathsReferToSameFile(input: string, output: string): boolean {
   }
 }
 
+function inputLimitError(maxBytes: number): LocalSessionTraceError {
+  return new LocalSessionTraceError(
+    `Local-session input exceeds ${maxBytes} bytes.`,
+  );
+}
+
+function readBoundedInput(
+  path: string,
+  maxBytes: number,
+  readChunk: InputChunkReader,
+): Uint8Array {
+  if (path !== "-") {
+    const stats = statSync(path);
+    if (stats.isFile() && stats.size > maxBytes) throw inputLimitError(maxBytes);
+  }
+
+  const fd = path === "-" ? 0 : openSync(path, "r");
+  const chunks: Buffer[] = [];
+  const buffer = Buffer.allocUnsafe(Math.min(INPUT_READ_CHUNK_BYTES, maxBytes + 1));
+  let totalBytes = 0;
+
+  try {
+    while (true) {
+      const bytesToRead = Math.min(buffer.byteLength, maxBytes - totalBytes + 1);
+      const bytesRead = readChunk(fd, buffer, 0, bytesToRead);
+      if (
+        !Number.isSafeInteger(bytesRead)
+        || bytesRead < 0
+        || bytesRead > bytesToRead
+      ) {
+        throw new LocalSessionTraceError("Could not read local-session input safely.");
+      }
+      if (bytesRead === 0) break;
+      if (totalBytes + bytesRead > maxBytes) throw inputLimitError(maxBytes);
+      chunks.push(Buffer.from(buffer.subarray(0, bytesRead)));
+      totalBytes += bytesRead;
+    }
+  } finally {
+    if (path !== "-") closeSync(fd);
+  }
+
+  return Buffer.concat(chunks, totalBytes);
+}
+
 export function inferLocalSessionOutputFormat(
   outputPath: string,
   explicitFormat: LocalSessionOutputFormat | "",
@@ -144,18 +199,29 @@ export function runExportLocalSessionTraceCli(options: {
   stdout?: WritableLike;
   stderr?: WritableLike;
   now?: () => Date;
+  maxInputBytes?: number;
   readInput?: (path: string) => Uint8Array;
+  readInputChunk?: InputChunkReader;
   writeOutput?: (path: string, content: string) => void;
   outputExists?: (path: string) => boolean;
 } = {}): number {
   const argv = options.argv || process.argv.slice(2);
   const stdout = options.stdout || process.stdout;
   const stderr = options.stderr || process.stderr;
-  const readInput = options.readInput || ((path: string) =>
-    path === "-" ? readFileSync(0) : readFileSync(path));
   const outputExists = options.outputExists || existsSync;
+  const maxInputBytes = options.maxInputBytes
+    ?? DEFAULT_LOCAL_SESSION_TRACE_MAX_INPUT_BYTES;
+  const readChunk = options.readInputChunk || ((
+    fd: number,
+    buffer: Uint8Array,
+    offset: number,
+    length: number,
+  ) => readSync(fd, buffer, offset, length, null));
 
   try {
+    if (!Number.isSafeInteger(maxInputBytes) || maxInputBytes < 1) {
+      throw new LocalSessionTraceError("Local-session input limit must be a positive integer.");
+    }
     const parsed = parseArgs(argv);
     if (parsed.help) {
       stdout.write(`${usage()}\n`);
@@ -181,12 +247,10 @@ export function runExportLocalSessionTraceCli(options: {
       );
     }
 
-    const input = readInput(parsed.input);
-    if (input.byteLength > DEFAULT_LOCAL_SESSION_TRACE_MAX_INPUT_BYTES) {
-      throw new LocalSessionTraceError(
-        `Local-session input exceeds ${DEFAULT_LOCAL_SESSION_TRACE_MAX_INPUT_BYTES} bytes.`,
-      );
-    }
+    const input = options.readInput
+      ? options.readInput(parsed.input)
+      : readBoundedInput(parsed.input, maxInputBytes, readChunk);
+    if (input.byteLength > maxInputBytes) throw inputLimitError(maxInputBytes);
     assertSupportedLocalSessionInput(parsed.input === "-" ? "stdin" : parsed.input, input);
     const source = Buffer.from(input).toString("utf8");
     const trace = parseLocalSessionTrace(source, {

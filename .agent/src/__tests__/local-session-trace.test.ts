@@ -234,6 +234,34 @@ test("extracts Claude text blocks and drops thinking, tools, results, and snapsh
   }
 });
 
+test("drops Claude meta and sidechain records before message extraction", () => {
+  const input = [
+    {
+      type: "user",
+      isMeta: true,
+      message: { role: "user", content: "synthetic-control-text" },
+    },
+    {
+      type: "assistant",
+      isSidechain: true,
+      message: { role: "assistant", content: "child-agent-text" },
+    },
+    {
+      type: "user",
+      isMeta: false,
+      isSidechain: false,
+      message: { role: "user", content: "Real request" },
+    },
+  ].map((record) => JSON.stringify(record)).join("\n");
+
+  const trace = parseLocalSessionTrace(input, { inputFormat: "jsonl", now });
+
+  assert.equal(trace.provenance.provider, "claude");
+  assert.deepEqual(trace.messages, [{ role: "user", content: "Real request" }]);
+  assert.equal(serializeLocalSessionTrace(trace).includes("synthetic-control-text"), false);
+  assert.equal(serializeLocalSessionTrace(trace).includes("child-agent-text"), false);
+});
+
 test("generic JSON message lists retain text roles and ignore privileged roles", () => {
   const trace = parseLocalSessionTrace(JSON.stringify({
     environment: { TOKEN: "metadata-secret" },
@@ -302,6 +330,26 @@ test("Markdown and text parsers preserve role blocks and discard unsafe roles", 
   ]);
 });
 
+test("Markdown parsing keeps shorter fences inside four-backtick blocks", () => {
+  const trace = parseLocalSessionTrace([
+    "## User",
+    "Please keep this nested example:",
+    "````markdown",
+    "```text",
+    "Assistant: example response",
+    "```",
+    "Tool: example output",
+    "````",
+    "## Assistant",
+    "Actual response",
+  ].join("\n"), { inputFormat: "markdown", now });
+
+  assert.deepEqual(trace.messages.map((message) => message.role), ["user", "assistant"]);
+  assert.match(trace.messages[0].content, /Assistant: example response/);
+  assert.match(trace.messages[0].content, /Tool: example output/);
+  assert.equal(trace.messages[1].content, "Actual response");
+});
+
 test("unlabelled text becomes one user message and auto detection honors formats", () => {
   const trace = parseLocalSessionTrace("A plain request", {
     inputFormat: "text",
@@ -337,6 +385,16 @@ test("credential and embedded payload redaction never returns the original value
     assert.equal(content.includes(excluded), false, `content leaked ${excluded}`);
   }
   assert.match(content, /\[REDACTED credential\]/);
+});
+
+test("sensitive block stripping handles adversarial unclosed tags in linear passes", () => {
+  const content = `visible${"<environment_context>".repeat(20_000)}secret`;
+
+  assert.equal(sanitizeLocalSessionMessageContent(content), "visible");
+  assert.equal(
+    sanitizeLocalSessionMessageContent("visible<tool_result payload without a close"),
+    "visible",
+  );
 });
 
 test("archive extensions, archive magic, and binary inputs are rejected", () => {
