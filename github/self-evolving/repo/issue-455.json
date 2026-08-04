@@ -4,7 +4,7 @@
     "login": "app/sepo-agent-app"
   },
   "body": "## Goal\nAdd a minimum implementation that makes edited-comment command handling read as the generic routing model discussed on PR #440, rather than as a `/fix-pr`-specific edge case.\n\n## Context\nPR #440 currently allows edited PR comments to dispatch `/fix-pr` only when the edit newly adds that explicit command, suppresses repeated edited `/fix-pr`, and keeps edited `/review` blocked with a visible explanation. In the latest discussion, @lolipopshock agreed with the broader framing that this is a generic edited-comment command problem and requested: `@sepo-agent /implement add a minimum implementation`.\n\nThe intended mental model from the discussion is:\n\n```text\nnew comment: route normally\nedited comment: compute newly added explicit commands\nedited /fix-pr newly added: allow\nedited /review newly added: explain blocked\nalready-present command edited again: ignore\n```\n\nDo not remove the edited-event gate unless repeated command execution on ordinary comment edits is explicitly accepted. `/fix-pr` is the first route where edited-comment commands are supported; `/review` remains blocked by policy.\n\nReference: https://github.com/self-evolving/repo/pull/440\n\n## Acceptance Criteria\n- Edited-comment handling is expressed as generic newly-added explicit command detection, with `/fix-pr` and `/review` treated as route policy outcomes.\n- New comments continue to route normally.\n- Edited comments only make a command actionable when that explicit command was newly introduced by the edit.\n- Newly added edited `/fix-pr` on PR comments is allowed.\n- Newly added edited `/review` on PR comments is blocked with the existing visible explanation.\n- Already-present commands edited again are ignored and do not re-trigger automation.\n- Keep the implementation minimal and focused on readability/policy shape, with tests updated or added only where needed to cover the generic behavior.\n\n---\n\nRequested via issue_comment at https://github.com/self-evolving/repo/pull/440\n",
-  "closedAt": null,
+  "closedAt": "2026-08-04T11:15:23Z",
   "comments": [
     {
       "id": "IC_kwDOSOhEMM8AAAABIt6IJw",
@@ -20,6 +20,21 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/455#issuecomment-4879976487",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABNKWahQ",
+      "author": {
+        "login": "github-actions"
+      },
+      "authorAssociation": "NONE",
+      "body": "Closing because this agent issue has had no activity for 30 days.",
+      "createdAt": "2026-08-04T11:15:22Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/455#issuecomment-5178235525",
+      "viewerDidAuthor": false
     }
   ],
   "createdAt": "2026-07-04T00:18:37Z",
@@ -32,8 +47,8 @@
     }
   ],
   "number": 455,
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Simplify edited-comment command routing",
-  "updatedAt": "2026-07-04T00:24:58Z",
+  "updatedAt": "2026-08-04T11:15:23Z",
   "url": "https://github.com/self-evolving/repo/issues/455"
 }
