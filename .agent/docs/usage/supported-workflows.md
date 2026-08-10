@@ -74,6 +74,10 @@ memory and rubrics read-only so automated control-flow planning can use steering
 context without mutating those state branches. Orchestration stops when target
 state indicates no safe next action, a route fails, a duplicate handoff marker
 is found, the planner stops or blocks, or the max-round budget is exhausted.
+Terminal PR runs publish one marker-upserted finalized note that summarizes the
+outcome and mentions the original requester only for human GitHub logins. When
+planner progress reporting is enabled, that progress note becomes the finalized
+note instead of creating a separate comment.
 
 When a child issue reaches a terminal stop, the handoff dispatcher resolves the
 trusted child metadata from the issue body or an agent-authored child issue
@@ -122,6 +126,8 @@ HTML markers for robust matching, with heading/text fallbacks for older
 comments. Rubrics reviews match the `## Rubrics Review` heading, and
 orchestrator handoffs match their hidden handoff marker. This keeps the latest
 generated status prominent while leaving older generated comments expandable.
+Successful terminal PR orchestration also collapses these trusted review and
+handoff artifacts after publishing its finalized note.
 Set `AGENT_COLLAPSE_OLD_REVIEWS=false` to skip this cleanup and leave prior
 generated comments visible.
 

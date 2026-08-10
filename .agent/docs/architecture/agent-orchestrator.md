@@ -145,14 +145,25 @@ the same compact table style while preserving their hidden durable markers.
 If terminal child metadata is found but rejected by trust checks or cannot be
 safely updated, the dispatcher posts a compact stop comment on the current
 terminal issue or PR with a hidden dedupe marker. Ordinary terminal PR stops
-without sub-orchestrator metadata remain silent.
+without sub-orchestrator metadata post or update one finalized orchestration
+note. The note summarizes the source action and conclusion, target, round,
+reason, source run, and any planner-provided user message. It mentions the
+original requester only when the requester is a human-looking GitHub login,
+never the configured agent handle or a bot identity. A live planner progress
+comment is updated when available and any older final marker is superseded;
+otherwise the final note is upserted by the hidden
+`sepo-agent-orchestrate-final` marker.
 If the resumed parent planner decides there is no next child or action, the
 parent run posts a terminal stop comment on the parent issue with the source
-conclusion, target, round, reason, and hidden `sepo-agent-orchestrate-stop`
-marker. Exact trusted duplicates are skipped on reruns.
+conclusion, target, round, reason, and hidden `sepo-agent-orchestrate-final`
+marker. Reruns update the trusted marker comment instead of posting duplicates.
 When the planner returns `blocked` with `user_message` or
 `clarification_request`, that same terminal comment surfaces the planner's
 question directly and the chain pauses without dispatching an `answer` route.
+After a PR ends with `review`/`SHIP`, `agent-self-approve`/`approved`, or
+`agent-self-merge`/`merged` or `auto_merge_enabled`, the dispatcher also marks
+older trusted review synthesis, rubrics review, fix-pr status, and handoff
+comments as outdated. `AGENT_COLLAPSE_OLD_REVIEWS=false` disables that cleanup.
 
 Initial user-launched `/orchestrate` requests validate that the requester has
 access to the delegated route capability set before dispatching work. When
@@ -194,7 +205,10 @@ Before dispatching, the orchestrator checks for a hidden handoff marker on the d
 
 ## Permission note
 
-`agent-orchestrator.yml` requests `actions: write` because `workflow_dispatch` requires it, and `issues: write` to persist dedupe markers on destination issues or pull requests.
+`agent-orchestrator.yml` requests `actions: write` because `workflow_dispatch`
+requires it, `issues: write` to persist issue markers, and
+`pull-requests: write` to upsert finalized PR notes and minimize trusted review
+artifacts after successful terminal outcomes.
 
 ## Extension path
 
