@@ -973,6 +973,63 @@ test("self-approval workflow stays opt-in and read-only until deterministic reso
   assert.match(workflowText, /node \.agent\/dist\/cli\/dispatch-agent-orchestrator\.js/);
 });
 
+test("orchestrator planner stays read-only until deterministic resolution", () => {
+  const workflow = parseYaml(readRepoFile(".github/workflows/agent-orchestrator.yml")) as unknown;
+  assert.ok(isRecord(workflow), "orchestrator workflow should parse as a YAML object");
+  assert.ok(isRecord(workflow.jobs), "orchestrator workflow should define jobs");
+
+  const planJob = workflow.jobs.plan;
+  assert.ok(isRecord(planJob), "orchestrator workflow should define a plan job");
+  assert.ok(isRecord(planJob.permissions), "plan job should define permissions");
+  assert.deepEqual(planJob.permissions, {
+    actions: "read",
+    contents: "read",
+    issues: "read",
+    "pull-requests": "read",
+  });
+  assert.ok(Array.isArray(planJob.steps), "plan job should define steps");
+  const plannerStep = planJob.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Plan next action with agent",
+  );
+  assert.ok(plannerStep, "plan job should run the orchestrator planner");
+  assert.ok(isRecord(plannerStep.with), "planner step should define inputs");
+  assert.equal(plannerStep.with.permission_mode, "approve-all");
+  assert.equal(plannerStep.with.github_token, "${{ github.token }}");
+  assert.equal(
+    planJob.steps.some((step) => isRecord(step) && step.name === "Resolve GitHub auth"),
+    false,
+  );
+
+  const resolverJob = workflow.jobs["decide-and-dispatch"];
+  assert.ok(isRecord(resolverJob), "orchestrator workflow should define a deterministic resolver job");
+  assert.equal(resolverJob.needs, "plan");
+  assert.ok(isRecord(resolverJob.permissions), "resolver job should define permissions");
+  assert.deepEqual(resolverJob.permissions, {
+    actions: "write",
+    contents: "read",
+    issues: "write",
+    "pull-requests": "write",
+    "id-token": "write",
+  });
+  assert.ok(Array.isArray(resolverJob.steps), "resolver job should define steps");
+  assert.equal(
+    resolverJob.steps.some((step) => isRecord(step) && step.uses === "actions/download-artifact@v4"),
+    true,
+  );
+  const resolverStep = resolverJob.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Decide and dispatch next action",
+  );
+  assert.ok(resolverStep, "resolver job should apply the planner decision deterministically");
+  assert.ok(isRecord(resolverStep.env), "resolver step should define environment inputs");
+  assert.equal(
+    resolverStep.env.PLANNER_RESPONSE_FILE,
+    "${{ steps.planner_response.outputs.response_file }}",
+  );
+  assert.equal(resolverStep.env.GH_TOKEN, "${{ steps.auth.outputs.token }}");
+});
+
 test("self-merge workflow stays opt-in and deterministic", () => {
   const workflowText = readRepoFile(".github/workflows/agent-self-merge.yml");
   const workflow = parseYaml(workflowText) as unknown;
@@ -2165,16 +2222,16 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(reviewWorkflow, /id: post_comment/);
   assert.match(reviewWorkflow, /RESPONSE_FILE:\s*\$\{\{ steps\.synthesis\.outputs\.response_file \}\}/);
   assert.match(reviewWorkflow, /steps\.post_comment\.outcome == 'success'/);
-  assert.match(orchestratorWorkflow, /PLANNER_RESPONSE_FILE:\s*\$\{\{ steps\.planner\.outputs\.response_file \}\}/);
+  assert.match(orchestratorWorkflow, /PLANNER_RESPONSE_FILE:\s*\$\{\{ steps\.planner_response\.outputs\.response_file \}\}/);
   assert.match(orchestratorWorkflow, /pull-requests:\s*write/);
   assert.match(orchestratorWorkflow, /base_branch:/);
   assert.match(orchestratorWorkflow, /base_pr:/);
   assert.match(orchestratorWorkflow, /source_handoff_context:/);
   assert.match(orchestratorWorkflow, /AGENT_COLLAPSE_OLD_REVIEWS:\s*\$\{\{ vars\.AGENT_COLLAPSE_OLD_REVIEWS \}\}/);
   assert.match(orchestratorWorkflow, /AGENT_HANDLE:\s*\$\{\{ vars\.AGENT_HANDLE \|\| '@sepo-agent' \}\}/);
-  assert.match(orchestratorWorkflow, /AGENT_PROGRESS_COMMENT_ID:\s*\$\{\{ steps\.planner\.outputs\.progress_comment_id \}\}/);
+  assert.match(orchestratorWorkflow, /AGENT_PROGRESS_COMMENT_ID:\s*\$\{\{ needs\.plan\.outputs\.progress_comment_id \}\}/);
   assert.match(orchestratorWorkflow, /AGENT_PROGRESS_FINAL_COMMENT_MODE:\s*merge/);
-  assert.match(orchestratorWorkflow, /MODEL_DISPLAY:\s*\$\{\{ steps\.planner\.outputs\.model_display \}\}/);
+  assert.match(orchestratorWorkflow, /MODEL_DISPLAY:\s*\$\{\{ needs\.plan\.outputs\.model_display \}\}/);
   assert.match(orchestratorWorkflow, /BASE_BRANCH:\s*\$\{\{ inputs\.base_branch \}\}/);
   assert.match(orchestratorWorkflow, /SOURCE_HANDOFF_CONTEXT:\s*\$\{\{ inputs\.source_handoff_context \}\}/);
   assert.match(orchestratorWorkflow, /ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT:\s*\$\{\{ inputs\.source_handoff_context \}\}/);
@@ -2196,7 +2253,8 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestrateHandoffCli, /collapsePreviousHandoffComments/);
   assert.match(orchestrateHandoffCli, /upsertPrCommentByMarker/);
   assert.match(orchestrateHandoffCli, /tryMergeProgressFinalComment/);
-  assert.match(orchestrateHandoffCli, /sepo-agent-orchestrate-final/);
+  assert.match(handoffSource, /sepo-agent-orchestrate-final/);
+  assert.match(handoffSource, /sepo-agent-orchestrate-stop/);
   assert.match(orchestrateHandoffCli, /manual orchestrate start on issue; dispatching implement/);
   assert.match(fixPrWorkflow, /orchestrator_context:/);
   assert.match(fixPrWorkflow, /ORCHESTRATOR_CONTEXT:\s*\$\{\{ inputs\.orchestrator_context \}\}/);

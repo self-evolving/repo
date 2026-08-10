@@ -76,34 +76,31 @@ on:
         default: "12"
 
 permissions:
-  actions: write
   contents: read
-  issues: write
-  pull-requests: write
-  id-token: write # required for GitHub Actions OIDC broker exchange
 
 concurrency:
   group: agent-orchestrator-${{ github.repository }}-${{ inputs.target_number }}-${{ inputs.source_action }}-${{ inputs.automation_current_round }}
   cancel-in-progress: false
 
 jobs:
-  orchestrate:
+  plan:
     if: vars.AGENT_ENABLED != 'false'
     runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    permissions:
+      actions: read
+      contents: read
+      issues: read
+      pull-requests: read
+    outputs:
+      model_display: ${{ steps.planner.outputs.model_display }}
+      planner_response_artifact_id: ${{ steps.upload_planner_response.outputs.artifact-id }}
+      progress_comment_id: ${{ steps.planner.outputs.progress_comment_id }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.repository.default_branch }}
           token: ${{ github.token }}
-
-      - name: Resolve GitHub auth
-        id: auth
-        uses: ./.github/actions/resolve-github-auth
-        with:
-          app_id: ${{ secrets.AGENT_APP_ID }}
-          app_private_key: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
-          pat: ${{ secrets.AGENT_PAT }}
-          fallback_token: ${{ github.token }}
+          persist-credentials: false
 
       - name: Setup agent runtime
         uses: ./.github/actions/setup-agent-runtime
@@ -170,7 +167,7 @@ jobs:
           ORCHESTRATOR_MAX_ROUNDS: ${{ inputs.automation_max_rounds }}
         with:
           agent: ${{ steps.provider.outputs.provider }}
-          github_token: ${{ steps.auth.outputs.token }}
+          github_token: ${{ github.token }}
           secondary_github_token: ${{ secrets.AGENT_SECONDARY_GITHUB_TOKEN }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -201,6 +198,66 @@ jobs:
           target_url: ${{ (inputs.target_kind || (inputs.source_action == 'implement' && 'issue' || 'pull_request')) == 'issue' && format('{0}/{1}/issues/{2}', github.server_url, github.repository, inputs.target_number) || format('{0}/{1}/pull/{2}', github.server_url, github.repository, inputs.target_number) }}
           workflow: agent-orchestrator.yml
 
+      - name: Upload planner response
+        id: upload_planner_response
+        if: always() && steps.planner.outputs.response_file != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-orchestrator-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ steps.planner.outputs.response_file }}
+          retention-days: 1
+
+  decide-and-dispatch:
+    needs: plan
+    if: ${{ always() && vars.AGENT_ENABLED != 'false' }}
+    runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    permissions:
+      actions: write
+      contents: read
+      issues: write
+      pull-requests: write
+      id-token: write # required for GitHub Actions OIDC broker exchange
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          token: ${{ github.token }}
+          persist-credentials: false
+
+      - name: Resolve GitHub auth
+        id: auth
+        uses: ./.github/actions/resolve-github-auth
+        with:
+          app_id: ${{ secrets.AGENT_APP_ID }}
+          app_private_key: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
+          pat: ${{ secrets.AGENT_PAT }}
+          fallback_token: ${{ github.token }}
+
+      - name: Setup agent runtime
+        uses: ./.github/actions/setup-agent-runtime
+
+      - name: Download planner response
+        if: needs.plan.outputs.planner_response_artifact_id != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: agent-orchestrator-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/agent-orchestrator-plan
+
+      - name: Locate planner response
+        id: planner_response
+        if: needs.plan.outputs.planner_response_artifact_id != ''
+        shell: bash
+        env:
+          PLANNER_RESPONSE_DIR: ${{ runner.temp }}/agent-orchestrator-plan
+        run: |
+          set -euo pipefail
+          response_file="$(find "$PLANNER_RESPONSE_DIR" -type f -name '*.md' -print -quit)"
+          if [ -z "$response_file" ]; then
+            echo "No orchestrator planner response artifact found." >&2
+            exit 1
+          fi
+          echo "response_file=${response_file}" >> "$GITHUB_OUTPUT"
+
       - name: Decide and dispatch next action
         env:
           AUTOMATION_CURRENT_ROUND: ${{ inputs.automation_current_round }}
@@ -208,7 +265,7 @@ jobs:
           AUTOMATION_MODE: ${{ inputs.automation_mode }}
           AGENT_COLLAPSE_OLD_REVIEWS: ${{ vars.AGENT_COLLAPSE_OLD_REVIEWS }}
           AGENT_HANDLE: ${{ vars.AGENT_HANDLE || '@sepo-agent' }}
-          AGENT_PROGRESS_COMMENT_ID: ${{ steps.planner.outputs.progress_comment_id }}
+          AGENT_PROGRESS_COMMENT_ID: ${{ needs.plan.outputs.progress_comment_id }}
           AGENT_PROGRESS_FINAL_COMMENT_MODE: merge
           BASE_BRANCH: ${{ inputs.base_branch }}
           BASE_PR: ${{ inputs.base_pr }}
@@ -231,6 +288,6 @@ jobs:
           REPOSITORY_PRIVATE: ${{ inputs.repository_private || (github.event.repository.private && 'true' || 'false') }}
           TARGET_KIND: ${{ inputs.target_kind || (inputs.source_action == 'implement' && 'issue' || 'pull_request') }}
           TARGET_NUMBER: ${{ inputs.target_number }}
-          PLANNER_RESPONSE_FILE: ${{ steps.planner.outputs.response_file }}
-          MODEL_DISPLAY: ${{ steps.planner.outputs.model_display }}
+          PLANNER_RESPONSE_FILE: ${{ steps.planner_response.outputs.response_file }}
+          MODEL_DISPLAY: ${{ needs.plan.outputs.model_display }}
         run: node .agent/dist/cli/orchestrate-handoff.js

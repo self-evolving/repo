@@ -2,7 +2,11 @@ import {
   createGhGraphqlClient,
   type GraphQLClient,
 } from "./github-graphql.js";
-import { hasAnyHandoffMarker, parseAnyHandoffMarker } from "./handoff.js";
+import {
+  hasAnyHandoffMarker,
+  hasAnyOrchestrateFinalMarker,
+  parseAnyHandoffMarker,
+} from "./handoff.js";
 import { isFixPrStatusBody } from "./fix-pr-status.js";
 import { isReviewSynthesisBody } from "./review-synthesis.js";
 
@@ -205,7 +209,9 @@ function isGeneratedReviewComment(
 ): boolean {
   if (!node.id || node.isMinimized) return false;
   if (!isSameActorLogin(node.author?.login || "", viewerLogin)) return false;
-  return bodyMatcher(node.body || "");
+  const body = node.body || "";
+  if (hasAnyOrchestrateFinalMarker(body)) return false;
+  return bodyMatcher(body);
 }
 
 function fetchViewerLogin(client: GraphQLClient): string {

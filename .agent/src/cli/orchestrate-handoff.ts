@@ -26,7 +26,9 @@ import {
   defaultFixPrHandoffContext,
   formatHandoffMarkerComment,
   formatTransposedMarkdownTable,
+  hasAnyOrchestrateFinalMarker,
   isPendingHandoffMarkerStale,
+  ORCHESTRATE_FINAL_MARKER,
   normalizeAutomationMode,
   parsePlannerDecision,
   parseHandoffMarker,
@@ -99,7 +101,6 @@ type TerminalChildResolution =
   | { kind: "none" };
 
 const SUB_ORCHESTRATION_ADOPTION_COMMENT_MARKER = "<!-- sepo-sub-orchestrator-adoption -->";
-const ORCHESTRATE_FINAL_MARKER = "<!-- sepo-agent-orchestrate-final -->";
 const TERMINAL_SUB_ORCHESTRATION_STOP_MARKER_PREFIX = "sepo-sub-orchestrator-terminal-stop";
 const PENDING_MARKER_TTL_MS = 60 * 60 * 1000;
 const UNSATISFACTORY_ACTION_CONCLUSIONS = new Set(["no_changes", "failed", "verify_failed", "unsupported"]);
@@ -1222,7 +1223,7 @@ function findTrustedOrchestrateFinalComment(repoSlug: string, target: number): C
   try {
     return [...fetchIssueComments(repoSlug, target)].reverse().find((comment) => (
       Boolean(comment.id) &&
-      String(comment.body || "").includes(ORCHESTRATE_FINAL_MARKER) &&
+      hasAnyOrchestrateFinalMarker(String(comment.body || "")) &&
       isTrustedActorLogin(comment.authorLogin || "")
     ));
   } catch (err: unknown) {
@@ -1231,8 +1232,15 @@ function findTrustedOrchestrateFinalComment(repoSlug: string, target: number): C
   }
 }
 
-function collapseSuccessfulPrArtifacts(prNumber: number): void {
-  if (!collapseOldReviews || !isSuccessfulPrTerminalState()) return;
+function collapseSuccessfulPrArtifacts(prNumber: number, decision: HandoffDecision): void {
+  if (
+    !collapseOldReviews ||
+    !isSuccessfulPrTerminalState() ||
+    decision.plannerDecisionKind === "blocked" ||
+    Boolean(String(decision.clarificationRequest || "").trim())
+  ) {
+    return;
+  }
 
   const cleanupTasks: Array<[string, () => number]> = [
     ["AI review synthesis", () => collapsePreviousReviewSummaries({ repo, prNumber })],
@@ -1288,11 +1296,16 @@ function createOrchestrateStopComment(decision: HandoffDecision): void {
       }
     }
     if (!merged) {
-      const action = upsertPrCommentByMarker(target, repo, ORCHESTRATE_FINAL_MARKER, bodyWithFooter);
-      console.log(`${action === "updated" ? "Updated" : "Created"} orchestrator final comment.`);
+      if (existingFinal?.id) {
+        updateIssueComment(repo, existingFinal.id, bodyWithFooter);
+        console.log("Updated orchestrator final comment.");
+      } else {
+        const action = upsertPrCommentByMarker(target, repo, ORCHESTRATE_FINAL_MARKER, bodyWithFooter);
+        console.log(`${action === "updated" ? "Updated" : "Created"} orchestrator final comment.`);
+      }
     }
     orchestrateFinalCommentHandled = true;
-    collapseSuccessfulPrArtifacts(target);
+    collapseSuccessfulPrArtifacts(target, decision);
     return;
   }
 

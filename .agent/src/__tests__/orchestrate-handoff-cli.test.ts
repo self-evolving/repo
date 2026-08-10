@@ -1598,6 +1598,31 @@ test("orchestrator finalized PR notes update the trusted marker comment", () => 
   assert.doesNotMatch(run.ghLog, /pr comment 76 --body/);
 });
 
+test("orchestrator finalized PR notes migrate a trusted legacy stop marker", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "orchestrate",
+    SOURCE_CONCLUSION: "done",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "76",
+    AUTOMATION_MODE: "agent",
+    AUTOMATION_CURRENT_ROUND: "2",
+    FAKE_PR_STATE: "CLOSED",
+    FAKE_ISSUE_COMMENTS_JSON: JSON.stringify([
+      {
+        id: "legacy-final",
+        body: "Old stop note.\n\n<!-- sepo-agent-orchestrate-stop -->",
+        created_at: "2026-07-01T00:00:00Z",
+        user: { login: "sepo-agent-app[bot]" },
+      },
+    ]),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.match(run.ghLog, /api --method PATCH repos\/self-evolving\/repo\/issues\/comments\/legacy-final/);
+  assert.match(run.ghLog, /<!-- sepo-agent-orchestrate-final -->/);
+  assert.doesNotMatch(run.ghLog, /pr comment 76 --body/);
+});
+
 test("orchestrator finalized PR notes reuse a live planner progress comment", () => {
   const run = runOrchestrateHandoff({
     SOURCE_ACTION: "orchestrate",
@@ -1708,6 +1733,75 @@ test("successful terminal PR orchestration collapses prior trusted review artifa
   assert.match(run.ghLog, /No further workflow was needed\./);
   assert.equal((run.ghLog.match(/mutation MinimizeReviewSummary/g) || []).length, 5);
   assert.doesNotMatch(run.ghLog, /actions\/workflows\//);
+});
+
+test("blocked planner decisions retain successful-source review artifacts", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "88",
+    AUTOMATION_MODE: "agent",
+    AUTOMATION_CURRENT_ROUND: "4",
+    FAKE_PR_BODY: "",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "blocked",
+      reason: "A maintainer must choose the release target.",
+      clarification_request: "Which release target should this use?",
+    }),
+    FAKE_GRAPHQL_PR_COMMENTS: JSON.stringify([
+      {
+        id: "review-comment",
+        body: "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->",
+        isMinimized: false,
+        author: { login: "sepo-agent-app[bot]" },
+      },
+    ]),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.match(run.ghLog, /Sepo orchestration needs clarification before it can continue\./);
+  assert.doesNotMatch(run.ghLog, /mutation MinimizeReviewSummary/);
+});
+
+test("successful cleanup never minimizes the newly finalized note", () => {
+  const generated = (id: string, body: string) => ({
+    id,
+    body,
+    isMinimized: false,
+    author: { login: "sepo-agent-app[bot]" },
+  });
+  const finalNoteWithArtifactSignatures = [
+    "## AI Review Synthesis",
+    "## Rubrics Review",
+    "<!-- sepo-agent-fix-pr-status -->",
+    "<!-- sepo-agent-handoff state:dispatched created:1 base64:YWJj -->",
+    "<!-- sepo-agent-orchestrate-final -->",
+  ].join("\n\n");
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "88",
+    AUTOMATION_MODE: "agent",
+    AUTOMATION_CURRENT_ROUND: "4",
+    FAKE_PR_BODY: "",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "stop",
+      reason: "The pull request is ready.",
+      user_message: "## Rubrics Review\n\nAll requested work is complete.",
+    }),
+    FAKE_GRAPHQL_PR_COMMENTS: JSON.stringify([
+      generated("final-note", finalNoteWithArtifactSignatures),
+      generated("old-rubrics", "## Rubrics Review\n\nOld scorecard"),
+    ]),
+    FAKE_GRAPHQL_PR_REVIEWS: "[]",
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal((run.ghLog.match(/mutation MinimizeReviewSummary/g) || []).length, 1);
+  assert.match(run.ghLog, /id=old-rubrics/);
+  assert.doesNotMatch(run.ghLog, /id=final-note/);
 });
 
 test("successful terminal PR orchestration respects disabled review cleanup", () => {

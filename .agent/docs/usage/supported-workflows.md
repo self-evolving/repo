@@ -71,13 +71,17 @@ Planner-based selection is also used for action-originated handoff runs. The pla
 `handoff_context` string for the next action; `fix-pr` receives it as explicit
 initial steering when the planner dispatches a PR-fix pass. The planner mounts
 memory and rubrics read-only so automated control-flow planning can use steering
-context without mutating those state branches. Orchestration stops when target
+context without mutating those state branches, and it receives a read-only
+GitHub token. A separately permissioned deterministic job validates and applies
+the uploaded planner response. Orchestration stops when target
 state indicates no safe next action, a route fails, a duplicate handoff marker
 is found, the planner stops or blocks, or the max-round budget is exhausted.
 Terminal PR runs publish one marker-upserted finalized note that summarizes the
 outcome and mentions the original requester only for human GitHub logins. When
 planner progress reporting is enabled, that progress note becomes the finalized
 note instead of creating a separate comment.
+Trusted legacy `sepo-agent-orchestrate-stop` notes are migrated in place to the
+current `sepo-agent-orchestrate-final` marker.
 
 When a child issue reaches a terminal stop, the handoff dispatcher resolves the
 trusted child metadata from the issue body or an agent-authored child issue
@@ -127,7 +131,8 @@ comments. Rubrics reviews match the `## Rubrics Review` heading, and
 orchestrator handoffs match their hidden handoff marker. This keeps the latest
 generated status prominent while leaving older generated comments expandable.
 Successful terminal PR orchestration also collapses these trusted review and
-handoff artifacts after publishing its finalized note.
+handoff artifacts after publishing its finalized note, except when the planner
+blocks or requests clarification. Finalized notes are never cleanup candidates.
 Set `AGENT_COLLAPSE_OLD_REVIEWS=false` to skip this cleanup and leave prior
 generated comments visible.
 
