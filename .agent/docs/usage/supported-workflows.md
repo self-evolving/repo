@@ -78,8 +78,11 @@ state indicates no safe next action, a route fails, a duplicate handoff marker
 is found, the planner stops or blocks, or the max-round budget is exhausted.
 Terminal PR runs publish one marker-upserted finalized note that summarizes the
 outcome and mentions the original requester only for human GitHub logins. When
-planner progress reporting is enabled, that progress note becomes the finalized
-note instead of creating a separate comment.
+orchestration `report-only` progress is enabled, a separate model-free,
+write-scoped job publishes that note while the planner retains a read-only
+token. The deterministic resolver turns it into the finalized note instead of
+creating a separate comment; publication failures are visible and fall back to
+the final marker note.
 Trusted legacy `sepo-agent-orchestrate-stop` notes are migrated in place to the
 current `sepo-agent-orchestrate-final` marker.
 

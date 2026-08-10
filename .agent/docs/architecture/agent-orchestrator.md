@@ -149,10 +149,11 @@ without sub-orchestrator metadata post or update one finalized orchestration
 note. The note summarizes the source action and conclusion, target, round,
 reason, source run, and any planner-provided user message. It mentions the
 original requester only when the requester is a human-looking GitHub login,
-never the configured agent handle or a bot identity. A live planner progress
-comment is updated when available and any older final marker is superseded;
-otherwise the final note is upserted by the hidden
-`sepo-agent-orchestrate-final` marker.
+never the configured agent handle or a bot identity. When orchestration
+reporting is explicitly enabled, a deterministic write-scoped job publishes a
+non-cancellable progress note in parallel with the read-only planner. The
+resolver updates that note and supersedes any older final marker; otherwise it
+upserts the final note by the hidden `sepo-agent-orchestrate-final` marker.
 Trusted notes carrying the legacy `sepo-agent-orchestrate-stop` marker are
 updated in place and rewritten with the current marker during the next terminal
 run.
@@ -166,9 +167,12 @@ question directly and the chain pauses without dispatching an `answer` route.
 After a PR ends with `review`/`SHIP`, `agent-self-approve`/`approved`, or
 `agent-self-merge`/`merged` or `auto_merge_enabled`, the dispatcher also marks
 older trusted review synthesis, rubrics review, fix-pr status, and handoff
-comments as outdated. Finalized orchestration notes are excluded from every
-cleanup matcher, and cleanup is skipped when the planner blocks or requests
-clarification. `AGENT_COLLAPSE_OLD_REVIEWS=false` disables that cleanup.
+comments as outdated. In agent mode, success wording and cleanup also require a
+validated terminal `stop` decision from the planner; missing or malformed
+planner responses retain the artifacts and report a non-successful stop.
+Finalized orchestration notes are excluded from every cleanup matcher, and
+cleanup is skipped when the planner blocks or requests clarification.
+`AGENT_COLLAPSE_OLD_REVIEWS=false` disables that cleanup.
 
 Initial user-launched `/orchestrate` requests validate that the requester has
 access to the delegated route capability set before dispatching work. When
@@ -196,7 +200,7 @@ In `heuristics` mode, action-originated handoff decisions still use the fixed tr
 
 Review-originated `fix-pr` handoffs carry explicit task context when available. The review dispatcher derives it from the latest review synthesis action items, and heuristic mode falls back to a conservative instruction to address only unresolved review synthesis action items while ignoring optional INFO notes and metadata-only polish. When a review synthesis recommends `HUMAN_DECISION`, self-approval-enabled orchestration routes to `agent-self-approve` instead of `fix-pr` or a human stop; self-approval then decides whether to approve, request changes, or block. Manual PR `/orchestrate` starts with a `CHANGES_REQUESTED` review decision use separate context that tells `fix-pr` to address the latest unresolved requested-change review comments instead of the review-synthesis fallback. Self-approval `REQUEST_CHANGES` handoffs preserve the approval agent's handoff context as the `fix-pr` task. Self-approval `APPROVED` handoffs dispatch `agent-self-merge` only when `AGENT_ALLOW_SELF_MERGE=true`.
 
-In `agent` mode, the orchestrator first runs a scoped planner prompt through the same resolved-provider runtime used by other agent actions. The planner has its own `orchestrator` route and `planner` lane, so session continuation is separate from implement, review, and fix-pr sessions. The planner runs with `approve-all` tool permission so it can gather current GitHub and repository context in non-interactive workflows, but its job and GitHub token remain read-only. The planner uploads its JSON response as a short-lived artifact; a separate deterministic job downloads that response, resolves write-capable GitHub authentication, validates the transition, and owns comments, minimization, and workflow dispatch. The planner still receives read-only repository memory, selected read-only rubrics, the handoff envelope, any source handoff context, and original request, and returns JSON describing whether to stop, block, delegate a child issue, or hand off. For blocked decisions, the planner may return `user_message` or `clarification_request` to ask for missing context in the visible stop comment. For handoffs, the planner may also return `handoff_context`: explicit, action-oriented instructions for the next workflow. When the next action is `fix-pr`, the dispatcher passes that context into `agent-fix-pr.yml`, and the fix-pr prompt treats it as the selected task and constraints for the automated fix pass. The workflow uses the runtime preflight CLI to skip this planner when the max-round budget is already exhausted or the initial requester lacks delegated-route capability, and the runtime still validates planner JSON against the fixed transition policy, the issue-only direct-implement rule, and max-round budget before dispatching anything.
+In `agent` mode, the orchestrator first runs a scoped planner prompt through the same resolved-provider runtime used by other agent actions. The planner has its own `orchestrator` route and `planner` lane, so session continuation is separate from implement, review, and fix-pr sessions. The planner runs with `approve-all` tool permission so it can gather current GitHub and repository context in non-interactive workflows, but its job and GitHub token remain read-only. The planner-local progress reporter is explicitly disabled. If `AGENT_PROGRESS_POLICY.orchestration_mode` is `report-only`, a parallel deterministic job resolves write-capable authentication and publishes the progress note; publication failures remain visible while the final-marker fallback still runs. The planner uploads its JSON response as a short-lived artifact; a separate deterministic job downloads that response, resolves write-capable GitHub authentication, validates the transition, and owns final comments, minimization, and workflow dispatch. The planner still receives read-only repository memory, selected read-only rubrics, the handoff envelope, any source handoff context, and original request, and returns JSON describing whether to stop, block, delegate a child issue, or hand off. For blocked decisions, the planner may return `user_message` or `clarification_request` to ask for missing context in the visible stop comment. For handoffs, the planner may also return `handoff_context`: explicit, action-oriented instructions for the next workflow. When the next action is `fix-pr`, the dispatcher passes that context into `agent-fix-pr.yml`, and the fix-pr prompt treats it as the selected task and constraints for the automated fix pass. The workflow uses the runtime preflight CLI to skip this planner when the max-round budget is already exhausted or the initial requester lacks delegated-route capability, and the runtime still validates planner JSON against the fixed transition policy, the issue-only direct-implement rule, and max-round budget before dispatching anything.
 
 When an orchestrator-launched `implement` or `fix-pr` run reports
 `no_changes`, `failed`, `verify_failed`, or `unsupported`, the dispatcher stops
@@ -211,9 +215,12 @@ Before dispatching, the orchestrator checks for a hidden handoff marker on the d
 ## Permission note
 
 The planner job grants only read access to actions, contents, issues, and pull
-requests. The separate deterministic decision job requests `actions: write` for
-`workflow_dispatch`, `issues: write` for issue markers, and
-`pull-requests: write` for finalized PR notes and trusted artifact cleanup.
+requests. A model-free progress job requests issue and pull-request write access
+only for configured report-only publication. The separate deterministic
+decision job requests `actions: write` for `workflow_dispatch`, `issues: write`
+for issue markers, and `pull-requests: write` for finalized PR notes and trusted
+artifact cleanup. The decision job uses a cancellation-aware condition while
+still running after ordinary planner failures so it can publish a safe stop.
 
 ## Extension path
 

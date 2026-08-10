@@ -33,11 +33,18 @@ function runOrchestrateHandoff(env: Record<string, string | undefined>): {
     const dispatchPayloadPath = join(tempDir, "dispatch.json");
     const plannerResponse = env.FAKE_PLANNER_RESPONSE || "";
     const plannerResponseFile = join(tempDir, "planner-response.md");
+    const progressStream = env.FAKE_PROGRESS_STREAM || "";
+    const progressStreamFile = join(tempDir, "planner-progress.jsonl");
     const runEnv = { ...env };
     if (plannerResponse) {
       writeFileSync(plannerResponseFile, plannerResponse, "utf8");
       runEnv.PLANNER_RESPONSE_FILE = plannerResponseFile;
       delete runEnv.FAKE_PLANNER_RESPONSE;
+    }
+    if (progressStream) {
+      writeFileSync(progressStreamFile, progressStream, "utf8");
+      runEnv.AGENT_PROGRESS_STREAM_FILE = progressStreamFile;
+      delete runEnv.FAKE_PROGRESS_STREAM;
     }
 
     writeFileSync(outputPath, "", "utf8");
@@ -160,6 +167,10 @@ if [ "\${1-}" = "api" ] && [ "\${2-}" = "--method" ] && [ "\${3-}" = "POST" ] &&
 fi
 
 if [ "\${1-}" = "api" ] && [ "\${2-}" = "--method" ] && [ "\${3-}" = "PATCH" ] && [[ "\${4-}" == repos/*/issues/comments/* ]]; then
+  if [ "\${FAKE_PROGRESS_PATCH_MODE-}" = "error" ] && [[ "\${4-}" == */"\${AGENT_PROGRESS_COMMENT_ID-}" ]]; then
+    printf 'progress update denied\\n' >&2
+    exit 1
+  fi
   exit 0
 fi
 
@@ -1653,6 +1664,69 @@ test("orchestrator finalized PR notes reuse a live planner progress comment", ()
   assert.doesNotMatch(run.ghLog, /pr comment 76 --body/);
 });
 
+test("planner progress is finalized when orchestration dispatches", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "orchestrate",
+    SOURCE_CONCLUSION: "requested",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "76",
+    AUTOMATION_MODE: "agent",
+    AUTOMATION_CURRENT_ROUND: "1",
+    FAKE_PR_STATE: "OPEN",
+    AGENT_PROGRESS_COMMENT_ID: "planner-progress",
+    AGENT_PROGRESS_FINAL_COMMENT_MODE: "merge",
+    GITHUB_RUN_ID: "12345",
+    FAKE_PROGRESS_STREAM: [
+      JSON.stringify({
+        params: {
+          update: {
+            sessionUpdate: "agent_message_chunk",
+            content: { type: "text", text: "Selecting the next route." },
+          },
+        },
+      }),
+    ].join("\n"),
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "handoff",
+      next_action: "review",
+      reason: "Review the open pull request.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "dispatch");
+  assert.match(run.ghLog, /api --method PATCH repos\/self-evolving\/repo\/issues\/comments\/planner-progress/);
+  assert.match(run.ghLog, /### Sepo finished/);
+  assert.match(run.ghLog, /Selecting the next route\./);
+  assert.match(run.ghLog, /<!-- sepo-progress:run-12345 -->/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-review\.yml\/dispatches/);
+});
+
+test("planner progress finalization failures are visible without blocking dispatch", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "orchestrate",
+    SOURCE_CONCLUSION: "requested",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "76",
+    AUTOMATION_MODE: "agent",
+    AUTOMATION_CURRENT_ROUND: "1",
+    FAKE_PR_STATE: "OPEN",
+    AGENT_PROGRESS_COMMENT_ID: "planner-progress",
+    AGENT_PROGRESS_FINAL_COMMENT_MODE: "merge",
+    FAKE_PROGRESS_PATCH_MODE: "error",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "handoff",
+      next_action: "review",
+      reason: "Review the open pull request.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.match(run.stderr, /Failed to finalize progress comment planner-progress/);
+  assert.match(run.stderr, /progress update denied/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-review\.yml\/dispatches/);
+});
+
 test("a current planner progress note supersedes an older finalized marker", () => {
   const run = runOrchestrateHandoff({
     SOURCE_ACTION: "orchestrate",
@@ -1763,6 +1837,40 @@ test("blocked planner decisions retain successful-source review artifacts", () =
   assert.match(run.ghLog, /Sepo orchestration needs clarification before it can continue\./);
   assert.doesNotMatch(run.ghLog, /mutation MinimizeReviewSummary/);
 });
+
+for (const [label, plannerResponse] of [
+  ["missing", undefined],
+  ["malformed", "not valid planner json"],
+] as const) {
+  test(`${label} planner responses cannot produce successful terminal cleanup`, () => {
+    const run = runOrchestrateHandoff({
+      SOURCE_ACTION: "review",
+      SOURCE_CONCLUSION: "SHIP",
+      TARGET_KIND: "pull_request",
+      TARGET_NUMBER: "88",
+      AUTOMATION_MODE: "agent",
+      AUTOMATION_CURRENT_ROUND: "4",
+      FAKE_PR_BODY: "",
+      FAKE_PLANNER_RESPONSE: plannerResponse,
+      FAKE_GRAPHQL_PR_COMMENTS: JSON.stringify([
+        {
+          id: "review-comment",
+          body: "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->",
+          isMinimized: false,
+          author: { login: "sepo-agent-app[bot]" },
+        },
+      ]),
+    });
+
+    assert.equal(run.status, 0, run.stderr || run.stdout);
+    assert.match(run.outputs.get("reason") || "", /agent planner decision missing or invalid/);
+    assert.match(run.ghLog, /Sepo orchestration finished after `review` concluded `SHIP`\./);
+    assert.match(run.ghLog, /No follow-up workflow was dispatched\./);
+    assert.doesNotMatch(run.ghLog, /finished successfully/);
+    assert.doesNotMatch(run.ghLog, /No further workflow was needed\./);
+    assert.doesNotMatch(run.ghLog, /mutation MinimizeReviewSummary/);
+  });
+}
 
 test("successful cleanup never minimizes the newly finalized note", () => {
   const generated = (id: string, body: string) => ({

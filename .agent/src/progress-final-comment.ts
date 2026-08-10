@@ -2,6 +2,7 @@ import {
   fetchIssueCommentBody,
   updateIssueComment,
 } from "./github.js";
+import { buildProgressViewModel, renderFinal } from "./progress-render.js";
 import { appendRunDisplayFooter } from "./response.js";
 
 export interface ProgressFinalCommentOptions {
@@ -10,6 +11,16 @@ export interface ProgressFinalCommentOptions {
   mode: string;
   finalBody: string;
   footer?: string;
+  log?: (message: string) => void;
+}
+
+export interface ProgressActivityFinalizationOptions {
+  repo: string;
+  commentId: string;
+  mode: string;
+  streamText: string;
+  runId: string;
+  route: string;
   log?: (message: string) => void;
 }
 
@@ -59,6 +70,32 @@ export function tryMergeProgressFinalComment(options: ProgressFinalCommentOption
     const message = err instanceof Error ? err.message : String(err);
     const log = options.log ?? console.warn;
     log(`Failed to merge final response into progress comment ${commentId}: ${message}`);
+    return false;
+  }
+}
+
+export function tryFinalizeProgressActivity(
+  options: ProgressActivityFinalizationOptions,
+): boolean {
+  const mode = String(options.mode || "").trim().toLowerCase();
+  const repo = options.repo.trim();
+  const commentId = options.commentId.trim();
+  if (mode !== "merge" || !repo || !commentId) {
+    return false;
+  }
+
+  try {
+    const model = buildProgressViewModel(options.streamText, {
+      runId: options.runId,
+      route: options.route,
+      status: "finalized",
+    });
+    updateIssueComment(repo, commentId, renderFinal(model, "finished"));
+    return true;
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    const log = options.log ?? console.warn;
+    log(`Failed to finalize progress comment ${commentId}: ${message}`);
     return false;
   }
 }

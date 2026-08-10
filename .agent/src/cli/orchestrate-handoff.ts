@@ -5,7 +5,7 @@
 //      SESSION_BUNDLE_MODE, SOURCE_RUN_ID, PLANNER_RESPONSE_FILE, TARGET_KIND,
 //      BASE_BRANCH, BASE_PR, AGENT_COLLAPSE_OLD_REVIEWS, AGENT_ALLOW_SELF_APPROVE,
 //      AGENT_ALLOW_SELF_MERGE, AGENT_HANDLE, AGENT_PROGRESS_COMMENT_ID,
-//      AGENT_PROGRESS_FINAL_COMMENT_MODE, MODEL_DISPLAY
+//      AGENT_PROGRESS_FINAL_COMMENT_MODE, AGENT_PROGRESS_STREAM_FILE, MODEL_DISPLAY
 
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -34,7 +34,10 @@ import {
   parseHandoffMarker,
 } from "../handoff.js";
 import { initialOrchestrateCapabilityStopReason } from "../orchestrator-capabilities.js";
-import { tryMergeProgressFinalComment } from "../progress-final-comment.js";
+import {
+  tryFinalizeProgressActivity,
+  tryMergeProgressFinalComment,
+} from "../progress-final-comment.js";
 import {
   collapsePreviousFixPrComments,
   collapsePreviousHandoffComments,
@@ -860,6 +863,7 @@ const agentHandle = process.env.AGENT_HANDLE || "@sepo-agent";
 const modelDisplay = process.env.MODEL_DISPLAY || process.env.AGENT_RUN_DISPLAY || "";
 const progressFinalCommentMode = process.env.AGENT_PROGRESS_FINAL_COMMENT_MODE || "";
 const progressCommentId = process.env.AGENT_PROGRESS_COMMENT_ID || process.env.PROGRESS_COMMENT_ID || "";
+const progressStreamFile = process.env.AGENT_PROGRESS_STREAM_FILE || process.env.PROGRESS_STREAM_FILE || "";
 const sessionBundleMode = process.env.SESSION_BUNDLE_MODE || "";
 const baseBranch = process.env.BASE_BRANCH || "";
 const basePr = process.env.BASE_PR || "";
@@ -905,6 +909,25 @@ function readPlannerDecision(): ReturnType<typeof parsePlannerDecision> {
   } catch {
     return null;
   }
+}
+
+function finalizeOrchestrationProgress(): void {
+  let streamText = "";
+  if (progressStreamFile) {
+    try {
+      streamText = readFileSync(progressStreamFile, "utf8");
+    } catch (err: unknown) {
+      console.warn(`Failed to read orchestration progress activity: ${errorText(err)}`);
+    }
+  }
+  tryFinalizeProgressActivity({
+    repo,
+    commentId: progressCommentId,
+    mode: progressFinalCommentMode,
+    streamText,
+    runId: process.env.GITHUB_RUN_ID || sourceRunId || "unknown",
+    route: "orchestrator",
+  });
 }
 
 function normalizeToken(value: string): string {
@@ -1101,13 +1124,19 @@ function startFinalComment(heading: string): string[] {
   return lines;
 }
 
-function isSuccessfulPrTerminalState(): boolean {
+function isSuccessfulPrTerminalState(decision: HandoffDecision): boolean {
   const action = normalizeToken(sourceAction);
   const conclusion = normalizeToken(sourceConclusion);
-  return (
+  const successfulSource = (
     (action === "review" && conclusion === "ship") ||
     (action === "agent_self_approve" && conclusion === "approved") ||
     (action === "agent_self_merge" && ["merged", "auto_merge_enabled"].includes(conclusion))
+  );
+  return successfulSource && decision.decision === "stop" && (
+    automationMode !== "agent" || (
+      decision.plannerDecisionKind === "stop" &&
+      !String(decision.clarificationRequest || "").trim()
+    )
   );
 }
 
@@ -1188,7 +1217,7 @@ function formatOrchestrateStopComment(decision: HandoffDecision): string {
     return answerComment;
   }
 
-  const successful = isSuccessfulPrTerminalState();
+  const successful = isSuccessfulPrTerminalState(decision);
   const lines = startFinalComment(
     `Sepo orchestration finished${successful ? " successfully" : ""} after ` +
       `\`${sourceAction || "unknown"}\` concluded \`${sourceConclusion || "unknown"}\`.`,
@@ -1235,7 +1264,7 @@ function findTrustedOrchestrateFinalComment(repoSlug: string, target: number): C
 function collapseSuccessfulPrArtifacts(prNumber: number, decision: HandoffDecision): void {
   if (
     !collapseOldReviews ||
-    !isSuccessfulPrTerminalState() ||
+    !isSuccessfulPrTerminalState(decision) ||
     decision.plannerDecisionKind === "blocked" ||
     Boolean(String(decision.clarificationRequest || "").trim())
   ) {
@@ -1524,6 +1553,7 @@ setOutput("handoff_context", decision.handoffContext || "");
 setOutput("deduped", "false");
 setOutput("dedupe_key", "");
 setOutput("marker_comment_id", "");
+finalizeOrchestrationProgress();
 
 if (decision.decision !== "dispatch" && decision.decision !== "delegate_issue") {
   console.log(`Handoff ${decision.decision}: ${decision.reason}`);

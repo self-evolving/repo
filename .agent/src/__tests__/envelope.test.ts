@@ -996,14 +996,56 @@ test("orchestrator planner stays read-only until deterministic resolution", () =
   assert.ok(isRecord(plannerStep.with), "planner step should define inputs");
   assert.equal(plannerStep.with.permission_mode, "approve-all");
   assert.equal(plannerStep.with.github_token, "${{ github.token }}");
+  assert.equal(plannerStep.with.progress_policy, '{"orchestration_mode":"disabled"}');
   assert.equal(
     planJob.steps.some((step) => isRecord(step) && step.name === "Resolve GitHub auth"),
     false,
   );
 
+  const progressJob = workflow.jobs.progress;
+  assert.ok(isRecord(progressJob), "orchestrator workflow should define a trusted progress job");
+  assert.equal(
+    progressJob.if,
+    "${{ vars.AGENT_ENABLED != 'false' && vars.AGENT_PROGRESS_POLICY != '' && !cancelled() }}",
+  );
+  assert.ok(isRecord(progressJob.permissions), "progress job should define permissions");
+  assert.deepEqual(progressJob.permissions, {
+    contents: "read",
+    issues: "write",
+    "pull-requests": "write",
+    "id-token": "write",
+  });
+  assert.ok(Array.isArray(progressJob.steps), "progress job should define steps");
+  assert.equal(
+    progressJob.steps.some((step) =>
+      isRecord(step) && step.uses === "./.github/actions/run-agent-task"
+    ),
+    false,
+  );
+  const progressPolicyStep = progressJob.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Resolve orchestration progress policy",
+  );
+  assert.ok(progressPolicyStep, "trusted progress job should resolve orchestration policy");
+  assert.ok(isRecord(progressPolicyStep.env), "progress policy step should define environment inputs");
+  assert.equal(progressPolicyStep.env.ORCHESTRATION_ENABLED, "true");
+  assert.equal(progressPolicyStep.env.AGENT_PROGRESS_POLICY, "${{ vars.AGENT_PROGRESS_POLICY || '' }}");
+  const progressPublishStep = progressJob.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Publish orchestration progress",
+  );
+  assert.ok(progressPublishStep, "trusted progress job should publish configured progress");
+  assert.ok(isRecord(progressPublishStep.env), "progress publisher should define environment inputs");
+  assert.equal(progressPublishStep.env.GH_TOKEN, "${{ steps.auth.outputs.token }}");
+  assert.match(String(progressPublishStep.run), /publish-orchestration-progress\.js/);
+
   const resolverJob = workflow.jobs["decide-and-dispatch"];
   assert.ok(isRecord(resolverJob), "orchestrator workflow should define a deterministic resolver job");
-  assert.equal(resolverJob.needs, "plan");
+  assert.deepEqual(resolverJob.needs, ["plan", "progress"]);
+  assert.equal(
+    resolverJob.if,
+    "${{ vars.AGENT_ENABLED != 'false' && !cancelled() }}",
+  );
   assert.ok(isRecord(resolverJob.permissions), "resolver job should define permissions");
   assert.deepEqual(resolverJob.permissions, {
     actions: "write",
@@ -1026,6 +1068,14 @@ test("orchestrator planner stays read-only until deterministic resolution", () =
   assert.equal(
     resolverStep.env.PLANNER_RESPONSE_FILE,
     "${{ steps.planner_response.outputs.response_file }}",
+  );
+  assert.equal(
+    resolverStep.env.AGENT_PROGRESS_COMMENT_ID,
+    "${{ needs.progress.outputs.progress_comment_id }}",
+  );
+  assert.equal(
+    resolverStep.env.AGENT_PROGRESS_STREAM_FILE,
+    "${{ steps.planner_response.outputs.session_log_file }}",
   );
   assert.equal(resolverStep.env.GH_TOKEN, "${{ steps.auth.outputs.token }}");
 });
@@ -2229,7 +2279,7 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestratorWorkflow, /source_handoff_context:/);
   assert.match(orchestratorWorkflow, /AGENT_COLLAPSE_OLD_REVIEWS:\s*\$\{\{ vars\.AGENT_COLLAPSE_OLD_REVIEWS \}\}/);
   assert.match(orchestratorWorkflow, /AGENT_HANDLE:\s*\$\{\{ vars\.AGENT_HANDLE \|\| '@sepo-agent' \}\}/);
-  assert.match(orchestratorWorkflow, /AGENT_PROGRESS_COMMENT_ID:\s*\$\{\{ needs\.plan\.outputs\.progress_comment_id \}\}/);
+  assert.match(orchestratorWorkflow, /AGENT_PROGRESS_COMMENT_ID:\s*\$\{\{ needs\.progress\.outputs\.progress_comment_id \}\}/);
   assert.match(orchestratorWorkflow, /AGENT_PROGRESS_FINAL_COMMENT_MODE:\s*merge/);
   assert.match(orchestratorWorkflow, /MODEL_DISPLAY:\s*\$\{\{ needs\.plan\.outputs\.model_display \}\}/);
   assert.match(orchestratorWorkflow, /BASE_BRANCH:\s*\$\{\{ inputs\.base_branch \}\}/);
