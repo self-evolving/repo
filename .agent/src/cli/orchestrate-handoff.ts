@@ -985,7 +985,13 @@ function commentOnTerminalSubOrchestrationRejection(rejection: TerminalSubOrches
 }
 
 function reportTerminalToParent(decision: HandoffDecision): boolean {
-  const childResolution = resolveChildIssueForTerminal();
+  let childResolution: TerminalChildResolution;
+  try {
+    childResolution = resolveChildIssueForTerminal();
+  } catch (err: unknown) {
+    console.warn(`Failed to resolve optional terminal parent context: ${errorText(err)}`);
+    return false;
+  }
   if (childResolution.kind === "none") return false;
   if (childResolution.kind === "rejected") {
     commentOnTerminalSubOrchestrationRejection(childResolution.rejection);
@@ -1118,7 +1124,21 @@ function isValidatedSuccessfulPrStop(decision: HandoffDecision): boolean {
   ) {
     return false;
   }
-  return automationMode !== "agent" || decision.plannerDecisionKind === "stop";
+  return automationMode !== "agent" || (
+    decision.plannerDecisionKind === "stop" &&
+    Boolean(String(decision.userMessage || "").trim())
+  );
+}
+
+function isSuccessfulPlannerStopSummaryMissing(decision: HandoffDecision): boolean {
+  return (
+    decision.decision === "stop" &&
+    normalizeToken(sourceTargetKind) === "pull_request" &&
+    isSuccessfulPrSourceOutcome() &&
+    automationMode === "agent" &&
+    decision.plannerDecisionKind === "stop" &&
+    !String(decision.userMessage || "").trim()
+  );
 }
 
 function formatPlannerClarificationComment(decision: HandoffDecision): string | null {
@@ -1210,6 +1230,12 @@ function formatOrchestrateStopComment(decision: HandoffDecision): string {
     ? String(decision.userMessage || "").trim()
     : "";
   if (userMessage) lines.push("", userMessage);
+  if (isSuccessfulPlannerStopSummaryMissing(decision)) {
+    lines.push(
+      "",
+      "The planner did not provide a terminal summary, so earlier orchestration context was left visible.",
+    );
+  }
   lines.push(
     "",
     `- Source action: \`${sourceAction || "unknown"}\``,
@@ -1234,13 +1260,18 @@ function formatOrchestrateStopComment(decision: HandoffDecision): string {
   return lines.join("\n");
 }
 
-function collapseSuccessfulPrArtifacts(prNumber: number, decision: HandoffDecision): void {
+function collapseSuccessfulPrArtifacts(
+  prNumber: number,
+  decision: HandoffDecision,
+  currentCommentDatabaseId = "",
+): void {
   if (!collapseOldReviews || !isValidatedSuccessfulPrStop(decision)) return;
   try {
     const collapsed = collapsePreviousPrConversationArtifacts({
       repo,
       prNumber,
       excludeBodyMarker: ORCHESTRATE_STOP_MARKER,
+      currentCommentDatabaseId,
     });
     if (collapsed > 0) {
       console.log(`Collapsed ${collapsed} previous orchestration artifact comment(s).`);
@@ -1295,7 +1326,10 @@ function createOrchestrateStopComment(decision: HandoffDecision): void {
       console.log(`${action === "updated" ? "Updated" : "Created"} orchestrator final comment.`);
     }
     orchestrateStopCommentHandled = true;
-    collapseSuccessfulPrArtifacts(target, decision);
+    const currentCommentDatabaseId = merged && /^\d+$/.test(progressCommentId.trim())
+      ? progressCommentId.trim()
+      : "";
+    collapseSuccessfulPrArtifacts(target, decision, currentCommentDatabaseId);
     return;
   }
   if (hasMatchingOrchestrateStopComment(repo, target, body)) {

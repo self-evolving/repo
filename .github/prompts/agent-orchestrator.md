@@ -74,7 +74,7 @@ rubrics. Then return exactly one JSON object and nothing else:
   "next_action": "implement | review | fix-pr | agent-self-approve | agent-self-merge",
   "reason": "Short explanation for logs and the handoff marker.",
   "handoff_context": "Actionable instructions for the next action, especially fix-pr.",
-  "user_message": "Optional user-facing summary or message to post when decision is stop, answer, or blocked.",
+  "user_message": "Required user-facing summary for stop and answer; optional for blocked when clarification_request is present.",
   "clarification_request": "Optional focused question to post when decision is blocked.",
   "child_stage": "Short child issue stage name when decision is delegate_issue.",
   "child_instructions": "Concrete child issue task instructions when decision is delegate_issue.",

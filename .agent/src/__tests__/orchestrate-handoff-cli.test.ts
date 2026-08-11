@@ -52,6 +52,10 @@ if [ "\${1-}" = "pr" ] && [ "\${2-}" = "view" ]; then
     exit 1
   fi
   if [[ "$*" == *"body"* ]]; then
+    if [ "\${FAKE_PR_BODY_MODE-}" = "error" ]; then
+      printf 'pull request body unavailable\\n' >&2
+      exit 1
+    fi
     printf '{"body":"%s"}\\n' "\${FAKE_PR_BODY-}"
     exit 0
   fi
@@ -1579,6 +1583,62 @@ test("successful terminal PR stop merges its summary into the progress note", ()
   assert.doesNotMatch(run.ghLog, /pr comment 128/);
 });
 
+test("terminal PR finalization survives optional parent lookup failures", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "128",
+    AUTOMATION_MODE: "agent",
+    AGENT_COLLAPSE_OLD_REVIEWS: "false",
+    AGENT_PROGRESS_COMMENT_ID: "777",
+    AGENT_PROGRESS_FINAL_COMMENT_MODE: "merge",
+    FAKE_PROGRESS_BODY: "### Sepo is working\n\n<!-- sepo-progress:run-123 -->",
+    FAKE_PR_BODY_MODE: "error",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "stop",
+      reason: "The reviewed implementation is ready.",
+      user_message: "Implementation and review completed successfully.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.match(run.stderr, /Failed to resolve optional terminal parent context/);
+  assert.match(run.ghLog, /pr view 128 --repo self-evolving\/repo --json body/);
+  assert.match(run.ghLog, /api --method PATCH repos\/self-evolving\/repo\/issues\/comments\/777/);
+  assert.match(run.ghLog, /Sepo orchestration finished successfully after `review` concluded `SHIP`\./);
+});
+
+test("agent terminal PR stop without a summary leaves prior context visible", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "128",
+    AUTOMATION_MODE: "agent",
+    AGENT_PROGRESS_COMMENT_ID: "777",
+    AGENT_PROGRESS_FINAL_COMMENT_MODE: "merge",
+    FAKE_PROGRESS_BODY: "### Sepo is working\n\n<!-- sepo-progress:run-123 -->",
+    FAKE_GRAPHQL_PR_COMMENTS: JSON.stringify([{
+      id: "review-summary",
+      body: "## AI Review Synthesis\nold",
+      isMinimized: false,
+      author: { login: "sepo-agent-app[bot]" },
+    }]),
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "stop",
+      reason: "The reviewed implementation is ready.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.match(run.ghLog, /api --method PATCH repos\/self-evolving\/repo\/issues\/comments\/777/);
+  assert.match(run.ghLog, /planner did not provide a terminal summary/);
+  assert.match(run.ghLog, /earlier orchestration context was left visible/);
+  assert.doesNotMatch(run.ghLog, /PullRequestReviewSummaryComments/);
+  assert.doesNotMatch(run.ghLog, /classifier=OUTDATED/);
+});
+
 test("terminal PR fallback updates the trusted marker note and suppresses bot mentions", () => {
   const run = runOrchestrateHandoff({
     SOURCE_ACTION: "review",
@@ -1609,14 +1669,37 @@ test("terminal PR fallback updates the trusted marker note and suppresses bot me
   assert.match(run.stdout, /Updated orchestrator final comment\./);
 });
 
-test("successful terminal PR cleanup minimizes only older conversation artifacts", () => {
-  const generated = (id: string, body: string) => ({
+test("two successful terminal PR runs leave only the current finalized note visible", () => {
+  const plannerResponse = JSON.stringify({
+    decision: "stop",
+    reason: "The reviewed implementation is ready.",
+    user_message: "Implementation and review completed successfully.",
+  });
+  const first = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "128",
+    AUTOMATION_MODE: "agent",
+    AGENT_PROGRESS_COMMENT_ID: "776",
+    AGENT_PROGRESS_FINAL_COMMENT_MODE: "merge",
+    FAKE_PROGRESS_BODY: "### Sepo is working\n\n<!-- sepo-progress:run-first -->",
+    FAKE_GRAPHQL_PR_COMMENTS: "[]",
+    FAKE_PLANNER_RESPONSE: plannerResponse,
+  });
+
+  assert.equal(first.status, 0, first.stderr || first.stdout);
+  assert.match(first.ghLog, /api --method PATCH repos\/self-evolving\/repo\/issues\/comments\/776/);
+  assert.doesNotMatch(first.ghLog, /classifier=OUTDATED/);
+
+  const generated = (id: string, body: string, databaseId?: number) => ({
     id,
+    databaseId,
     body,
     isMinimized: false,
     author: { login: "sepo-agent-app[bot]" },
   });
-  const run = runOrchestrateHandoff({
+  const second = runOrchestrateHandoff({
     SOURCE_ACTION: "review",
     SOURCE_CONCLUSION: "SHIP",
     TARGET_KIND: "pull_request",
@@ -1631,25 +1714,22 @@ test("successful terminal PR cleanup minimizes only older conversation artifacts
       generated("fix-status", "<!-- sepo-agent-fix-pr-status -->"),
       generated("handoff", "<!-- sepo-agent-handoff state:dispatched created:123 base64:aGFuZG9m -->"),
       generated("pending", "<!-- sepo-agent-handoff state:pending created:456 base64:cGVuZGluZw -->"),
-      generated("final", "## AI Review Synthesis\n<!-- sepo-agent-orchestrate-stop -->"),
+      generated("old-final", "<!-- sepo-agent-orchestrate-stop -->", 776),
+      generated("current-final", "<!-- sepo-agent-orchestrate-stop -->", 777),
       { ...generated("human", "## AI Review Synthesis\nhuman"), author: { login: "lolipopshock" } },
     ]),
-    FAKE_PLANNER_RESPONSE: JSON.stringify({
-      decision: "stop",
-      reason: "The reviewed implementation is ready.",
-      user_message: "Implementation and review completed successfully.",
-    }),
+    FAKE_PLANNER_RESPONSE: plannerResponse,
   });
 
-  assert.equal(run.status, 0, run.stderr || run.stdout);
-  for (const id of ["review-summary", "rubrics-review", "fix-status", "handoff"]) {
-    assert.match(run.ghLog, new RegExp(`id=${id} -f classifier=OUTDATED`));
+  assert.equal(second.status, 0, second.stderr || second.stdout);
+  for (const id of ["review-summary", "rubrics-review", "fix-status", "handoff", "old-final"]) {
+    assert.match(second.ghLog, new RegExp(`id=${id} -f classifier=OUTDATED`));
   }
-  assert.doesNotMatch(run.ghLog, /id=pending -f classifier=OUTDATED/);
-  assert.doesNotMatch(run.ghLog, /id=final -f classifier=OUTDATED/);
-  assert.doesNotMatch(run.ghLog, /id=human -f classifier=OUTDATED/);
-  assert.doesNotMatch(run.ghLog, /PullRequestReviewSummaries/);
-  assert.match(run.stdout, /Collapsed 4 previous orchestration artifact comment\(s\)\./);
+  assert.doesNotMatch(second.ghLog, /id=pending -f classifier=OUTDATED/);
+  assert.doesNotMatch(second.ghLog, /id=current-final -f classifier=OUTDATED/);
+  assert.doesNotMatch(second.ghLog, /id=human -f classifier=OUTDATED/);
+  assert.doesNotMatch(second.ghLog, /PullRequestReviewSummaries/);
+  assert.match(second.stdout, /Collapsed 5 previous orchestration artifact comment\(s\)\./);
 });
 
 for (const [sourceAction, sourceConclusion] of [

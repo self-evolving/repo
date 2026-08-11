@@ -13,6 +13,7 @@ type PageInfo = {
 
 type ReviewSummaryNode = {
   id?: string | null;
+  databaseId?: number | string | null;
   body?: string | null;
   isMinimized?: boolean | null;
   author?: {
@@ -63,6 +64,7 @@ type CollapsePreviousReviewSummariesOptions = {
 
 type CollapsePreviousPrConversationArtifactsOptions = CollapsePreviousReviewSummariesOptions & {
   excludeBodyMarker?: string;
+  currentCommentDatabaseId?: string;
 };
 
 type CollapsePreviousHandoffCommentsOptions = {
@@ -96,6 +98,7 @@ const COMMENTS_QUERY = `
         comments(first: 100, after: $after) {
           nodes {
             id
+            databaseId
             body
             isMinimized
             author {
@@ -304,6 +307,7 @@ function collapsePreviousMatchingReviewComments(
 function collapsePreviousMatchingPrComments(
   options: CollapsePreviousReviewSummariesOptions,
   bodyMatcher: ReviewBodyMatcher,
+  excludeCommentDatabaseId = "",
 ): number {
   const client = options.client || createGhGraphqlClient();
   const repo = parseRepo(options.repo);
@@ -317,7 +321,15 @@ function collapsePreviousMatchingPrComments(
     viewerLogin,
     bodyMatcher,
   );
-  const uniqueNodeIds = Array.from(new Set(nodes.map((node) => node.id).filter(Boolean))) as string[];
+  const uniqueNodeIds = Array.from(new Set(
+    nodes
+      .filter((node) => (
+        !excludeCommentDatabaseId ||
+        String(node.databaseId ?? "") !== excludeCommentDatabaseId
+      ))
+      .map((node) => node.id)
+      .filter(Boolean),
+  )) as string[];
 
   for (const id of uniqueNodeIds) {
     client.graphql(MINIMIZE_COMMENT_MUTATION, {
@@ -467,10 +479,12 @@ export function collapsePreviousPrConversationArtifacts(
   options: CollapsePreviousPrConversationArtifactsOptions,
 ): number {
   const excludeBodyMarker = String(options.excludeBodyMarker || "");
+  const currentCommentDatabaseId = String(options.currentCommentDatabaseId || "");
   return collapsePreviousMatchingPrComments(options, (body) => (
-    (!excludeBodyMarker || !body.includes(excludeBodyMarker)) &&
-    isTerminalPrConversationArtifact(body)
-  ));
+    excludeBodyMarker && body.includes(excludeBodyMarker)
+      ? Boolean(currentCommentDatabaseId)
+      : isTerminalPrConversationArtifact(body)
+  ), currentCommentDatabaseId);
 }
 
 /**

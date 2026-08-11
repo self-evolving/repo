@@ -150,7 +150,8 @@ merges the outcome into the current planner progress comment when available;
 otherwise it updates or creates a trusted comment carrying the existing
 `sepo-agent-orchestrate-stop` marker. The note includes the planner summary,
 source outcome, target, round, reason, run ID, and a requester mention only for
-human GitHub logins.
+human GitHub logins. An agent-planned successful stop without a non-empty
+summary leaves earlier context visible and skips success cleanup.
 If the resumed parent planner decides there is no next child or action, the
 parent run posts a terminal stop comment on the parent issue with the source
 conclusion, target, round, reason, and hidden `sepo-agent-orchestrate-stop`
@@ -162,8 +163,9 @@ After a validated terminal `review`/`SHIP`, `agent-self-approve`/`approved`, or
 `agent-self-merge`/`merged` or `auto_merge_enabled` outcome, the dispatcher
 best-effort minimizes older trusted review synthesis, rubrics review, fix-pr,
 and completed handoff comments from the PR conversation. It keeps the final
-note and pending handoffs visible, skips cleanup for every other outcome, and
-warns without hiding the final note when cleanup fails.
+note and pending handoffs visible, including by minimizing older trusted final
+notes after progress-comment finalization. It skips cleanup for every other
+outcome and warns without hiding the final note when cleanup fails.
 
 Initial user-launched `/orchestrate` requests validate that the requester has
 access to the delegated route capability set before dispatching work. When
