@@ -6,6 +6,56 @@ import { test } from "node:test";
 import { strict as assert } from "node:assert";
 
 const repoRoot = resolve(__dirname, "../../..");
+const defaultHeadSha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+function trustedReviewSynthesis(
+  databaseId = 776,
+  headSha = defaultHeadSha,
+  verdict = "SHIP",
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return {
+    id: `review-synthesis-${databaseId}`,
+    databaseId,
+    body: [
+      "## AI Review Synthesis",
+      "<!-- sepo-agent-review-synthesis -->",
+      `<!-- sepo-agent-review-synthesis-head: ${headSha} -->`,
+      `Verdict: ${verdict}`,
+    ].join("\n"),
+    isMinimized: false,
+    author: { login: "sepo-agent-app[bot]" },
+    ...overrides,
+  };
+}
+
+function trustedReviewSynthesisJson(
+  databaseId = 776,
+  headSha = defaultHeadSha,
+  verdict = "SHIP",
+): string {
+  return JSON.stringify([trustedReviewSynthesis(databaseId, headSha, verdict)]);
+}
+
+function successfulCleanupCommentsJson(
+  sourceDatabaseId = 776,
+  currentFinalDatabaseId = 777,
+  headSha = defaultHeadSha,
+): string {
+  return JSON.stringify([
+    trustedReviewSynthesis(sourceDatabaseId, headSha),
+    {
+      id: `current-final-${currentFinalDatabaseId}`,
+      databaseId: currentFinalDatabaseId,
+      body: [
+        "<!-- sepo-agent-orchestrate-stop -->",
+        `<!-- sepo-agent-orchestration-source-artifact: ${sourceDatabaseId} -->`,
+      ].join("\n"),
+      isMinimized: false,
+      author: { login: "sepo-agent-app[bot]" },
+    },
+  ]);
+}
 
 function parseGithubOutput(path: string): Map<string, string> {
   const raw = readFileSync(path, "utf8");
@@ -52,7 +102,15 @@ if [ "\${1-}" = "pr" ] && [ "\${2-}" = "view" ]; then
     exit 1
   fi
   if [[ "$*" == *"body"* ]]; then
+    if [ "\${FAKE_PR_BODY_MODE-}" = "error" ]; then
+      printf 'pull request body unavailable\\n' >&2
+      exit 1
+    fi
     printf '{"body":"%s"}\\n' "\${FAKE_PR_BODY-}"
+    exit 0
+  fi
+  if [[ "$*" == *"headRefOid"* ]]; then
+    printf '{"headRefName":"agent/test","headRefOid":"%s","isCrossRepository":false,"state":"%s"}\\n' "\${FAKE_PR_HEAD_SHA-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa}" "\${FAKE_PR_STATE-OPEN}"
     exit 0
   fi
   printf '{"state":"%s","reviewDecision":"%s"}\\n' "\${FAKE_PR_STATE-OPEN}" "\${FAKE_PR_REVIEW_DECISION-}"
@@ -86,7 +144,20 @@ if [ "\${1-}" = "issue" ] && [ "\${2-}" = "edit" ]; then
 fi
 
 if [ "\${1-}" = "api" ] && [ "\${2-}" = "--paginate" ] && [ "\${3-}" = "--slurp" ]; then
+  if [ "\${FAKE_PARENT_COMMENTS_MODE-}" = "error" ] && [[ "\${4-}" == */issues/76/comments ]]; then
+    printf 'parent comments unavailable\\n' >&2
+    exit 1
+  fi
   printf '%s\\n' "\${FAKE_ISSUE_COMMENTS_JSON-[]}"
+  exit 0
+fi
+
+if [ "\${1-}" = "api" ] && [[ "\${2-}" == repos/*/issues/comments/* ]] && [ "\${3-}" = "--jq" ] && [ "\${4-}" = ".body" ]; then
+  if [ "\${FAKE_PROGRESS_BODY_MODE-}" = "error" ]; then
+    printf 'progress comment unavailable\\n' >&2
+    exit 1
+  fi
+  printf '%s\\n' "\${FAKE_PROGRESS_BODY-}"
   exit 0
 fi
 
@@ -112,7 +183,18 @@ if [ "\${1-}" = "api" ] && [ "\${2-}" = "graphql" ]; then
       printf '{"data":{"repository":{"issue":{"comments":{"nodes":%s,"pageInfo":{"hasNextPage":false,"endCursor":null}}}}}}\\n' "\${FAKE_GRAPHQL_ISSUE_COMMENTS-[]}"
       ;;
     *PullRequestReviewSummaryComments*)
-      printf '{"data":{"repository":{"pullRequest":{"comments":{"nodes":%s,"pageInfo":{"hasNextPage":false,"endCursor":null}}}}}}\\n' "\${FAKE_GRAPHQL_PR_COMMENTS-[]}"
+      graphql_count_file="$FAKE_GH_LOG.graphql-comments-count"
+      graphql_count=0
+      if [ -f "$graphql_count_file" ]; then
+        graphql_count="$(cat "$graphql_count_file")"
+      fi
+      graphql_count="$((graphql_count + 1))"
+      printf '%s\\n' "$graphql_count" > "$graphql_count_file"
+      if [ -n "\${FAKE_GRAPHQL_PR_COMMENTS_FAIL_AFTER-}" ] && [ "$graphql_count" -gt "$FAKE_GRAPHQL_PR_COMMENTS_FAIL_AFTER" ]; then
+        printf '{"errors":[{"message":"graphql comments unavailable"}]}\\n'
+      else
+        printf '{"data":{"repository":{"pullRequest":{"comments":{"nodes":%s,"pageInfo":{"hasNextPage":false,"endCursor":null}}}}}}\\n' "\${FAKE_GRAPHQL_PR_COMMENTS-[]}"
+      fi
       ;;
     *MinimizeReviewSummary*)
       printf '{"data":{"minimizeComment":{"minimizedComment":{"isMinimized":true}}}}\\n'
@@ -151,6 +233,10 @@ if [ "\${1-}" = "api" ] && [ "\${2-}" = "--method" ] && [ "\${3-}" = "PATCH" ] &
   exit 0
 fi
 
+if [ "\${1-}" = "pr" ] && [ "\${2-}" = "comment" ]; then
+  exit 0
+fi
+
 if [ "\${1-}" = "api" ] && [ "\${2-}" = "-X" ] && [ "\${3-}" = "POST" ] && [[ "\${4-}" == repos/*/actions/workflows/*/dispatches ]]; then
   cat > "$FAKE_DISPATCH_PAYLOAD"
   exit 0
@@ -171,6 +257,9 @@ exit 1
       DEFAULT_BRANCH: "main",
       SOURCE_ACTION: "orchestrate",
       SOURCE_CONCLUSION: "requested",
+      SOURCE_ARTIFACT_DATABASE_ID: "",
+      SOURCE_APPROVED_HEAD_SHA: "",
+      SOURCE_REVIEWED_HEAD_SHA: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       SOURCE_RUN_ID: "12345",
       TARGET_KIND: "issue",
       TARGET_NUMBER: "20",
@@ -1052,6 +1141,7 @@ test("review SHIP dispatches self-approval when enabled", () => {
   const run = runOrchestrateHandoff({
     SOURCE_ACTION: "review",
     SOURCE_CONCLUSION: "SHIP",
+    SOURCE_ARTIFACT_DATABASE_ID: "776",
     TARGET_KIND: "pull_request",
     TARGET_NUMBER: "128",
     AUTOMATION_CURRENT_ROUND: "2",
@@ -1066,10 +1156,12 @@ test("review SHIP dispatches self-approval when enabled", () => {
   assert.match(run.outputs.get("reason") || "", /review verdict is SHIP/);
   assert.match(run.ghLog, /actions\/workflows\/agent-self-approve\.yml\/dispatches/);
   assert.match(run.ghLog, /\| review \| agent-self-approve \| PR #128 \| 3 \/ 5 \| Dispatched \|/);
+  assert.match(run.ghLog, /<!-- sepo-agent-orchestration-source-artifact: 776 -->/);
   const inputs = run.dispatchPayload?.inputs as Record<string, string>;
   assert.equal(inputs.pr_number, "128");
   assert.equal(inputs.orchestration_enabled, "true");
   assert.equal(inputs.automation_current_round, "3");
+  assert.equal(inputs.source_artifact_database_id, "776");
 });
 
 test("review HUMAN_DECISION dispatches self-approval with source fields", () => {
@@ -1158,6 +1250,8 @@ test("self-approval approved dispatches self-merge when enabled", () => {
   const run = runOrchestrateHandoff({
     SOURCE_ACTION: "agent-self-approve",
     SOURCE_CONCLUSION: "approved",
+    SOURCE_APPROVED_HEAD_SHA: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    SOURCE_ARTIFACT_DATABASE_ID: "776",
     TARGET_KIND: "pull_request",
     TARGET_NUMBER: "128",
     AUTOMATION_CURRENT_ROUND: "3",
@@ -1176,6 +1270,11 @@ test("self-approval approved dispatches self-merge when enabled", () => {
   assert.equal(inputs.pr_number, "128");
   assert.equal(inputs.orchestration_enabled, "true");
   assert.equal(inputs.automation_current_round, "4");
+  assert.equal(inputs.source_artifact_database_id, "776");
+  assert.equal(
+    inputs.source_approved_head_sha,
+    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  );
 });
 
 test("self-approval approved keeps current stop behavior when self-merge is disabled", () => {
@@ -1501,7 +1600,7 @@ test("heuristics parent orchestrate stops do not post final comments", () => {
   assert.equal(run.dispatchPayload, null);
 });
 
-test("agent parent orchestrate stops for pull requests do not post final comments", () => {
+test("agent parent orchestrate stops for pull requests publish a final note", () => {
   const run = runOrchestrateHandoff({
     SOURCE_ACTION: "orchestrate",
     SOURCE_CONCLUSION: "done",
@@ -1517,10 +1616,624 @@ test("agent parent orchestrate stops for pull requests do not post final comment
   assert.equal(run.status, 0, run.stderr || run.stdout);
   assert.equal(run.outputs.get("decision"), "stop");
   assert.equal(run.outputs.get("reason"), "pull request is closed");
-  assert.doesNotMatch(run.ghLog, /api --method POST repos\/self-evolving\/repo\/issues\/76\/comments/);
-  assert.doesNotMatch(run.ghLog, /<!-- sepo-agent-orchestrate-stop -->/);
+  assert.match(run.ghLog, /pr comment 76/);
+  assert.match(run.ghLog, /Sepo orchestration stopped after `orchestrate` concluded `done`\./);
+  assert.match(run.ghLog, /> Requested by @lolipopshock\./);
+  assert.match(run.ghLog, /<!-- sepo-agent-orchestrate-stop -->/);
   assert.doesNotMatch(run.ghLog, /actions\/workflows\//);
   assert.equal(run.dispatchPayload, null);
+});
+
+test("successful terminal PR stop merges its summary into the progress note", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "128",
+    AUTOMATION_MODE: "agent",
+    AUTOMATION_CURRENT_ROUND: "4",
+    AUTOMATION_MAX_ROUNDS: "8",
+    SOURCE_RUN_ID: "review-run-123",
+    SOURCE_ARTIFACT_DATABASE_ID: "776",
+    AGENT_COLLAPSE_OLD_REVIEWS: "false",
+    AGENT_PROGRESS_COMMENT_ID: "777",
+    AGENT_PROGRESS_FINAL_COMMENT_MODE: "merge",
+    MODEL_DISPLAY: "`codex` | `gpt-test`",
+    FAKE_GRAPHQL_PR_COMMENTS: trustedReviewSynthesisJson(),
+    FAKE_PROGRESS_BODY: [
+      "### Sepo is working",
+      "",
+      "Latest planner activity",
+      "",
+      "<!-- sepo-progress:run-123 -->",
+    ].join("\n"),
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "stop",
+      reason: "The reviewed implementation is ready.",
+      user_message: "Implementation and review completed successfully.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.match(run.ghLog, /api repos\/self-evolving\/repo\/issues\/comments\/777 --jq \.body/);
+  assert.match(run.ghLog, /api --method PATCH repos\/self-evolving\/repo\/issues\/comments\/777/);
+  assert.match(run.ghLog, /Sepo orchestration finished successfully after `review` concluded `SHIP`\./);
+  assert.match(run.ghLog, /Implementation and review completed successfully\./);
+  assert.match(run.ghLog, /> Requested by @lolipopshock\./);
+  assert.match(run.ghLog, /<!-- sepo-agent-orchestrate-stop -->/);
+  assert.match(run.ghLog, /<!-- sepo-progress:run-123 -->/);
+  assert.match(run.ghLog, /`codex` \| `gpt-test`/);
+  assert.doesNotMatch(run.ghLog, /pr comment 128/);
+});
+
+test("terminal PR finalization survives optional parent lookup failures", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "128",
+    AUTOMATION_MODE: "agent",
+    SOURCE_ARTIFACT_DATABASE_ID: "776",
+    AGENT_COLLAPSE_OLD_REVIEWS: "false",
+    AGENT_PROGRESS_COMMENT_ID: "777",
+    AGENT_PROGRESS_FINAL_COMMENT_MODE: "merge",
+    FAKE_GRAPHQL_PR_COMMENTS: trustedReviewSynthesisJson(),
+    FAKE_PROGRESS_BODY: "### Sepo is working\n\n<!-- sepo-progress:run-123 -->",
+    FAKE_PR_BODY: "Closes #77",
+    FAKE_ISSUE_BODY: "<!-- sepo-sub-orchestrator parent:76 stage:stage-1 state:running parent_round:2 -->",
+    FAKE_PARENT_COMMENTS_MODE: "error",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "stop",
+      reason: "The reviewed implementation is ready.",
+      user_message: "Implementation and review completed successfully.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.match(run.stderr, /Failed to report optional terminal parent state/);
+  assert.match(run.ghLog, /pr view 128 --repo self-evolving\/repo --json body/);
+  assert.match(run.ghLog, /api --method PATCH repos\/self-evolving\/repo\/issues\/comments\/777/);
+  assert.match(run.ghLog, /Sepo orchestration finished successfully after `review` concluded `SHIP`\./);
+});
+
+test("agent terminal PR stop without a summary leaves prior context visible", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "128",
+    AUTOMATION_MODE: "agent",
+    AGENT_PROGRESS_COMMENT_ID: "777",
+    AGENT_PROGRESS_FINAL_COMMENT_MODE: "merge",
+    FAKE_PROGRESS_BODY: "### Sepo is working\n\n<!-- sepo-progress:run-123 -->",
+    FAKE_GRAPHQL_PR_COMMENTS: JSON.stringify([{
+      id: "review-summary",
+      body: "## AI Review Synthesis\nold",
+      isMinimized: false,
+      author: { login: "sepo-agent-app[bot]" },
+    }]),
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "stop",
+      reason: "The reviewed implementation is ready.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.match(run.ghLog, /api --method PATCH repos\/self-evolving\/repo\/issues\/comments\/777/);
+  assert.match(run.ghLog, /planner did not provide a terminal summary/);
+  assert.match(run.ghLog, /earlier orchestration context was left visible/);
+  assert.doesNotMatch(run.ghLog, /PullRequestReviewSummaryComments/);
+  assert.doesNotMatch(run.ghLog, /classifier=OUTDATED/);
+});
+
+test("terminal PR fallback updates the trusted marker note and suppresses bot mentions", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "128",
+    AUTOMATION_MODE: "agent",
+    AUTOMATION_CURRENT_ROUND: "4",
+    SOURCE_ARTIFACT_DATABASE_ID: "776",
+    REQUESTED_BY: "sepo-agent-app[bot]",
+    FAKE_ISSUE_COMMENTS_JSON: JSON.stringify([
+      {
+        id: "778",
+        body: "Old final note\n\n<!-- sepo-agent-orchestrate-stop -->\n<!-- sepo-agent-orchestration-source-artifact: 776 -->",
+        created_at: "2026-08-10T00:00:00Z",
+        user: { login: "app/sepo-agent-app" },
+      },
+      {
+        id: "779",
+        body: "<!-- sepo-agent-handoff state:dispatched created:123 base64:aGFuZG9m -->\n<!-- sepo-agent-orchestration-source-artifact: 776 -->",
+        created_at: "2026-08-10T00:01:00Z",
+        user: { login: "app/sepo-agent-app" },
+      },
+    ]),
+    FAKE_GRAPHQL_PR_COMMENTS: successfulCleanupCommentsJson(776, 778),
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "stop",
+      reason: "The reviewed implementation is ready.",
+      user_message: "Implementation and review completed successfully.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.match(run.ghLog, /api --method PATCH repos\/self-evolving\/repo\/issues\/comments\/778/);
+  assert.doesNotMatch(run.ghLog, /api --method PATCH repos\/self-evolving\/repo\/issues\/comments\/779/);
+  assert.doesNotMatch(run.ghLog, /pr comment 128/);
+  assert.doesNotMatch(run.ghLog, /Requested by/);
+  assert.match(run.ghLog, /PullRequestReviewSummaryComments/);
+  assert.match(run.ghLog, /id=review-synthesis-776 -f classifier=OUTDATED/);
+  assert.match(run.stdout, /Updated orchestrator final comment\./);
+});
+
+test("terminal PR cleanup fails closed without a causal source boundary", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    SOURCE_ARTIFACT_DATABASE_ID: undefined,
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "128",
+    AUTOMATION_MODE: "agent",
+    AGENT_PROGRESS_COMMENT_ID: "777",
+    AGENT_PROGRESS_FINAL_COMMENT_MODE: "merge",
+    FAKE_PROGRESS_BODY: "### Sepo is working\n\n<!-- sepo-progress:run-123 -->",
+    FAKE_GRAPHQL_PR_COMMENTS: JSON.stringify([{
+      id: "review-summary",
+      databaseId: 776,
+      body: "## AI Review Synthesis\ncurrent",
+      isMinimized: false,
+      author: { login: "sepo-agent-app[bot]" },
+    }]),
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "stop",
+      reason: "The reviewed implementation is ready.",
+      user_message: "Implementation and review completed successfully.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.match(run.ghLog, /Sepo orchestration stopped after `review` concluded `SHIP`/);
+  assert.match(run.ghLog, /source artifact database ID is missing or invalid/);
+  assert.match(run.stderr, /terminal success rejected because source artifact database ID is missing or invalid/);
+  assert.doesNotMatch(run.ghLog, /PullRequestReviewSummaryComments/);
+  assert.doesNotMatch(run.ghLog, /classifier=OUTDATED/);
+});
+
+test("same-source terminal PR reruns converge without hiding unrelated later artifacts", () => {
+  const plannerResponse = JSON.stringify({
+    decision: "stop",
+    reason: "The reviewed implementation is ready.",
+    user_message: "Implementation and review completed successfully.",
+  });
+  const first = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "128",
+    AUTOMATION_MODE: "agent",
+    SOURCE_ARTIFACT_DATABASE_ID: "775",
+    AGENT_PROGRESS_COMMENT_ID: "776",
+    AGENT_PROGRESS_FINAL_COMMENT_MODE: "merge",
+    FAKE_PROGRESS_BODY: "### Sepo is working\n\n<!-- sepo-progress:run-first -->",
+    FAKE_GRAPHQL_PR_COMMENTS: successfulCleanupCommentsJson(775, 776),
+    FAKE_PLANNER_RESPONSE: plannerResponse,
+  });
+
+  assert.equal(first.status, 0, first.stderr || first.stdout);
+  assert.match(first.ghLog, /api --method PATCH repos\/self-evolving\/repo\/issues\/comments\/776/);
+  assert.match(first.ghLog, /id=review-synthesis-775 -f classifier=OUTDATED/);
+
+  const generated = (id: string, body: string, databaseId?: number) => ({
+    id,
+    databaseId,
+    body,
+    isMinimized: false,
+    author: { login: "sepo-agent-app[bot]" },
+  });
+  const second = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "128",
+    AUTOMATION_MODE: "agent",
+    SOURCE_ARTIFACT_DATABASE_ID: "775",
+    AGENT_PROGRESS_COMMENT_ID: "779",
+    AGENT_PROGRESS_FINAL_COMMENT_MODE: "merge",
+    FAKE_PROGRESS_BODY: "### Sepo is working\n\n<!-- sepo-progress:run-123 -->",
+    FAKE_GRAPHQL_PR_COMMENTS: JSON.stringify([
+      trustedReviewSynthesis(775, defaultHeadSha, "SHIP", { id: "source-review", isMinimized: true }),
+      generated("old-final", "<!-- sepo-agent-orchestrate-stop -->\n<!-- sepo-agent-orchestration-source-artifact: 775 -->", 776),
+      generated("old-handoff", "<!-- sepo-agent-handoff state:dispatched created:123 base64:aGFuZG9m -->\n<!-- sepo-agent-orchestration-source-artifact: 775 -->", 777),
+      generated("unrelated-final", "<!-- sepo-agent-orchestrate-stop -->", 778),
+      generated("current-final", "<!-- sepo-agent-orchestrate-stop -->\n<!-- sepo-agent-orchestration-source-artifact: 775 -->", 779),
+    ]),
+    FAKE_PLANNER_RESPONSE: plannerResponse,
+  });
+
+  assert.equal(second.status, 0, second.stderr || second.stdout);
+  for (const id of ["old-final", "old-handoff"]) {
+    assert.match(second.ghLog, new RegExp(`id=${id} -f classifier=OUTDATED`));
+  }
+  assert.doesNotMatch(second.ghLog, /id=current-final -f classifier=OUTDATED/);
+  assert.doesNotMatch(second.ghLog, /id=unrelated-final -f classifier=OUTDATED/);
+  assert.doesNotMatch(second.ghLog, /id=source-review -f classifier=OUTDATED/);
+  assert.doesNotMatch(second.ghLog, /PullRequestReviewSummaries/);
+  assert.match(second.stdout, /Collapsed 2 previous orchestration artifact comment\(s\)\./);
+});
+
+for (const [sourceAction, sourceConclusion] of [
+  ["agent-self-approve", "approved"],
+  ["agent-self-merge", "merged"],
+  ["agent-self-merge", "auto_merge_enabled"],
+] as const) {
+  test(`${sourceAction} ${sourceConclusion} is eligible for terminal PR cleanup`, () => {
+    const run = runOrchestrateHandoff({
+      SOURCE_ACTION: sourceAction,
+      SOURCE_CONCLUSION: sourceConclusion,
+      SOURCE_APPROVED_HEAD_SHA: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      SOURCE_ARTIFACT_DATABASE_ID: "776",
+      TARGET_KIND: "pull_request",
+      TARGET_NUMBER: "128",
+      AUTOMATION_MODE: "heuristics",
+      AGENT_PROGRESS_COMMENT_ID: "777",
+      AGENT_PROGRESS_FINAL_COMMENT_MODE: "merge",
+      FAKE_PROGRESS_BODY: "### Sepo is working\n\n<!-- sepo-progress:run-123 -->",
+      FAKE_GRAPHQL_PR_COMMENTS: successfulCleanupCommentsJson(),
+    });
+
+    assert.equal(run.status, 0, run.stderr || run.stdout);
+    assert.match(run.ghLog, /PullRequestReviewSummaryComments/);
+    assert.match(run.ghLog, /id=review-synthesis-776 -f classifier=OUTDATED/);
+  });
+}
+
+for (const [name, env] of [
+  ["review SHIP awaiting self-approval", {
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    AGENT_ALLOW_SELF_APPROVE: "true",
+  }],
+  ["approved self-approval awaiting self-merge", {
+    SOURCE_ACTION: "agent-self-approve",
+    SOURCE_CONCLUSION: "approved",
+    AGENT_ALLOW_SELF_MERGE: "true",
+  }],
+] as const) {
+  test(`${name} is not terminal success when the round budget is exhausted`, () => {
+    const run = runOrchestrateHandoff({
+      ...env,
+      TARGET_KIND: "pull_request",
+      TARGET_NUMBER: "128",
+      AUTOMATION_MODE: "heuristics",
+      AUTOMATION_CURRENT_ROUND: "5",
+      AUTOMATION_MAX_ROUNDS: "5",
+      AGENT_PROGRESS_COMMENT_ID: "777",
+      AGENT_PROGRESS_FINAL_COMMENT_MODE: "merge",
+      FAKE_PROGRESS_BODY: "### Sepo is working\n\n<!-- sepo-progress:run-123 -->",
+      FAKE_GRAPHQL_PR_COMMENTS: JSON.stringify([{
+        id: "review-summary",
+        databaseId: 776,
+        body: "## AI Review Synthesis\nold",
+        isMinimized: false,
+        author: { login: "sepo-agent-app[bot]" },
+      }]),
+    });
+
+    assert.equal(run.status, 0, run.stderr || run.stdout);
+    assert.equal(run.outputs.get("reason"), "automation round budget exhausted");
+    assert.match(run.ghLog, /Sepo orchestration stopped after/);
+    assert.doesNotMatch(run.ghLog, /finished successfully/);
+    assert.doesNotMatch(run.ghLog, /PullRequestReviewSummaryComments/);
+    assert.doesNotMatch(run.ghLog, /classifier=OUTDATED/);
+  });
+}
+
+test("planner stop is not terminal success while self-approval remains enabled", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "128",
+    AUTOMATION_MODE: "agent",
+    AGENT_ALLOW_SELF_APPROVE: "true",
+    AGENT_PROGRESS_COMMENT_ID: "777",
+    AGENT_PROGRESS_FINAL_COMMENT_MODE: "merge",
+    FAKE_PROGRESS_BODY: "### Sepo is working\n\n<!-- sepo-progress:run-123 -->",
+    FAKE_GRAPHQL_PR_COMMENTS: JSON.stringify([{
+      id: "review-summary",
+      databaseId: 776,
+      body: "## AI Review Synthesis\nold",
+      isMinimized: false,
+      author: { login: "sepo-agent-app[bot]" },
+    }]),
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "stop",
+      reason: "Leave approval to a maintainer.",
+      user_message: "Review completed, but approval remains pending.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.match(run.ghLog, /Sepo orchestration stopped after/);
+  assert.doesNotMatch(run.ghLog, /finished successfully/);
+  assert.doesNotMatch(run.ghLog, /PullRequestReviewSummaryComments/);
+  assert.doesNotMatch(run.ghLog, /classifier=OUTDATED/);
+});
+
+for (const [automationMode, plannerResponse] of [
+  ["heuristics", undefined],
+  ["agent", JSON.stringify({
+    decision: "stop",
+    reason: "A maintainer must decide whether to ship.",
+    user_message: "Review finished, but a human decision is still required.",
+  })],
+] as const) {
+  test(`${automationMode} HUMAN_DECISION stop is not terminal success`, () => {
+    const run = runOrchestrateHandoff({
+      SOURCE_ACTION: "review",
+      SOURCE_CONCLUSION: "SHIP",
+      SOURCE_RECOMMENDED_NEXT_STEP: "HUMAN_DECISION",
+      TARGET_KIND: "pull_request",
+      TARGET_NUMBER: "128",
+      AUTOMATION_MODE: automationMode,
+      AGENT_PROGRESS_COMMENT_ID: "777",
+      AGENT_PROGRESS_FINAL_COMMENT_MODE: "merge",
+      FAKE_PROGRESS_BODY: "### Sepo is working\n\n<!-- sepo-progress:run-123 -->",
+      FAKE_GRAPHQL_PR_COMMENTS: JSON.stringify([{
+        id: "review-summary",
+        databaseId: 776,
+        body: "## AI Review Synthesis\ncurrent",
+        isMinimized: false,
+        author: { login: "sepo-agent-app[bot]" },
+      }]),
+      FAKE_PLANNER_RESPONSE: plannerResponse,
+    });
+
+    assert.equal(run.status, 0, run.stderr || run.stdout);
+    assert.match(run.ghLog, /Sepo orchestration stopped after `review` concluded `SHIP`\./);
+    assert.doesNotMatch(run.ghLog, /finished successfully/);
+    assert.doesNotMatch(run.ghLog, /PullRequestReviewSummaryComments/);
+    assert.doesNotMatch(run.ghLog, /classifier=OUTDATED/);
+  });
+}
+
+for (const [automationMode, plannerResponse] of [
+  ["heuristics", undefined],
+  ["agent", JSON.stringify({
+    decision: "stop",
+    reason: "The review requested another fix round.",
+    user_message: "More fixes are required before this can ship.",
+  })],
+] as const) {
+  test(`${automationMode} review SHIP with FIX_PR is not terminal success`, () => {
+    const run = runOrchestrateHandoff({
+      SOURCE_ACTION: "review",
+      SOURCE_CONCLUSION: "SHIP",
+      SOURCE_RECOMMENDED_NEXT_STEP: "FIX_PR",
+      TARGET_KIND: "pull_request",
+      TARGET_NUMBER: "128",
+      AUTOMATION_MODE: automationMode,
+      AGENT_PROGRESS_COMMENT_ID: "777",
+      AGENT_PROGRESS_FINAL_COMMENT_MODE: "merge",
+      FAKE_PROGRESS_BODY: "### Sepo is working\n\n<!-- sepo-progress:run-123 -->",
+      FAKE_GRAPHQL_PR_COMMENTS: JSON.stringify([{
+        id: "review-summary",
+        databaseId: 776,
+        body: "## AI Review Synthesis\ncurrent",
+        isMinimized: false,
+        author: { login: "sepo-agent-app[bot]" },
+      }]),
+      FAKE_PLANNER_RESPONSE: plannerResponse,
+    });
+
+    assert.equal(run.status, 0, run.stderr || run.stdout);
+    assert.match(run.ghLog, /Sepo orchestration stopped after `review` concluded `SHIP`\./);
+    assert.doesNotMatch(run.ghLog, /finished successfully/);
+    assert.doesNotMatch(run.ghLog, /PullRequestReviewSummaryComments/);
+    assert.doesNotMatch(run.ghLog, /classifier=OUTDATED/);
+  });
+}
+
+test("review success finalization fails closed when the PR head changed during review", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    SOURCE_REVIEWED_HEAD_SHA: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    FAKE_PR_HEAD_SHA: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "128",
+    AUTOMATION_MODE: "agent",
+    AGENT_PROGRESS_COMMENT_ID: "777",
+    AGENT_PROGRESS_FINAL_COMMENT_MODE: "merge",
+    FAKE_PROGRESS_BODY: "### Sepo is working\n\n<!-- sepo-progress:run-123 -->",
+    FAKE_GRAPHQL_PR_COMMENTS: JSON.stringify([{
+      id: "review-summary",
+      databaseId: 776,
+      body: "## AI Review Synthesis\ncurrent",
+      isMinimized: false,
+      author: { login: "sepo-agent-app[bot]" },
+    }]),
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "stop",
+      reason: "The reviewed implementation is ready.",
+      user_message: "Implementation and review completed successfully.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.match(run.ghLog, /pr view 128 --json headRefName,headRefOid,isCrossRepository,state/);
+  assert.match(run.stderr, /reviewed head no longer matches the PR head/);
+  assert.match(run.ghLog, /Sepo orchestration stopped after `review` concluded `SHIP`\./);
+  assert.match(run.ghLog, /result was not finalized as a success/);
+  assert.doesNotMatch(run.ghLog, /Implementation and review completed successfully/);
+  assert.doesNotMatch(run.ghLog, /finished successfully/);
+  assert.doesNotMatch(run.ghLog, /PullRequestReviewSummaryComments/);
+  assert.doesNotMatch(run.ghLog, /classifier=OUTDATED/);
+});
+
+test("self-approval success finalization fails closed when the PR head changed after approval", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "agent-self-approve",
+    SOURCE_CONCLUSION: "approved",
+    SOURCE_APPROVED_HEAD_SHA: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    SOURCE_ARTIFACT_DATABASE_ID: "776",
+    FAKE_PR_HEAD_SHA: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "128",
+    AUTOMATION_MODE: "heuristics",
+    AGENT_PROGRESS_COMMENT_ID: "777",
+    AGENT_PROGRESS_FINAL_COMMENT_MODE: "merge",
+    FAKE_PROGRESS_BODY: "### Sepo is working\n\n<!-- sepo-progress:run-123 -->",
+    FAKE_GRAPHQL_PR_COMMENTS: JSON.stringify([{
+      id: "source-review",
+      databaseId: 776,
+      body: "## AI Review Synthesis\ncurrent source",
+      isMinimized: false,
+      author: { login: "sepo-agent-app[bot]" },
+    }]),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.match(run.ghLog, /pr view 128 --json headRefName,headRefOid,isCrossRepository,state/);
+  assert.match(run.stderr, /approved head no longer matches the PR head/);
+  assert.match(run.ghLog, /Sepo orchestration stopped after `agent-self-approve` concluded `approved`\./);
+  assert.match(run.ghLog, /result was not finalized as a success/);
+  assert.doesNotMatch(run.ghLog, /finished successfully/);
+  assert.doesNotMatch(run.ghLog, /PullRequestReviewSummaryComments/);
+  assert.doesNotMatch(run.ghLog, /classifier=OUTDATED/);
+});
+
+for (const [name, env] of [
+  ["blocked planner", {
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    AUTOMATION_MODE: "agent",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "blocked",
+      reason: "Need maintainer input.",
+      clarification_request: "Should this ship now?",
+    }),
+  }],
+  ["malformed planner", {
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    AUTOMATION_MODE: "agent",
+    FAKE_PLANNER_RESPONSE: "not json",
+  }],
+  ["failed source", {
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "failed",
+    AUTOMATION_MODE: "agent",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "stop",
+      reason: "The review failed.",
+    }),
+  }],
+] as const) {
+  test(`${name} does not trigger terminal PR cleanup`, () => {
+    const run = runOrchestrateHandoff({
+      ...env,
+      TARGET_KIND: "pull_request",
+      TARGET_NUMBER: "128",
+      AGENT_PROGRESS_COMMENT_ID: "777",
+      AGENT_PROGRESS_FINAL_COMMENT_MODE: "merge",
+      FAKE_PROGRESS_BODY: "### Sepo is working\n\n<!-- sepo-progress:run-123 -->",
+      FAKE_GRAPHQL_PR_COMMENTS: JSON.stringify([{
+        id: "review-summary",
+        body: "## AI Review Synthesis\nold",
+        isMinimized: false,
+        author: { login: "sepo-agent-app[bot]" },
+      }]),
+    });
+
+    assert.equal(run.status, 0, run.stderr || run.stdout);
+    assert.doesNotMatch(run.ghLog, /classifier=OUTDATED/);
+  });
+}
+
+test("terminal PR cleanup failure is visible and non-fatal", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    SOURCE_ARTIFACT_DATABASE_ID: "776",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "128",
+    AUTOMATION_MODE: "agent",
+    AGENT_PROGRESS_COMMENT_ID: "777",
+    AGENT_PROGRESS_FINAL_COMMENT_MODE: "merge",
+    FAKE_PROGRESS_BODY: "### Sepo is working\n\n<!-- sepo-progress:run-123 -->",
+    FAKE_GRAPHQL_PR_COMMENTS: trustedReviewSynthesisJson(),
+    FAKE_GRAPHQL_PR_COMMENTS_FAIL_AFTER: "2",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "stop",
+      reason: "The reviewed implementation is ready.",
+      user_message: "Implementation and review completed successfully.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.match(run.ghLog, /api --method PATCH repos\/self-evolving\/repo\/issues\/comments\/777/);
+  assert.match(run.stderr, /Failed to collapse previous orchestration artifacts/);
+});
+
+test("terminal PR cleanup reports a fail-closed unsafe current-comment boundary", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    SOURCE_ARTIFACT_DATABASE_ID: "776",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "128",
+    AUTOMATION_MODE: "agent",
+    AGENT_PROGRESS_COMMENT_ID: "current-final",
+    AGENT_PROGRESS_FINAL_COMMENT_MODE: "merge",
+    FAKE_PROGRESS_BODY: "### Sepo is working\n\n<!-- sepo-progress:run-123 -->",
+    FAKE_GRAPHQL_PR_COMMENTS: trustedReviewSynthesisJson(),
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "stop",
+      reason: "The reviewed implementation is ready.",
+      user_message: "Implementation and review completed successfully.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.match(run.ghLog, /Sepo orchestration finished successfully/);
+  assert.match(
+    run.stderr,
+    /Skipped terminal PR cleanup .*current finalized comment database ID is missing or invalid/,
+  );
+  assert.doesNotMatch(run.ghLog, /classifier=OUTDATED/);
+});
+
+test("terminal PR success rejects a superseded same-head review synthesis", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    SOURCE_ARTIFACT_DATABASE_ID: "776",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "128",
+    AUTOMATION_MODE: "agent",
+    AGENT_PROGRESS_COMMENT_ID: "778",
+    AGENT_PROGRESS_FINAL_COMMENT_MODE: "merge",
+    FAKE_PROGRESS_BODY: "### Sepo is working\n\n<!-- sepo-progress:run-123 -->",
+    FAKE_GRAPHQL_PR_COMMENTS: JSON.stringify([
+      trustedReviewSynthesis(776, defaultHeadSha, "SHIP"),
+      trustedReviewSynthesis(777, defaultHeadSha, "NEEDS_REWORK"),
+    ]),
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "stop",
+      reason: "The reviewed implementation is ready.",
+      user_message: "Implementation and review completed successfully.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.match(run.stderr, /source artifact is not the latest trusted review synthesis/);
+  assert.match(run.ghLog, /Sepo orchestration stopped after `review` concluded `SHIP`/);
+  assert.doesNotMatch(run.ghLog, /finished successfully/);
+  assert.doesNotMatch(run.ghLog, /classifier=OUTDATED/);
 });
 
 test("terminal child result reports to parent and preserves terminal reruns", () => {

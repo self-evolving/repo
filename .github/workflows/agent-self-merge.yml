@@ -12,6 +12,14 @@ on:
       request_text:
         description: "Original request text"
         required: false
+      source_artifact_database_id:
+        description: "Optional source comment database ID used as a safe cleanup boundary"
+        required: false
+        default: ""
+      source_approved_head_sha:
+        description: "Optional PR head SHA validated by self-approval"
+        required: false
+        default: ""
       session_bundle_mode:
         description: "Session bundle persistence mode"
         required: false
@@ -77,6 +85,9 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_RUN_ID: ${{ github.run_id }}
           GITHUB_SERVER_URL: ${{ github.server_url }}
+          ORCHESTRATION_ENABLED: ${{ inputs.orchestration_enabled }}
+          SOURCE_APPROVED_HEAD_SHA: ${{ inputs.source_approved_head_sha }}
+          SOURCE_ARTIFACT_DATABASE_ID: ${{ inputs.source_artifact_database_id }}
           TARGET_KIND: pull_request
           TARGET_NUMBER: ${{ inputs.pr_number }}
         run: node .agent/dist/cli/resolve-self-merge.js
@@ -122,6 +133,8 @@ jobs:
           REQUEST_TEXT: ${{ inputs.request_text }}
           SESSION_BUNDLE_MODE: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
           SOURCE_ACTION: agent-self-merge
+          SOURCE_APPROVED_HEAD_SHA: ${{ inputs.source_approved_head_sha }}
+          SOURCE_ARTIFACT_DATABASE_ID: ${{ inputs.source_artifact_database_id }}
           SOURCE_CONCLUSION: ${{ steps.result.outputs.conclusion }}
           SOURCE_RUN_ID: ${{ github.run_id }}
           TARGET_KIND: pull_request

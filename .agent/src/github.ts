@@ -407,22 +407,32 @@ export function fetchIssueCommentRecords(issueNumber: number, repo: string): Iss
   return comments;
 }
 
+function latestTrustedPrCommentByMarkers(
+  prNumber: number,
+  repo: string,
+  markers: string[],
+): IssueCommentRecord | undefined {
+  const trustedActor = normalizeActorLogin(fetchAuthenticatedActorLogin());
+  const requiredMarkers = markers.filter(Boolean);
+  if (!requiredMarkers.length) return undefined;
+  return fetchIssueCommentRecords(prNumber, repo)
+    .filter((comment) => (
+      comment.id &&
+      requiredMarkers.every((marker) => comment.body.includes(marker)) &&
+      trustedActor &&
+      normalizeActorLogin(comment.authorLogin) === trustedActor
+    ))
+    .sort((left, right) => createdAtMs(left.createdAt) - createdAtMs(right.createdAt))
+    .at(-1);
+}
+
 export function upsertPrCommentByMarker(
   prNumber: number,
   repo: string,
   marker: string,
   body: string,
 ): "created" | "updated" {
-  const trustedActor = normalizeActorLogin(fetchAuthenticatedActorLogin());
-  const existing = fetchIssueCommentRecords(prNumber, repo)
-    .filter((comment) => (
-      comment.id &&
-      comment.body.includes(marker) &&
-      trustedActor &&
-      normalizeActorLogin(comment.authorLogin) === trustedActor
-    ))
-    .sort((left, right) => createdAtMs(left.createdAt) - createdAtMs(right.createdAt));
-  const latest = existing[existing.length - 1];
+  const latest = latestTrustedPrCommentByMarkers(prNumber, repo, [marker]);
   if (latest) {
     updateIssueComment(repo, latest.id, body);
     return "updated";
@@ -430,6 +440,24 @@ export function upsertPrCommentByMarker(
 
   postPrComment(prNumber, body, repo);
   return "created";
+}
+
+export function upsertPrCommentByMarkersWithId(
+  prNumber: number,
+  repo: string,
+  markers: string[],
+  body: string,
+): { action: "created" | "updated"; commentId: string } {
+  const latest = latestTrustedPrCommentByMarkers(prNumber, repo, markers);
+  if (latest) {
+    updateIssueComment(repo, latest.id, body);
+    return { action: "updated", commentId: latest.id };
+  }
+
+  return {
+    action: "created",
+    commentId: createIssueComment(repo, prNumber, body),
+  };
 }
 
 export function findExistingPr(headBranch: string, repo?: string): string | null {

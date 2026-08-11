@@ -3,10 +3,10 @@
 // Env: COMMENT_TARGET (issue or pr), TARGET_NUMBER, ROUTE, STATUS,
 //      RESPONSE_FILE (optional), BRANCH, PR_URL, REQUESTED_BY,
 //      APPROVAL_COMMENT_URL, CANCELLED_BY, AGENT_COLLAPSE_OLD_REVIEWS
-// Outputs: status
+// Outputs: comment_posted, comment_database_id
 
 import { readFileSync } from "node:fs";
-import { fetchPrMeta, postIssueComment, postPrComment } from "../github.js";
+import { createIssueComment, fetchPrMeta, postIssueComment, postPrComment } from "../github.js";
 import { tryMergeProgressFinalComment } from "../progress-final-comment.js";
 import {
   collapsePreviousFixPrComments,
@@ -116,6 +116,7 @@ if (continuityNote) {
 }
 
 const bodyWithFooter = appendRunDisplayFooter(body, modelDisplay);
+let commentDatabaseId = "";
 
 if (target === "pr") {
   if (route === "review" && collapseOldReviews) {
@@ -151,7 +152,11 @@ if (target === "pr") {
     finalBody: body,
     footer: modelDisplay,
   });
-  if (!merged) {
+  if (merged && /^\d+$/.test(progressCommentId.trim())) {
+    commentDatabaseId = progressCommentId.trim();
+  } else if (!merged && route === "review" && repo) {
+    commentDatabaseId = createIssueComment(repo, targetNumber, bodyWithFooter);
+  } else if (!merged) {
     postPrComment(targetNumber, bodyWithFooter);
   }
 } else {
@@ -168,3 +173,4 @@ if (target === "pr") {
 }
 
 setOutput("comment_posted", "true");
+setOutput("comment_database_id", commentDatabaseId);

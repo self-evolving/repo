@@ -1,5 +1,6 @@
 // CLI: preflight and perform deterministic self-merge for an approved PR.
-// Env: GITHUB_REPOSITORY, TARGET_NUMBER, TARGET_KIND, AGENT_ALLOW_SELF_MERGE
+// Env: GITHUB_REPOSITORY, TARGET_NUMBER, TARGET_KIND, AGENT_ALLOW_SELF_MERGE,
+//      ORCHESTRATION_ENABLED, SOURCE_ARTIFACT_DATABASE_ID, SOURCE_APPROVED_HEAD_SHA
 // Outputs: conclusion, merged, auto_merge_enabled, status_post, reason, body_file
 
 import { mkdtempSync, writeFileSync } from "node:fs";
@@ -15,6 +16,7 @@ import {
   mergePullRequest,
 } from "../github.js";
 import { setOutput } from "../output.js";
+import { validateLatestReviewSynthesisSource } from "../review-summary-minimize.js";
 import { envFlagEnabled } from "../self-approval.js";
 import {
   evaluateSelfMergeApproval,
@@ -57,6 +59,9 @@ const repo = process.env.GITHUB_REPOSITORY || "";
 const prNumber = Number(process.env.TARGET_NUMBER || process.env.PR_NUMBER || "");
 const targetKind = process.env.TARGET_KIND || "pull_request";
 const allowSelfMerge = envFlagEnabled(process.env.AGENT_ALLOW_SELF_MERGE);
+const orchestrationEnabled = envFlagEnabled(process.env.ORCHESTRATION_ENABLED);
+const sourceArtifactDatabaseId = process.env.SOURCE_ARTIFACT_DATABASE_ID || "";
+const sourceApprovedHeadSha = process.env.SOURCE_APPROVED_HEAD_SHA || "";
 
 function resolveCurrentSelfMerge(): {
   result: SelfMergeResolveResult;
@@ -86,6 +91,51 @@ function resolveCurrentSelfMerge(): {
 
   try {
     const meta = fetchPrMergeMeta(prNumber, repo);
+    if (orchestrationEnabled) {
+      if (
+        !sourceApprovedHeadSha.trim() ||
+        sourceApprovedHeadSha.trim().toLowerCase() !== meta.headOid.trim().toLowerCase()
+      ) {
+        return {
+          verifiedHeadSha: "",
+          result: {
+            conclusion: "blocked",
+            nextStep: "none",
+            markReady: false,
+            reason: "causal self-approval head does not match the current pull request head",
+          },
+        };
+      }
+      try {
+        const provenance = validateLatestReviewSynthesisSource({
+          repo,
+          prNumber,
+          sourceArtifactDatabaseId,
+          expectedHeadSha: sourceApprovedHeadSha,
+        });
+        if (!provenance.valid) {
+          return {
+            verifiedHeadSha: "",
+            result: {
+              conclusion: "blocked",
+              nextStep: "none",
+              markReady: false,
+              reason: `causal review provenance rejected: ${provenance.reason}`,
+            },
+          };
+        }
+      } catch (err: unknown) {
+        return {
+          verifiedHeadSha: "",
+          result: {
+            conclusion: "blocked",
+            nextStep: "none",
+            markReady: false,
+            reason: `could not validate causal review provenance: ${errorText(err) || "unknown error"}`,
+          },
+        };
+      }
+    }
     let approval: SelfMergeApprovalResult;
     let reviews: ReturnType<typeof fetchPrReviewRecords> = [];
     let comments: ReturnType<typeof fetchIssueCommentRecords> = [];

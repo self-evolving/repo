@@ -4,7 +4,9 @@
 //      REQUESTED_BY, REQUEST_TEXT, AUTOMATION_CURRENT_ROUND,
 //      AUTOMATION_MAX_ROUNDS, SESSION_BUNDLE_MODE, SOURCE_RUN_ID, TARGET_KIND,
 //      AUTHOR_ASSOCIATION, ACCESS_POLICY, REPOSITORY_PRIVATE, ORCHESTRATION_ENABLED,
-//      SOURCE_RECOMMENDED_NEXT_STEP, SOURCE_HANDOFF_CONTEXT, BASE_BRANCH, BASE_PR
+//      SOURCE_RECOMMENDED_NEXT_STEP, SOURCE_HANDOFF_CONTEXT,
+//      SOURCE_ARTIFACT_DATABASE_ID, SOURCE_REVIEWED_HEAD_SHA,
+//      SOURCE_APPROVED_HEAD_SHA, BASE_BRANCH, BASE_PR
 
 import { readFileSync } from "node:fs";
 import { dispatchWorkflow } from "../github.js";
@@ -76,6 +78,9 @@ dispatchWorkflow(repo, "agent-orchestrator.yml", ref, {
   source_action: sourceAction,
   source_conclusion: sourceConclusion,
   source_recommended_next_step: sourceRecommendedNextStep,
+  source_artifact_database_id: process.env.SOURCE_ARTIFACT_DATABASE_ID || "",
+  source_reviewed_head_sha: process.env.SOURCE_REVIEWED_HEAD_SHA || "",
+  source_approved_head_sha: process.env.SOURCE_APPROVED_HEAD_SHA || "",
   source_run_id: process.env.SOURCE_RUN_ID || process.env.GITHUB_RUN_ID || "",
   target_kind: targetKind,
   target_number: targetNumber,

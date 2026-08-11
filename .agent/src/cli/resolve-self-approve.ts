@@ -2,7 +2,8 @@
 // Env: RESPONSE_FILE, GITHUB_REPOSITORY, TARGET_NUMBER, TARGET_KIND,
 //      EXPECTED_HEAD_SHA, AGENT_ALLOW_SELF_APPROVE, AGENT_ALLOW_SELF_MERGE,
 //      SOURCE_RECOMMENDED_NEXT_STEP
-// Outputs: conclusion, approved, status_post, handoff_context, reason, body_file
+// Outputs: conclusion, approved, approved_head_sha, status_post,
+//          handoff_context, reason, body_file
 
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -189,6 +190,7 @@ const body = formatSelfApprovalBody({
 const bodyFile = writeBodyFile(body);
 setOutput("conclusion", result.conclusion);
 setOutput("approved", String(approved));
+setOutput("approved_head_sha", approved && result.conclusion === "approved" ? expectedHeadSha : "");
 setOutput("status_post", String(statusPost));
 setOutput("handoff_context", result.handoffContext);
 setOutput("reason", result.reason);

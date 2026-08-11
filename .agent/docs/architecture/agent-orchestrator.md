@@ -145,7 +145,23 @@ the same compact table style while preserving their hidden durable markers.
 If terminal child metadata is found but rejected by trust checks or cannot be
 safely updated, the dispatcher posts a compact stop comment on the current
 terminal issue or PR with a hidden dedupe marker. Ordinary terminal PR stops
-without sub-orchestrator metadata remain silent.
+without sub-orchestrator metadata finalize one visible note. The dispatcher
+merges the outcome into the current planner progress comment when available;
+otherwise it updates or creates a trusted comment carrying the existing
+`sepo-agent-orchestrate-stop` marker. The note includes the planner summary,
+source outcome, target, round, reason, run ID, and a requester mention only for
+human GitHub logins. An agent-planned successful stop without a non-empty
+summary leaves earlier context visible and skips success cleanup. Budget or
+policy stops do the same while an enabled self-approval or self-merge step is
+still pending. Review outcomes that recommend `HUMAN_DECISION` are also
+non-successful stops in both automation modes, as are `SHIP` outcomes that
+recommend `FIX_PR`. A review-driven stop is eligible for successful formatting
+or cleanup only while its source comment remains the latest trusted synthesis
+carrying explicit synthesis and reviewed-head markers for the current pull
+request head. Self-approval-driven success uses the same guard with the head
+validated by the deterministic approval resolver. Orchestrated self-merge
+repeats the source and head checks before marking ready, merging, or enabling
+auto-merge.
 If the resumed parent planner decides there is no next child or action, the
 parent run posts a terminal stop comment on the parent issue with the source
 conclusion, target, round, reason, and hidden `sepo-agent-orchestrate-stop`
@@ -153,6 +169,22 @@ marker. Exact trusted duplicates are skipped on reruns.
 When the planner returns `blocked` with `user_message` or
 `clarification_request`, that same terminal comment surfaces the planner's
 question directly and the chain pauses without dispatching an `answer` route.
+After a validated terminal `review`/`SHIP`, `agent-self-approve`/`approved`, or
+`agent-self-merge`/`merged` or `auto_merge_enabled` outcome, the dispatcher
+best-effort minimizes older trusted review synthesis, rubrics review, fix-pr,
+and completed handoff comments from the PR conversation. It keeps the final
+note and pending handoffs visible, including by minimizing older trusted final
+notes after progress-comment finalization. Cleanup uses the source result
+comment's database ID as an inclusive causal boundary. Source-chain markers
+also identify completed handoffs and prior final notes created after that
+boundary, allowing same-source reruns to converge while unrelated later
+comments remain visible. Without the validated source or a verified current
+final note from that chain, cleanup is skipped with a diagnostic. Every other
+outcome also skips cleanup, and failures warn without hiding the final note.
+Review handoffs preserve that boundary through self-approval and self-merge
+rather than substituting a later route-local timestamp or unverified comment.
+Optional failures while reporting terminal child state to a parent do not
+prevent the terminal pull request note from being finalized.
 
 Initial user-launched `/orchestrate` requests validate that the requester has
 access to the delegated route capability set before dispatching work. When

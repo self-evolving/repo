@@ -28,7 +28,8 @@ if [ "$1" = "api" ] && [ "$2" = "graphql" ]; then
   printf '{"errors":[{"message":"graphql unavailable"}]}\\n'
   exit 0
 fi
-if [ "$1" = "pr" ] && [ "$2" = "comment" ]; then
+if [ "$1" = "api" ] && [ "$2" = "--method" ] && [ "$3" = "POST" ]; then
+  printf '9901\n'
   exit 0
 fi
 printf 'unexpected gh args: %s\\n' "$*" >&2
@@ -61,10 +62,11 @@ exit 1
 
     const log = readFileSync(logPath, "utf8");
     assert.match(log, /^api graphql /m);
-    assert.match(log, /^pr comment 321 --body ## AI Review Synthesis/m);
+    assert.match(log, /^api --method POST repos\/self-evolving\/repo\/issues\/321\/comments /m);
 
     const output = readFileSync(outputPath, "utf8");
     assert.match(output, /^comment_posted<</m);
+    assert.match(output, /comment_database_id<<[^\n]+\n9901\n/);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
@@ -87,7 +89,8 @@ if [ "$1" = "api" ] && [ "$2" = "graphql" ]; then
   printf 'unexpected minimization call\\n' >&2
   exit 1
 fi
-if [ "$1" = "pr" ] && [ "$2" = "comment" ]; then
+if [ "$1" = "api" ] && [ "$2" = "--method" ] && [ "$3" = "POST" ]; then
+  printf '9901\n'
   exit 0
 fi
 printf 'unexpected gh args: %s\\n' "$*" >&2
@@ -118,10 +121,11 @@ exit 1
 
     const log = readFileSync(logPath, "utf8");
     assert.doesNotMatch(log, /^api graphql /m);
-    assert.match(log, /^pr comment 321 --body ## AI Review Synthesis/m);
+    assert.match(log, /^api --method POST repos\/self-evolving\/repo\/issues\/321\/comments /m);
 
     const output = readFileSync(outputPath, "utf8");
     assert.match(output, /^comment_posted<</m);
+    assert.match(output, /comment_database_id<<[^\n]+\n9901\n/);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
@@ -144,7 +148,8 @@ if [ "$1" = "pr" ] && [ "$2" = "view" ]; then
   printf '{"headRefOid":"abc123"}\\n'
   exit 0
 fi
-if [ "$1" = "pr" ] && [ "$2" = "comment" ]; then
+if [ "$1" = "api" ] && [ "$2" = "--method" ] && [ "$3" = "POST" ]; then
+  printf '9901\n'
   exit 0
 fi
 printf 'unexpected gh args: %s\\n' "$*" >&2
@@ -175,6 +180,7 @@ exit 1
     const log = readFileSync(logPath, "utf8");
     assert.match(log, /^pr view 321 --json headRefName,headRefOid,isCrossRepository,state --repo self-evolving\/repo/m);
     assert.match(log, /<!-- sepo-agent-review-synthesis-head: abc123 -->/);
+    assert.match(readFileSync(outputPath, "utf8"), /comment_database_id<<[^\n]+\n9901\n/);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
@@ -197,7 +203,8 @@ if [ "$1" = "pr" ] && [ "$2" = "view" ]; then
   printf '{"headRefOid":"def456"}\\n'
   exit 0
 fi
-if [ "$1" = "pr" ] && [ "$2" = "comment" ]; then
+if [ "$1" = "api" ] && [ "$2" = "--method" ] && [ "$3" = "POST" ]; then
+  printf '9901\n'
   exit 0
 fi
 printf 'unexpected gh args: %s\\n' "$*" >&2
@@ -228,7 +235,7 @@ exit 1
     assert.match(result.stderr, /head marker omitted because the PR head changed/);
     const log = readFileSync(logPath, "utf8");
     assert.doesNotMatch(log, /sepo-agent-review-synthesis-head/);
-    assert.match(log, /^pr comment 321 --body ## AI Review Synthesis/m);
+    assert.match(log, /^api --method POST repos\/self-evolving\/repo\/issues\/321\/comments /m);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }

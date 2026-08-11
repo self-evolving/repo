@@ -74,6 +74,13 @@ memory and rubrics read-only so automated control-flow planning can use steering
 context without mutating those state branches. Orchestration stops when target
 state indicates no safe next action, a route fails, a duplicate handoff marker
 is found, the planner stops or blocks, or the max-round budget is exhausted.
+Terminal PR stops reuse the current run's progress comment when available, or
+update one trusted `sepo-agent-orchestrate-stop` marker comment otherwise. The
+final note includes the planner summary and outcome metadata and mentions the
+original requester only when it is a human GitHub login. If an agent stop omits
+the summary, or an enabled self-approval or self-merge step remains after a
+budget or policy stop, earlier context stays visible and success cleanup is
+skipped.
 
 When a child issue reaches a terminal stop, the handoff dispatcher resolves the
 trusted child metadata from the issue body or an agent-authored child issue
@@ -122,6 +129,17 @@ HTML markers for robust matching, with heading/text fallbacks for older
 comments. Rubrics reviews match the `## Rubrics Review` heading, and
 orchestrator handoffs match their hidden handoff marker. This keeps the latest
 generated status prominent while leaving older generated comments expandable.
+Successful terminal PR orchestration also best-effort minimizes older matching
+conversation comments and older trusted final notes while leaving the current
+final note, newer concurrent comments, and pending handoffs visible. Cleanup
+runs only when the source database ID is still the latest trusted synthesis for
+the current head and the current final note is verified as part of that source
+chain. It minimizes matching comments through the causal boundary plus later
+completed handoffs and prior final notes carrying the same chain marker, so
+same-source reruns converge without hiding unrelated later comments. Unsafe
+cleanup skips are reported in the workflow log.
+Blocked, clarification, failed, malformed-planner, and other non-success
+outcomes never trigger this terminal cleanup.
 Set `AGENT_COLLAPSE_OLD_REVIEWS=false` to skip this cleanup and leave prior
 generated comments visible.
 
@@ -129,7 +147,9 @@ Review runs also attempt to capture the pull request head before reviewer lanes
 start. The synthesis comment includes a hidden reviewed-head marker only if the
 pull request still points at that same head before posting. If capture,
 comparison, or prepare metadata setup cannot read PR metadata, synthesis still
-posts without the hidden marker.
+posts without the hidden marker. Review-driven terminal success formatting and
+cleanup separately require the captured head to still match when orchestration
+finalizes; a changed or unverifiable head produces a non-success stop instead.
 
 Review synthesis can also make prompt-managed inline review comment updates:
 it may post a new inline comment, reply to an existing same-agent inline
@@ -388,6 +408,11 @@ are enabled, parses the agent verdict, and approves only when the expected,
 current, and inspected head SHAs match. Normal handoffs require trusted
 current-head `SHIP` review synthesis; orchestrated review `HUMAN_DECISION`
 handoffs also trust the matching current-head synthesis as the decision gate.
+An approved handoff exports that validated head for a fresh comparison before
+terminal success formatting or cleanup. It also preserves the originating
+review synthesis comment as the causal cleanup boundary. Orchestrated
+self-merge revalidates both values before marking ready, merging, or enabling
+auto-merge.
 Non-approval outcomes post a compact PR status comment. In full
 self-governance mode, same-actor approvals are recorded as a current-head
 self-approval status comment rather than a GitHub review approval. In
@@ -414,7 +439,9 @@ approved head SHA, so a push after preflight cannot merge an unapproved head.
 Self-merge status comments are marker-upserted against comments authored by the
 authenticated Sepo actor. In orchestrated chains, an `agent-self-approve`
 `APPROVED` result can hand off to `agent-self-merge` only when self-merge is
-also enabled.
+also enabled. The downstream handoff retains both that resolver-approved head
+and the originating review synthesis boundary, so terminal finalization can
+revalidate the approved head and preserve artifacts from overlapping runs.
 
 ### `agent-approve.yml`
 
