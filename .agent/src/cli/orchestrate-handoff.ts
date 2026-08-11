@@ -4,12 +4,19 @@
 //      GITHUB_REPOSITORY, DEFAULT_BRANCH, REQUESTED_BY, REQUEST_TEXT,
 //      SESSION_BUNDLE_MODE, SOURCE_RUN_ID, PLANNER_RESPONSE_FILE, TARGET_KIND,
 //      BASE_BRANCH, BASE_PR, AGENT_COLLAPSE_OLD_REVIEWS, AGENT_ALLOW_SELF_APPROVE,
-//      AGENT_ALLOW_SELF_MERGE
+//      AGENT_ALLOW_SELF_MERGE, AGENT_HANDLE, AGENT_PROGRESS_COMMENT_ID,
+//      AGENT_PROGRESS_FINAL_COMMENT_MODE, MODEL_DISPLAY
 
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createIssueComment, dispatchWorkflow, gh, updateIssueComment } from "../github.js";
+import {
+  createIssueComment,
+  dispatchWorkflow,
+  gh,
+  updateIssueComment,
+  upsertPrCommentByMarker,
+} from "../github.js";
 import { setOutput } from "../output.js";
 import {
   type HandoffDecision,
@@ -25,7 +32,12 @@ import {
   parseHandoffMarker,
 } from "../handoff.js";
 import { initialOrchestrateCapabilityStopReason } from "../orchestrator-capabilities.js";
-import { collapsePreviousHandoffComments } from "../review-summary-minimize.js";
+import { tryMergeProgressFinalComment } from "../progress-final-comment.js";
+import {
+  collapsePreviousHandoffComments,
+  collapsePreviousPrConversationArtifacts,
+} from "../review-summary-minimize.js";
+import { appendRunDisplayFooter } from "../response.js";
 import {
   extractClosingIssueNumber,
   formatSubOrchestrationIssueBody,
@@ -841,6 +853,10 @@ const isPublicRepo = String(process.env.REPOSITORY_PRIVATE || "").trim().toLower
 const targetNumber = process.env.TARGET_NUMBER || "";
 const requestedBy = process.env.REQUESTED_BY || "";
 const requestText = process.env.REQUEST_TEXT || "";
+const agentHandle = process.env.AGENT_HANDLE || "@sepo-agent";
+const modelDisplay = process.env.MODEL_DISPLAY || process.env.AGENT_RUN_DISPLAY || "";
+const progressFinalCommentMode = process.env.AGENT_PROGRESS_FINAL_COMMENT_MODE || "";
+const progressCommentId = process.env.AGENT_PROGRESS_COMMENT_ID || process.env.PROGRESS_COMMENT_ID || "";
 const sessionBundleMode = process.env.SESSION_BUNDLE_MODE || "";
 const baseBranch = process.env.BASE_BRANCH || "";
 const basePr = process.env.BASE_PR || "";
@@ -968,16 +984,16 @@ function commentOnTerminalSubOrchestrationRejection(rejection: TerminalSubOrches
   }));
 }
 
-function reportTerminalToParent(decision: HandoffDecision): void {
+function reportTerminalToParent(decision: HandoffDecision): boolean {
   const childResolution = resolveChildIssueForTerminal();
-  if (childResolution.kind === "none") return;
+  if (childResolution.kind === "none") return false;
   if (childResolution.kind === "rejected") {
     commentOnTerminalSubOrchestrationRejection(childResolution.rejection);
-    return;
+    return true;
   }
   const childIssue = childResolution.issue;
   const marker = childIssue.subOrchestrator.marker;
-  if (!["running", "done", "blocked", "failed"].includes(marker.state)) return;
+  if (!["running", "done", "blocked", "failed"].includes(marker.state)) return true;
 
   const resultState = marker.state === "running" ? resultStateFromTerminal({
     sourceAction,
@@ -996,7 +1012,7 @@ function reportTerminalToParent(decision: HandoffDecision): void {
   const existingProgress = progressComments[progressComments.length - 1];
   const progressWasDispatched = String(existingProgress?.body || "").includes(dispatchedProgressMarker);
   if (marker.state !== "running" && progressWasDispatched) {
-    return;
+    return true;
   }
   let progressCommentId = existingProgress?.id ? String(existingProgress.id) : "";
   const writeProgress = (progressMarker: string): void => {
@@ -1046,12 +1062,63 @@ function reportTerminalToParent(decision: HandoffDecision): void {
   if (updatedChildMarkerBody !== childIssue.subOrchestrator.body) {
     updateTrustedSubOrchestratorMarker(repo, childIssue, updatedChildMarkerBody);
   }
+  return true;
 }
 
 function pushUniqueMarkdownBlock(lines: string[], value: string | undefined): void {
   const text = String(value || "").trim();
   if (!text || lines.includes(text)) return;
   lines.push(text);
+}
+
+function requestedByHumanLine(): string {
+  if (normalizeToken(sourceTargetKind) !== "pull_request") return "";
+  const raw = requestedBy.trim();
+  if (!raw || /^app\//i.test(raw) || /\[bot\]$/i.test(raw)) return "";
+
+  const login = raw.replace(/^@+/, "");
+  if (!/^[a-z\d](?:[a-z\d-]{0,38})$/i.test(login)) return "";
+
+  const normalizedLogin = normalizeActorLogin(login);
+  const normalizedHandle = normalizeActorLogin(agentHandle.replace(/^@+/, ""));
+  if (
+    normalizedLogin === normalizedHandle ||
+    normalizedLogin === "sepo-agent" ||
+    normalizedLogin === "sepo-agent-app" ||
+    normalizedLogin === "github-actions"
+  ) {
+    return "";
+  }
+  return `> Requested by @${login}.`;
+}
+
+function startOrchestrationComment(heading: string): string[] {
+  const lines = [heading];
+  const requester = requestedByHumanLine();
+  if (requester) lines.push("", requester);
+  return lines;
+}
+
+function isSuccessfulPrSourceOutcome(): boolean {
+  const action = normalizeToken(sourceAction);
+  const conclusion = normalizeToken(sourceConclusion);
+  return (
+    (action === "review" && conclusion === "ship") ||
+    (action === "agent_self_approve" && conclusion === "approved") ||
+    (action === "agent_self_merge" && ["merged", "auto_merge_enabled"].includes(conclusion))
+  );
+}
+
+function isValidatedSuccessfulPrStop(decision: HandoffDecision): boolean {
+  if (
+    decision.decision !== "stop" ||
+    normalizeToken(sourceTargetKind) !== "pull_request" ||
+    !isSuccessfulPrSourceOutcome() ||
+    Boolean(String(decision.clarificationRequest || "").trim())
+  ) {
+    return false;
+  }
+  return automationMode !== "agent" || decision.plannerDecisionKind === "stop";
 }
 
 function formatPlannerClarificationComment(decision: HandoffDecision): string | null {
@@ -1068,8 +1135,10 @@ function formatPlannerClarificationComment(decision: HandoffDecision): string | 
     return null;
   }
 
-  const lines = [
+  const lines = startOrchestrationComment(
     "Sepo orchestration needs clarification before it can continue.",
+  );
+  lines.push(
     "",
     ...messageLines.flatMap((message, index) => index === 0 ? [message] : ["", message]),
     "",
@@ -1078,7 +1147,7 @@ function formatPlannerClarificationComment(decision: HandoffDecision): string | 
     `- Target: \`${sourceTargetKind || "unknown"} #${targetNumber || "unknown"}\``,
     `- Round: \`${currentRound}/${maxRounds}\``,
     `- Reason: ${decision.reason}`,
-  ];
+  );
 
   if (sourceRunId) {
     lines.push(`- Source run ID: \`${sourceRunId}\``);
@@ -1101,8 +1170,8 @@ function formatPlannerAnswerComment(decision: HandoffDecision): string | null {
   const message = String(decision.userMessage || "").trim();
   if (!message) return null;
 
-  const lines = [
-    "Sepo answered this orchestration request.",
+  const lines = startOrchestrationComment("Sepo answered this orchestration request.");
+  lines.push(
     "",
     message,
     "",
@@ -1111,7 +1180,7 @@ function formatPlannerAnswerComment(decision: HandoffDecision): string | null {
     `- Target: \`${sourceTargetKind || "unknown"} #${targetNumber || "unknown"}\``,
     `- Round: \`${currentRound}/${maxRounds}\``,
     `- Reason: ${decision.reason}`,
-  ];
+  );
 
   if (sourceRunId) {
     lines.push(`- Source run ID: \`${sourceRunId}\``);
@@ -1131,15 +1200,24 @@ function formatOrchestrateStopComment(decision: HandoffDecision): string {
     return answerComment;
   }
 
-  const lines = [
-    `Sepo orchestration stopped after \`${sourceAction || "unknown"}\` concluded \`${sourceConclusion || "unknown"}\`.`,
+  const successful = isValidatedSuccessfulPrStop(decision);
+  const lines = startOrchestrationComment(
+    successful
+      ? `Sepo orchestration finished successfully after \`${sourceAction || "unknown"}\` concluded \`${sourceConclusion || "unknown"}\`.`
+      : `Sepo orchestration stopped after \`${sourceAction || "unknown"}\` concluded \`${sourceConclusion || "unknown"}\`.`,
+  );
+  const userMessage = normalizeToken(sourceTargetKind) === "pull_request"
+    ? String(decision.userMessage || "").trim()
+    : "";
+  if (userMessage) lines.push("", userMessage);
+  lines.push(
     "",
     `- Source action: \`${sourceAction || "unknown"}\``,
     `- Source conclusion: \`${sourceConclusion || "unknown"}\``,
     `- Target: \`${sourceTargetKind || "unknown"} #${targetNumber || "unknown"}\``,
     `- Round: \`${currentRound}/${maxRounds}\``,
     `- Reason: ${decision.reason}`,
-  ];
+  );
 
   if (sourceRunId) {
     lines.push(`- Source run ID: \`${sourceRunId}\``);
@@ -1147,12 +1225,32 @@ function formatOrchestrateStopComment(decision: HandoffDecision): string {
 
   lines.push(
     "",
-    "No follow-up workflow was dispatched. Inspect the source action status comment and workflow logs before retrying or continuing manually.",
+    successful
+      ? "No further workflow was needed."
+      : "No follow-up workflow was dispatched. Inspect the source action status comment and workflow logs before retrying or continuing manually.",
     "",
     ORCHESTRATE_STOP_MARKER,
   );
   return lines.join("\n");
 }
+
+function collapseSuccessfulPrArtifacts(prNumber: number, decision: HandoffDecision): void {
+  if (!collapseOldReviews || !isValidatedSuccessfulPrStop(decision)) return;
+  try {
+    const collapsed = collapsePreviousPrConversationArtifacts({
+      repo,
+      prNumber,
+      excludeBodyMarker: ORCHESTRATE_STOP_MARKER,
+    });
+    if (collapsed > 0) {
+      console.log(`Collapsed ${collapsed} previous orchestration artifact comment(s).`);
+    }
+  } catch (err: unknown) {
+    console.warn(`Failed to collapse previous orchestration artifacts for ${repo}#${prNumber}: ${errorText(err)}`);
+  }
+}
+
+let orchestrateStopCommentHandled = false;
 
 function hasMatchingOrchestrateStopComment(repoSlug: string, issueNumber: number, body: string): boolean {
   try {
@@ -1172,15 +1270,40 @@ function hasMatchingOrchestrateStopComment(repoSlug: string, issueNumber: number
 }
 
 function createOrchestrateStopComment(decision: HandoffDecision): void {
+  if (orchestrateStopCommentHandled) return;
   const target = parsePositiveTargetNumber(targetNumber);
-  if (!repo || !target || !["issue", "pull_request"].includes(normalizeToken(sourceTargetKind))) {
+  const targetKind = normalizeToken(sourceTargetKind);
+  if (!repo || !target || !["issue", "pull_request"].includes(targetKind)) {
     return;
   }
   const body = formatOrchestrateStopComment(decision);
+  if (targetKind === "pull_request") {
+    const merged = tryMergeProgressFinalComment({
+      repo,
+      commentId: progressCommentId,
+      mode: progressFinalCommentMode,
+      finalBody: body,
+      footer: modelDisplay,
+    });
+    if (!merged) {
+      const action = upsertPrCommentByMarker(
+        target,
+        repo,
+        ORCHESTRATE_STOP_MARKER,
+        appendRunDisplayFooter(body, modelDisplay),
+      );
+      console.log(`${action === "updated" ? "Updated" : "Created"} orchestrator final comment.`);
+    }
+    orchestrateStopCommentHandled = true;
+    collapseSuccessfulPrArtifacts(target, decision);
+    return;
+  }
   if (hasMatchingOrchestrateStopComment(repo, target, body)) {
+    orchestrateStopCommentHandled = true;
     return;
   }
   createIssueComment(repo, target, body);
+  orchestrateStopCommentHandled = true;
 }
 
 function commentOnInitialOrchestrateStop(decision: HandoffDecision): void {
@@ -1240,6 +1363,17 @@ function commentOnTerminalMetaOrchestratorStop(decision: HandoffDecision): void 
     return;
   }
   if (currentRound === 1 && normalizeToken(sourceConclusion) === "requested") {
+    return;
+  }
+  createOrchestrateStopComment(decision);
+}
+
+function commentOnTerminalPullRequestStop(decision: HandoffDecision, reportedToParent: boolean): void {
+  if (
+    decision.decision !== "stop" ||
+    reportedToParent ||
+    normalizeToken(sourceTargetKind) !== "pull_request"
+  ) {
     return;
   }
   createOrchestrateStopComment(decision);
@@ -1377,7 +1511,8 @@ if (decision.decision !== "dispatch" && decision.decision !== "delegate_issue") 
     commentOnPlannerClarificationStop(decision);
     commentOnInitialOrchestrateStop(decision);
     commentOnUnsatisfactoryActionStop(decision);
-    reportTerminalToParent(decision);
+    const reportedToParent = reportTerminalToParent(decision);
+    commentOnTerminalPullRequestStop(decision, reportedToParent);
     commentOnTerminalMetaOrchestratorStop(decision);
   } catch (err: unknown) {
     console.warn(`Failed to report terminal sub-orchestration state: ${errorText(err)}`);

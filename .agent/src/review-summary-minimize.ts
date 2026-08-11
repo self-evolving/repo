@@ -61,6 +61,10 @@ type CollapsePreviousReviewSummariesOptions = {
   client?: GraphQLClient;
 };
 
+type CollapsePreviousPrConversationArtifactsOptions = CollapsePreviousReviewSummariesOptions & {
+  excludeBodyMarker?: string;
+};
+
 type CollapsePreviousHandoffCommentsOptions = {
   repo: string;
   targetNumber: number;
@@ -325,6 +329,16 @@ function collapsePreviousMatchingPrComments(
   return uniqueNodeIds.length;
 }
 
+function isTerminalPrConversationArtifact(body: string): boolean {
+  const handoffMarker = parseAnyHandoffMarker(body);
+  return (
+    isReviewSynthesisBody(body) ||
+    isRubricsReviewBody(body) ||
+    isFixPrStatusBody(body) ||
+    Boolean(handoffMarker && handoffMarker.state !== "pending")
+  );
+}
+
 function collapsePreviousMatchingHandoffComments(
   options: CollapsePreviousHandoffCommentsOptions,
 ): number {
@@ -443,6 +457,20 @@ export function collapsePreviousFixPrComments(
   options: CollapsePreviousReviewSummariesOptions,
 ): number {
   return collapsePreviousMatchingPrComments(options, isFixPrStatusBody);
+}
+
+/**
+ * Collapses trusted generated PR conversation comments after terminal success.
+ * Formal review objects are intentionally left to the review workflow.
+ */
+export function collapsePreviousPrConversationArtifacts(
+  options: CollapsePreviousPrConversationArtifactsOptions,
+): number {
+  const excludeBodyMarker = String(options.excludeBodyMarker || "");
+  return collapsePreviousMatchingPrComments(options, (body) => (
+    (!excludeBodyMarker || !body.includes(excludeBodyMarker)) &&
+    isTerminalPrConversationArtifact(body)
+  ));
 }
 
 /**
