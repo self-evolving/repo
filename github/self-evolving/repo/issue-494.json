@@ -1,0 +1,41 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "1. before the review gate, can you generate a list of \"decisions (implicit / explicit) made by the code implementation\"? \n2. in the review process, can you additionally judge the decisions --> are some of them hacky decisions? \n\n@sepo-agent /answer  ",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOLRO1g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes. I’d make this a first-class implementation-to-review handoff.\n\nToday, the [implementation prompt](https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-implement.md) returns only summary and PR metadata. The [review prompt](https://github.com/self-evolving/repo/blob/main/.github/prompts/review.md) already checks for hacky or brittle solutions, but it does not systematically evaluate implementation decisions.\n\nProposed behavior:\n\n1. After coding, Sepo produces a structured list of material decisions:\n\n   - Decision\n   - Explicit or implicit\n   - Rationale and trade-offs\n   - Alternatives considered\n   - Supporting files/symbols\n\n2. Deterministic post-processing renders it as `## Implementation Decisions` in the draft PR before review starts. Fix passes update the inventory when decisions change.\n\n3. Reviewers independently validate the list against the current diff, add omitted decisions, and classify each as:\n\n   - `SOUND`\n   - `PRAGMATIC_COMPROMISE`\n   - `HACKY`\n\n   “Hacky” findings must include evidence, risk, and a more principled alternative; the label alone would not make a finding blocking.\n\n4. The [review synthesis](https://github.com/self-evolving/repo/blob/main/.github/prompts/review-synthesize.md) includes a decision-review table and converts risky hacky decisions into normal findings and action items.\n\nImplementation would touch the prompt contract, response parsing in [response.ts](https://github.com/self-evolving/repo/blob/main/.agent/src/response.ts), PR rendering, review prompts, tests, and matching documentation. Existing PRs without an inventory would remain reviewable—the reviewers would reconstruct it from the diff.\n\nTo proceed, send:\n\n`@sepo-agent /implement Add a structured implementation-decision inventory before review, keep it current across fix-pr runs, and require review synthesis to classify decisions as sound, pragmatic compromises, or hacky with evidence.`\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — answer · 9m29s · 10 steps**\n\nLast message\n> Yes. I’d make this a first-class implementation-to-review handoff. Today, the [implementation prompt](https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-implement.md) returns only summary and PR metadata. The [review pro…\n\nActivity\n\n- 📖 Read `\"sed -n '1,260p' .github/prompts/agent-implement.md sed -n '1,240p' .github/prompts/review.md sed -n '1,220p' .github/p…` (completed)\n- 📖 Read `rg -n \"normalizeImplementationResponse|summaryFromAgentResponse|ImplementationResponse\" .agent/src/response.ts .agent/s…` (completed)\n- 📖 Read `sed -n '1,260p' .agent/src/cli/create-pr.ts rg -n \"create-pr|PR_BODY|normalizeImplementationResponse|pr_body|agent-impl…` (completed)\n- 🔧 Used tool `sed -n '120,165p' .agent/docs/usage/agent-actions.md sed -n '1,130p' .agent/docs/usage/agent-actions.md sed -n '350,405…` (completed)\n- 🔍 Searched `\"sed -n '1,220p' .github/prompts/agent-fix-pr.md rg -n \\\"Parse response|RESPONSE_FILE|pr_body|post-comment|fix\\\" .githu…` (completed)\n- 💬 Message \"Yes. I’d make this a first-class implementation-to-review handoff. Today, the [implementation prompt](https://github.com/self-evolving/repo/blob/main/.github/prompts/agent-implement.md) returns only summary and PR metadata. The [review pro…\"\n</details>\n\n<!-- sepo-progress:run-31434373217 -->\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-2`",
+      "createdAt": "2026-08-10T21:35:10Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/494#issuecomment-5246308054",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-08-10T21:33:09Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 494,
+  "state": "OPEN",
+  "title": "Change the way of working with sepo",
+  "updatedAt": "2026-08-10T21:44:48Z",
+  "url": "https://github.com/self-evolving/repo/issues/494"
+}

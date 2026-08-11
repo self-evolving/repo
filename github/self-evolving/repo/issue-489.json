@@ -125,6 +125,43 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/issues/489#issuecomment-5164575653",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOL8Z1A",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer \n\nbut i think we can do this even more aggressively? let's say we can even create an agent/traces branch? \n\n1. for local backups -> it will be uploaded there directly\n2. for sepo live backups -> we can also regularly migrate traces to the agent/traces branch before it expires in the github actions cache? \n",
+      "createdAt": "2026-08-10T23:04:59Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/issues/489#issuecomment-5247015380",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOL929w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Yes—`agent/traces` is a coherent third durable surface. I’d make it more aggressive, with one hard boundary: store sanitized evidence there by default, not plaintext restorable provider state.\n\n| Surface | Content | Purpose |\n|---|---|---|\n| `agent/traces` | Immutable sanitized transcripts and provenance manifests | Durable inspection ledger |\n| Actions artifacts | Raw ACPX/Codex/Claude session bundles | Temporary resume/restore |\n| `agent/memory` | Distilled project context | Future agent continuity |\n| `agent/rubrics` | Trusted explicit preferences | Steering and evaluation |\n\nTwo important corrections:\n\n- Live session bundles currently use `actions/upload-artifact`, not the Actions cache ([workflow](https://github.com/self-evolving/repo/blob/main/.github/actions/run-agent-task/action.yml#L630-L675)). The cache is only for runtime dependencies and compiled code ([setup](https://github.com/self-evolving/repo/blob/main/.github/actions/setup-agent-runtime/action.yml#L125-L179)).\n- Don’t wait until artifacts approach expiration. Archive the sanitized trace immediately after every successful run; use a scheduled sweep only to repair missed archives. GitHub’s artifact API exposes `expires_at`, so a daily repair workflow can detect approaching expiration ([GitHub API](https://docs.github.com/en/rest/actions/artifacts)).\n\nRecommended design:\n\n1. Bootstrap an orphan `agent/traces` branch with immutable, content-addressed paths such as `traces/2026/08/<sha256>.jsonl` and matching manifests containing origin, actor, thread key, run/comment URL, provider, timestamp, size, and digest.\n2. Extend the local export CLI from draft PR #493 with `--push --repo`, allowing authorized users to upload sanitized traces directly. Duplicate digests become no-ops.\n3. After each Sepo run, produce the same canonical sanitized trace and dual-write it immediately to `agent/traces`; keep uploading the raw continuity bundle as an artifact.\n4. Add a daily repair workflow that enumerates unexpired `session-bundle-*` artifacts, checks whether their digest is already archived, and imports missing sanitized traces.\n5. Add a cursor-based curator that reads only new trace manifests and proposes memory/rubric updates. Direct trace uploads never write memory or rubrics by themselves.\n6. Add `AGENT_TRACE_POLICY` controls for disabled/sanitized/required behavior, size budgets, trusted uploaders, and retention.\n7. Record trace digest/archive status in thread state so restore and inspection workflows can resolve either backend deterministically.\n\nI would not commit raw session bundles to Git in plaintext: public-repository branches are public, secrets are difficult to erase from Git history, and an append-only trace archive will eventually enlarge the repository. GitHub recommends keeping repositories ideally below 1 GB and blocks regular Git files above 100 MiB ([GitHub guidance](https://docs.github.com/en/repositories/working-with-files/managing-large-files/about-large-files-on-github)). If durable raw restoration is required, make it a separate opt-in encrypted backend—or eventually use object storage.\n\nThe sanitized export foundation already exists in draft PR #493, but its latest review found unresolved message-attribution trust defects. Those should be fixed before building archival and rubric learning on it ([review](https://github.com/self-evolving/repo/pull/493#issuecomment-5164504953)).\n\nTo pursue this design, send:\n\n`@sepo-agent /orchestrate Implement #489 as a two-tier trace system: finish PR #493, add content-addressed agent/traces storage for local and live sanitized traces, immediate dual-write plus an artifact-expiry repair sweep, then cursor-based memory/rubrics curation; keep raw resumable bundles in Actions artifacts.`\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — answer · 3m48s · 18 steps**\n\nLast message\n> Yes—`agent/traces` is a coherent third durable surface. I’d make it more aggressive, with one hard boundary: store sanitized evidence there by default, not plaintext restorable provider state. | Surface | Content | Purpose | |---|---|---|…\n\nActivity\n\n- 📖 Read `Read file '/Users/shannon/projects/2604_sepo/repo/.agent/tools/local-runner/runner-5/_work/repo/repo/.agent/src/session…` (completed)\n- 🔧 Used tool `\"nl -ba .agent/docs/technical-details/session-continuity.md | sed -n '1,125p'; nl -ba .agent/docs/architecture/memory.m…` (completed)\n- 📖 Read `Read file '/Users/shannon/projects/2604_sepo/repo/.agent/tools/local-runner/runner-5/_work/repo/repo/.github/actions/do…` (completed)\n- ✏️ Edited `gh api 'repos/self-evolving/repo/actions/artifacts?per_page=3' --jq '.artifacts[] | {id,name,size_in_bytes,expired,crea…` (completed)\n- 🔍 Searched `Web search` (completed)\n- 💬 Message \"Yes—`agent/traces` is a coherent third durable surface. I’d make it more aggressive, with one hard boundary: store sanitized evidence there by default, not plaintext restorable provider state. | Surface | Content | Purpose | |---|---|---|…\"\n</details>\n\n<!-- sepo-progress:run-31440936592 -->\n\n---\n`codex` | `gpt-5.6-sol` | `max` | `Macmini-runner-5`",
+      "createdAt": "2026-08-10T23:08:06Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/489#issuecomment-5247039223",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-08-02T22:19:29Z",
@@ -139,6 +176,6 @@
   "number": 489,
   "state": "OPEN",
   "title": "Rubrics/Memory inspection based on local traces",
-  "updatedAt": "2026-08-03T09:24:53Z",
+  "updatedAt": "2026-08-10T23:12:02Z",
   "url": "https://github.com/self-evolving/repo/issues/489"
 }

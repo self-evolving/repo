@@ -1,0 +1,752 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n\n- publish or update a finalized orchestration note at terminal states\n- reuse live progress comments and mention human requesters\n- collapse trusted review artifacts after successful PR outcomes\n- document and test the finalized-comment lifecycle\n\n## Verification\n\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/orchestrate-handoff-cli.test.js`\n- `npm --prefix .agent run check:workflow`\n- `node --test .agent/dist/__tests__/docs-validation.test.js`\n- `git diff --check`\n\nCloses #452\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOLhfrQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #495 | 3 / 40 | Dispatched |\n\nReason: agent planner selected review: Implementation succeeded and produced open draft PR #495; the substantial workflow and terminal-comment changes warrant automated review.\n\n<!-- sepo-agent-handoff state:dispatched created:1786399596194 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MzE0MzQ5MjY2NjA6aW1wbGVtZW50OjQ1MjpyZXZpZXc6NDk1OjM -->",
+      "createdAt": "2026-08-10T22:06:36Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/495#issuecomment-5246574509",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOLnk0A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 90 | FAIL | 14 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Requester association and access policy remain in [preflight](https://github.com/self-evolving/repo/blob/dd129eb3d245c859aaf49facae5d3bc11dcea280/.github/workflows/agent-orchestrator.yml#L111-L125), with focused delegated/self-approval/self-merge authorization tests. |\n| coding_workflow / generic | Separate decision gates from action authorization | fail | 0/8 | The entire job gains [`pull-requests: write`](https://github.com/self-evolving/repo/blob/dd129eb3d245c859aaf49facae5d3bc11dcea280/.github/workflows/agent-orchestrator.yml#L79-L83), and its resolved token is passed to the [approve-all planner](https://github.com/self-evolving/repo/blob/dd129eb3d245c859aaf49facae5d3bc11dcea280/.github/workflows/agent-orchestrator.yml#L154-L180) before deterministic validation/mutation. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Reuses `tryMergeProgressFinalComment`, `upsertPrCommentByMarker`, `appendRunDisplayFooter`, and existing trusted minimizers in the [typed CLI](https://github.com/self-evolving/repo/blob/dd129eb3d245c859aaf49facae5d3bc11dcea280/.agent/src/cli/orchestrate-handoff.ts#L10-L44). |\n| coding_workflow / generic | Generate context-derived artifact metadata | pass | 7/7 | The planner’s existing `user_message` contract now requests a cumulative terminal summary from target history, which the [final formatter](https://github.com/self-evolving/repo/blob/dd129eb3d245c859aaf49facae5d3bc11dcea280/.agent/src/cli/orchestrate-handoff.ts#L1180-L1218) combines with structured run metadata. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Agent handle, progress-comment ID, merge mode, model display, and planner response remain separate fields in the [workflow-to-CLI handoff](https://github.com/self-evolving/repo/blob/dd129eb3d245c859aaf49facae5d3bc11dcea280/.github/workflows/agent-orchestrator.yml#L204-L235). |\n| coding_workflow / generic | Make user-facing automation idempotent | partial | 5/7 | Current progress comments and new final markers are reused, but lookup recognizes only the new marker and cannot migrate an existing legacy `sepo-agent-orchestrate-stop` note. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Progress-merge failure warns and falls back to marker upsert; each cleanup failure is logged independently. Regression coverage includes merge failure and cleanup-disable paths. |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Ordinary terminal PR stops now call the finalized-note path instead of remaining silent, including closed PRs and successful review terminals. |\n| communication / generic | Keep status comments compact | pass | 6/6 | Final notes use a short heading, optional requester/summary, stable metadata bullets, and collapsed prior progress activity rather than raw logs. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Architecture and workflow docs cover final-note lifecycle, requester mentions, marker upsert, cleanup conditions, and expanded permissions. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Seven directly related files are changed: runtime CLI, focused tests, workflow/prompt wiring, and two matching docs pages. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The implementation stays within the existing handoff CLI and shared helpers, without a new subsystem, dependency, or public configuration surface. |\n| coding_workflow / generic | Leave release notes to release preparation | pass | 8/8 | The normal implementation PR does not modify `.agent/CHANGELOG.md` or other release notes. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The implementation closely follows the accepted plan and follow-up in [issue #452](https://github.com/self-evolving/repo/issues/452), including success-only cleanup. |\n\n## Notes\n\n- Exact head [`dd129eb3`](https://github.com/self-evolving/repo/commit/dd129eb3d245c859aaf49facae5d3bc11dcea280) independently passed build, 70 handoff tests, 92 workflow checks, 5 documentation tests, and `git diff --check`; the hosted check is also passing.\n- The functionality, reuse, documentation, and regression coverage are strong. The verdict is driven by the write-capability boundary, not test failures.\n- Smallest useful follow-up: keep the planner on a read-scoped credential/job, perform final comment and minimization mutations in a separately permissioned deterministic step, and migrate trusted legacy stop markers during upsert.\n\n## Findings\n\n- **BLOCKING:** The PR elevates `agent-orchestrator.yml` to job-wide `pull-requests: write`, then passes the same resolved token into an approve-all agent planner. `run-agent-task` exposes that credential as [`INPUT_GITHUB_TOKEN`](https://github.com/self-evolving/repo/blob/dd129eb3d245c859aaf49facae5d3bc11dcea280/.github/actions/run-agent-task/action.yml#L442-L453), so the decision gate is no longer prevented at the credential boundary from performing PR writes before deterministic policy validation. This violates `separate-decision-gates-from-action-authorization`.\n- **WARNING:** The prior [`sepo-agent-orchestrate-stop`](https://github.com/self-evolving/repo/blob/5f9b54a6a62e87be1e6eeaa5a64cfde402ab455f/.agent/src/cli/orchestrate-handoff.ts#L88) marker is replaced, while the new lookup accepts only [`sepo-agent-orchestrate-final`](https://github.com/self-evolving/repo/blob/dd129eb3d245c859aaf49facae5d3bc11dcea280/.agent/src/cli/orchestrate-handoff.ts#L1221-L1231). An upgraded rerun can therefore leave the legacy note visible and create a second finalized note.\n\n## Final Rubric Verdict\n\nFAIL\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-2`",
+      "createdAt": "2026-08-10T22:18:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/495#issuecomment-5246674128",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOLtFDg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: dd129eb3d245c859aaf49facae5d3bc11dcea280 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #495 implements issue #452 by publishing one finalized orchestration note at terminal states. It tags human requesters, reuses live progress comments, and updates existing marker-based notes instead of posting duplicates. Successful PR outcomes also collapse older trusted review, rubrics, fix, and handoff artifacts. The intended result is a concise terminal summary that preserves actionable context whenever orchestration blocks or fails.\n\n## Review\n\nThe happy path is well-scoped and thoroughly tested, but the current implementation can hide required context and gives the planner broader authorization than its decision role requires. Reviewers disagreed about the cleanup and permission designs; inspection of the current head and issue #452 confirms the blocking cases below.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Blocked planner outcomes trigger success cleanup | BLOCKING | The cleanup guard uses only the source `review`/`SHIP` tuple, so a subsequent planner `blocked` decision still minimizes actionable artifacts. This directly violates issue #452’s blocked/clarification requirement. |\n| Planner receives a PR-write credential | BLOCKING | The workflow grants job-wide `pull-requests: write` and passes the resolved token into the approve-all planner before deterministic validation, allowing the decision gate to perform PR mutations directly. |\n| Finalized note can minimize itself | WARNING | Cleanup runs after publication, and broad legacy matchers can select the new final note when its free-form summary contains a recognized heading such as `## Rubrics Review`. |\n| Legacy stop marker can duplicate final notes | WARNING | Lookup recognizes only `sepo-agent-orchestrate-final`, so an upgraded rerun can leave a trusted `sepo-agent-orchestrate-stop` note visible and create another finalized note. |\n| Progress comment IDs obscure provenance | INFO | A module-level environment-derived `progressCommentId` shadows a fetched-comment-derived local variable with different trust semantics, creating a future maintenance footgun. |\n\n## Progress\n\n- Exact head `dd129eb3` passes the TypeScript build, 70 handoff tests, 92 workflow checks, five documentation checks, and `git diff --check`.\n- Human-requester filtering, marker upsert, progress-note reuse, merge-failure fallback, trusted-only cleanup, documentation, and release-note discipline are implemented correctly.\n- The existing rubrics-review comment already covers the credential boundary and legacy-marker migration, so those were not duplicated inline.\n- Two inline comments were posted for the newly confirmed cleanup bugs: [blocked-state cleanup](https://github.com/self-evolving/repo/pull/495#discussion_r3753886864) and [final-note self-minimization](https://github.com/self-evolving/repo/pull/495#discussion_r3753886855).\n- No prior inline comments or review threads required replies, minimization, or resolution.\n\n## Issue Details\n\n<details>\n<summary>Blocked planner outcomes trigger success cleanup</summary>\n\n**Cause:** [`collapseSuccessfulPrArtifacts`](https://github.com/self-evolving/repo/blob/dd129eb3d245c859aaf49facae5d3bc11dcea280/.agent/src/cli/orchestrate-handoff.ts#L1234) derives eligibility solely from `SOURCE_ACTION` and `SOURCE_CONCLUSION`; it never considers `decision.plannerDecisionKind === \"blocked\"`.\n\n**Candidate solutions:** Pass the terminal decision into the cleanup predicate, require a genuinely successful non-blocked outcome, and add a regression for `review`/`SHIP` followed by planner `blocked`.\n\n**Comments:** One reviewer considered the success gate correct, but that assessment did not account for the later planner decision. Issue #452 explicitly requires blocked and clarification paths to retain their artifacts.\n\n</details>\n\n<details>\n<summary>Planner receives a PR-write credential</summary>\n\n**Cause:** [`agent-orchestrator.yml`](https://github.com/self-evolving/repo/blob/dd129eb3d245c859aaf49facae5d3bc11dcea280/.github/workflows/agent-orchestrator.yml#L79) grants the whole job PR-write access and passes its resolved token to the approve-all planner before the deterministic handoff step.\n\n**Candidate solutions:** Keep the planner on a read-scoped credential/job, isolate finalized-comment and minimization writes in a deterministic write-scoped step or job, and add a workflow test protecting that boundary.\n\n**Comments:** One reviewer considered the permission necessary and consistent with review workflows. The contrary review is more persuasive because this repository already documents the read-agent/write-resolver separation for self-approval, and the planner only needs to choose an action.\n\n</details>\n\n<details>\n<summary>Finalized note can minimize itself</summary>\n\n**Cause:** The [cleanup call](https://github.com/self-evolving/repo/blob/dd129eb3d245c859aaf49facae5d3bc11dcea280/.agent/src/cli/orchestrate-handoff.ts#L1295) runs after publication, while legacy matchers scan every same-agent PR comment without excluding `ORCHESTRATE_FINAL_MARKER`.\n\n**Candidate solutions:** Explicitly exclude finalized-note IDs or marker-bearing bodies from every cleanup pass, or safely perform cleanup before publication. Cover a final `user_message` containing a legacy review signature.\n\n</details>\n\n<details>\n<summary>Legacy stop marker can duplicate final notes</summary>\n\n**Cause:** [`findTrustedOrchestrateFinalComment`](https://github.com/self-evolving/repo/blob/dd129eb3d245c859aaf49facae5d3bc11dcea280/.agent/src/cli/orchestrate-handoff.ts#L1221) searches only for the new marker.\n\n**Candidate solutions:** Recognize both trusted legacy and current markers, update the newest applicable comment in place, and rewrite migrated notes with the current marker. Add an upgraded-rerun regression.\n\n</details>\n\n<details>\n<summary>Progress comment IDs obscure provenance</summary>\n\n**Cause:** The environment-derived module constant and fetched-comment-derived local variable share the name `progressCommentId`.\n\n**Candidate solutions:** Rename the module value to `envProgressCommentId` or `dispatchedProgressCommentId`.\n\n**Comments:** This does not change current behavior and is intentionally excluded from required automation action items.\n\n</details>\n\n## Recommended Next Step\n\n`FIX_PR`: The confirmed cleanup bugs, credential boundary, and marker migration all have concrete branch changes and regression coverage suitable for an automated fix pass.\n\n## Final Verdict\n\n`NEEDS_REWORK`\n\n## Action Items\n\n- [ ] Prevent successful-source cleanup when the terminal planner decision is blocked or requests clarification, with regression coverage.\n- [ ] Keep the approve-all planner read-scoped and move PR mutations into a separately authorized deterministic path.\n- [ ] Exclude the newly finalized note from all artifact-cleanup matchers and add a self-minimization regression.\n- [ ] Recognize and migrate trusted legacy `sepo-agent-orchestrate-stop` notes instead of creating duplicates.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-1`",
+      "createdAt": "2026-08-10T22:30:46Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/495#issuecomment-5246764302",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOLuISg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #495 | 4 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: The latest review found four concrete unresolved defects requiring safe branch changes, and explicitly recommends FIX_PR.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Prevent successful-source cleanup when the terminal planner decision is blocked or requests clarification, with regression coverage.\n- Keep the approve-all planner read-scoped and move PR mutations into a separately authorized deterministic path.\n- Exclude the newly finalized note from all artifact-cleanup matchers and add a self-minimization regression.\n- Recognize and migrate trusted legacy `sepo-agent-orchestrate-stop` notes instead of creating duplicates.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1786401186023 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MzE0MzY4ODc3NTE6cmV2aWV3OjQ5NTpmaXhfcHI6NDk1OjQ -->",
+      "createdAt": "2026-08-10T22:33:06Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/495#issuecomment-5246781514",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOL0TfQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-452/codex-31434926660`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Split orchestration into a read-only planner job and separately authorized deterministic write job.\n- Preserved review artifacts for blocked/clarification outcomes and excluded finalized notes from every cleanup matcher.\n- Migrated trusted legacy stop-marker notes in place and added focused regressions.\n\n<details><summary>Verification</summary>\n\n- TypeScript build\n- 73 handoff tests\n- 10 cleanup tests\n- 93 workflow checks\n- 5 documentation checks\n- `git diff --check`\n\n</details>\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-3`",
+      "createdAt": "2026-08-10T22:46:50Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/495#issuecomment-5246882685",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOL1u-w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #495 | 5 / 40 | Dispatched |\n\nReason: agent planner selected review: The fix-pr run succeeded, updated the open PR from reviewed head dd129eb3 to b41afca2, and all reported verification passed; the fixes now need review on the current head.\n\n<!-- sepo-agent-handoff state:dispatched created:1786402204451 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MzE0Mzg3NjcxNDY6Zml4X3ByOjQ5NTpyZXZpZXc6NDk1OjU -->",
+      "createdAt": "2026-08-10T22:50:04Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/495#issuecomment-5246906107",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOL6wUw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 90 | FAIL | 14 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Requester association and access policy remain in [preflight](https://github.com/self-evolving/repo/blob/b41afca252e85b25292b4d6ab85f1730db3ad065/.github/workflows/agent-orchestrator.yml#L108-L122) and are passed again to deterministic runtime validation. |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | The [planner job is read-only](https://github.com/self-evolving/repo/blob/b41afca252e85b25292b4d6ab85f1730db3ad065/.github/workflows/agent-orchestrator.yml#L86-L103), while the [separate deterministic job](https://github.com/self-evolving/repo/blob/b41afca252e85b25292b4d6ab85f1730db3ad065/.github/workflows/agent-orchestrator.yml#L210-L234) owns write credentials and dispatch. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The implementation reuses existing marker upsert, progress-final merge, footer, and cleanup helpers in the [handoff CLI](https://github.com/self-evolving/repo/blob/b41afca252e85b25292b4d6ab85f1730db3ad065/.agent/src/cli/orchestrate-handoff.ts#L13-L44). |\n| coding_workflow / generic | Generate context-derived artifact metadata | pass | 7/7 | The planner contract requests a cumulative terminal summary from current context, and the formatter combines it with structured source, target, round, reason, and requester metadata. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Planner response, requester, progress ID, source metadata, model display, and authorization inputs remain [separate workflow fields](https://github.com/self-evolving/repo/blob/b41afca252e85b25292b4d6ab85f1730db3ad065/.github/workflows/agent-orchestrator.yml#L261-L293). |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Trusted current and legacy markers are updated in place, current progress notes supersede older finals, and focused tests cover [marker migration and reuse](https://github.com/self-evolving/repo/blob/b41afca252e85b25292b4d6ab85f1730db3ad065/.agent/src/__tests__/orchestrate-handoff-cli.test.ts#L1576-L1683). |\n| coding_workflow / generic | Surface stateful failures | fail | 0/7 | When orchestration progress is enabled, the reporter receives the planner’s read-only token and cannot create its comment; the error is redirected to an unreported log, leaving an empty progress-comment ID and silently taking the fallback path. |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Terminal PR stops now publish a finalized note, including closed PR and successful terminal cases, with focused regression coverage. |\n| communication / generic | Keep status comments compact | pass | 6/6 | Final notes use a short outcome sentence, optional requester/summary, stable metadata bullets, and collapsed activity. |\n| coding_workflow / generic | Keep docs in sync | partial | 4/7 | The lifecycle, cleanup, migration, and permission split are documented, but the docs claim an enabled planner progress note becomes the final note even though the planner token cannot create or update that note. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The nine changed files are limited to orchestration runtime, focused tests, workflow/prompt wiring, and matching documentation. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The feature stays inside existing handoff and cleanup modules without adding a new subsystem or public setting. |\n| coding_workflow / generic | Leave release notes to release preparation | pass | 8/8 | The PR does not modify `.agent/CHANGELOG.md` or other release notes. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The implementation follows the accepted [issue #452 plan](https://github.com/self-evolving/repo/issues/452#issuecomment-4884869261), including success-only cleanup and preserving actionable blocked states. |\n\n## Notes\n\n- Exact head [`b41afca2`](https://github.com/self-evolving/repo/commit/b41afca252e85b25292b4d6ab85f1730db3ad065) passed the build, 73 handoff tests, 10 cleanup tests, 93 workflow checks, five documentation tests, `git diff --check`, and the [hosted check](https://github.com/self-evolving/repo/actions/runs/31439715588/job/93621643337).\n- The current head fixes the earlier authorization, blocked-cleanup, self-minimization, and legacy-marker findings.\n- Smallest useful follow-up: preserve the planner’s read-only credential boundary while moving configured progress publication to a separately authorized trusted component; surface publication failures and add a workflow regression for `orchestration_mode: \"report-only\"`.\n\n## Findings\n\n- **BLOCKING:** The configured planner-progress path cannot work. The planner grants only `issues: read` and `pull-requests: read`, then passes that token to `run-agent-task`. The [progress reporter uses the same token](https://github.com/self-evolving/repo/blob/b41afca252e85b25292b4d6ab85f1730db3ad065/.github/actions/run-agent-task/action.yml#L409-L440) to create an issue/PR comment, an operation requiring Issues or Pull Requests write permission according to [GitHub’s API contract](https://docs.github.com/en/rest/issues/comments#create-an-issue-comment). The reporter [catches the authorization failure](https://github.com/self-evolving/repo/blob/b41afca252e85b25292b4d6ab85f1730db3ad065/.agent/src/cli/progress-report.ts#L139-L152), but its output is redirected to a log the stop step never prints. Consequently no progress ID reaches finalization, and the advertised progress-note reuse silently degrades to a separate marker-upserted note. This violates `surface-stateful-failures` and leaves the progress-related documentation out of sync.\n\n## Final Rubric Verdict\n\nFAIL\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-4`",
+      "createdAt": "2026-08-10T23:01:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/495#issuecomment-5246988371",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOMDCjA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: b41afca252e85b25292b4d6ab85f1730db3ad065 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\n[PR #495](https://github.com/self-evolving/repo/pull/495) implements [issue #452](https://github.com/self-evolving/repo/issues/452) by publishing or updating one finalized orchestration note at terminal states. It includes the cumulative planner summary, mentions human requesters, migrates legacy markers, and attempts to reuse live progress comments. Successful PR outcomes also collapse older trusted review, rubrics, fix, and handoff artifacts while preserving blocked or clarification context. The current head separates the read-only planner from a deterministic write-capable resolver.\n\n## Review\n\nThe four earlier authorization, blocked-cleanup, self-minimization, and legacy-marker findings are fixed, but two blocking lifecycle defects and one broken documented progress path remain. Reviewers disagreed about `always()` and progress severity; current GitHub semantics confirm the cancellation defect, while the working marker fallback justifies classifying progress as WARNING rather than another blocker.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Cancellation can enter the write-capable resolver | BLOCKING | The resolver uses `always()`, so cancellation after the job starts does not stop it; it can retain write credentials and continue commenting, minimizing, or dispatching. |\n| Planner failures are treated as successful | BLOCKING | Missing or malformed planner output produces an invalid-planner stop, but `review`/`SHIP` is still rendered as successful and triggers cleanup of prior actionable artifacts. |\n| Configured planner progress cannot publish | WARNING | The reporter receives the planner’s read-only token, cannot create its advertised progress comment, and hides the failure before falling back to a separate final note. |\n\n## Progress\n\n- Head `b41afca2` fixes the four earlier findings: planner authorization isolation, blocked-state retention, final-note cleanup exclusion, and legacy-marker migration.\n- Reviewer verification and the hosted `Test Scripts` check are green, including the build, 73 handoff tests, cleanup/minimizer suites, 93 workflow checks, five documentation checks, and `git diff --check`.\n- Posted inline feedback for [planner-failure classification](https://github.com/self-evolving/repo/pull/495#discussion_r3754136406) and [cancellation handling](https://github.com/self-evolving/repo/pull/495#discussion_r3754136408). The existing [rubrics review](https://github.com/self-evolving/repo/pull/495#issuecomment-5246988371) already covers the progress-path defect, so it was not duplicated inline.\n- Resolved the fixed same-agent [self-minimization](https://github.com/self-evolving/repo/pull/495#discussion_r3753886855) and [blocked-cleanup](https://github.com/self-evolving/repo/pull/495#discussion_r3753886864) threads. No comments were replied to or minimized.\n- Optional naming and additional self-approval/self-merge coverage notes remain INFO-only and are excluded from required work.\n\n## Issue Details\n\n<details>\n<summary>Cancellation can enter the write-capable resolver</summary>\n\n**Cause:** [`decide-and-dispatch`](https://github.com/self-evolving/repo/blob/b41afca252e85b25292b4d6ab85f1730db3ad065/.github/workflows/agent-orchestrator.yml#L210-L219) combines `always()` with actions, issues, and pull-request write permissions. GitHub documents that a running job whose condition remains true under `always()` is not canceled during workflow cancellation ([workflow cancellation reference](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-cancellation)).\n\n**Candidate solutions:** Use a cancellation-aware condition such as `${{ !cancelled() && vars.AGENT_ENABLED != 'false' }}`, preserving fallback after ordinary planner failure or skipping, and add a workflow assertion.\n\n**Comments:** One reviewer considered `always()` intentional for planner failure handling, but that does not justify continuing write-capable automation after explicit cancellation.\n\n</details>\n\n<details>\n<summary>Planner failures are treated as successful</summary>\n\n**Cause:** [`readPlannerDecision()`](https://github.com/self-evolving/repo/blob/b41afca252e85b25292b4d6ab85f1730db3ad065/.agent/src/cli/orchestrate-handoff.ts#L900-L907) returns `null` for missing or malformed output, while [`isSuccessfulPrTerminalState()`](https://github.com/self-evolving/repo/blob/b41afca252e85b25292b4d6ab85f1730db3ad065/.agent/src/cli/orchestrate-handoff.ts#L1104-L1112) considers only the source action/conclusion. Consequently the invalid-planner stop receives success wording and passes [artifact cleanup](https://github.com/self-evolving/repo/blob/b41afca252e85b25292b4d6ab85f1730db3ad065/.agent/src/cli/orchestrate-handoff.ts#L1235-L1243).\n\n**Candidate solutions:** Derive success from both the source tuple and a validated terminal decision; in agent mode, missing or invalid planner output must retain prior artifacts and use failure-oriented wording. Add missing and malformed response regressions.\n\n</details>\n\n<details>\n<summary>Configured planner progress cannot publish</summary>\n\n**Cause:** The planner is correctly read-only, but its [progress reporter](https://github.com/self-evolving/repo/blob/b41afca252e85b25292b4d6ab85f1730db3ad065/.github/actions/run-agent-task/action.yml#L409-L440) uses that same token to create comments, which requires Issues or Pull Requests write permission ([GitHub API permissions](https://docs.github.com/en/rest/issues/comments#create-an-issue-comment)). The reporter [swallows the failure](https://github.com/self-evolving/repo/blob/b41afca252e85b25292b4d6ab85f1730db3ad065/.agent/src/cli/progress-report.ts#L139-L152), contradicting the [documented reuse behavior](https://github.com/self-evolving/repo/blob/b41afca252e85b25292b4d6ab85f1730db3ad065/.agent/docs/usage/supported-workflows.md#L79-L82).\n\n**Candidate solutions:** Move progress publication to a separately authorized trusted component, surface creation/update failures, and add an integration-level `orchestration_mode: \"report-only\"` regression while keeping the planner credential read-only.\n\n**Comments:** Two reviewers classified this as blocking; one classified it as warning because marker upsert still delivers the core finalized note. The latter severity is adopted, but the documented configuration remains broken and requires correction.\n\n</details>\n\n## Recommended Next Step\n\n`FIX_PR`: The two blocking defects and broken progress path require concrete, focused branch changes with regression coverage and are suitable for an automated fix pass.\n\n## Final Verdict\n\n`NEEDS_REWORK`\n\n## Action Items\n\n- [ ] Make `decide-and-dispatch` cancellation-aware while preserving non-cancellation planner-failure fallback, with a workflow regression.\n- [ ] Require a validated successful terminal planner outcome before success wording or artifact cleanup, covering missing and malformed responses.\n- [ ] Move configured orchestration-progress publication to a trusted write path, surface failures, and align report-only tests and documentation.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-4`",
+      "createdAt": "2026-08-10T23:19:58Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/495#issuecomment-5247124108",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOMD8VA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #495 | 6 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: The latest review found concrete unresolved branch changes, concluded needs_rework, and explicitly recommended FIX_PR; the round budget permits another action.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Make `decide-and-dispatch` cancellation-aware while preserving non-cancellation planner-failure fallback, with a workflow regression.\n- Require a validated successful terminal planner outcome before success wording or artifact cleanup, covering missing and malformed responses.\n- Move configured orchestration-progress publication to a trusted write path, surface failures, and align report-only tests and documentation.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1786404127152 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MzE0Mzk5Mjk0NzA6cmV2aWV3OjQ5NTpmaXhfcHI6NDk1OjY -->",
+      "createdAt": "2026-08-10T23:22:07Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/495#issuecomment-5247138900",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOMOClw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-452/codex-31434926660`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Made write-scoped orchestration jobs cancellation-aware while preserving planner-failure fallback.\n- Gated success wording and artifact cleanup on a validated terminal planner `stop`; added missing/malformed-response regressions.\n- Moved report-only progress to a model-free write path, finalized uploaded planner activity, surfaced failures, and aligned documentation.\n- Passed build, focused runtime suites, 93 workflow checks, 5 documentation checks, and `git diff --check`.\n\n---\n`codex` | `gpt-5.6-sol` | `max` | `Macmini-runner-3`",
+      "createdAt": "2026-08-10T23:43:02Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/495#issuecomment-5247304343",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOMO5Sw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #495 | 7 / 40 | Dispatched |\n\nReason: agent planner selected review: The fix-pr action succeeded, so a fresh review is warranted to verify the fixes and determine whether any concrete issues remain.\n\n<!-- sepo-agent-handoff state:dispatched created:1786405473115 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MzE0NDIwNjcwNzA6Zml4X3ByOjQ5NTpyZXZpZXc6NDk1Ojc -->",
+      "createdAt": "2026-08-10T23:44:33Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/495#issuecomment-5247318347",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOMTY_A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 94 | PARTIAL | 15 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Delegated capability checks remain in [preflight](https://github.com/self-evolving/repo/blob/850d2d84f28f199cf192881a9c46d76f7692f958/.github/workflows/agent-orchestrator.yml#L107-L121) and are repeated by the deterministic resolver, with focused [route-access tests](https://github.com/self-evolving/repo/blob/850d2d84f28f199cf192881a9c46d76f7692f958/.agent/src/__tests__/orchestrate-handoff-cli.test.ts#L1268-L1365). |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | The [planner job is read-only](https://github.com/self-evolving/repo/blob/850d2d84f28f199cf192881a9c46d76f7692f958/.github/workflows/agent-orchestrator.yml#L86-L102); model-free progress and deterministic resolution own their separate write scopes. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Reuses existing progress policy/rendering, GitHub comment, final-merge, marker, footer, and cleanup helpers rather than embedding the behavior in workflow shell. |\n| coding_workflow / generic | Generate context-derived artifact metadata | pass | 7/7 | [Final-note formatting](https://github.com/self-evolving/repo/blob/850d2d84f28f199cf192881a9c46d76f7692f958/.agent/src/cli/orchestrate-handoff.ts#L1100-L1247) combines planner summaries with requester, source, target, round, reason, and run metadata. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Planner response, progress ID, stream file, requester, authorization context, source state, and model display remain [separate resolver fields](https://github.com/self-evolving/repo/blob/850d2d84f28f199cf192881a9c46d76f7692f958/.github/workflows/agent-orchestrator.yml#L316-L348). |\n| coding_workflow / generic | Make user-facing automation idempotent | partial | 4/7 | Final and legacy markers are reused, but the new [progress publisher always creates a comment](https://github.com/self-evolving/repo/blob/850d2d84f28f199cf192881a9c46d76f7692f958/.agent/src/cli/publish-orchestration-progress.ts#L44-L54) without first reusing a trusted comment carrying the same run marker. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Publication fails visibly, finalization warns, and marker-upsert fallback remains available; focused tests cover [publication](https://github.com/self-evolving/repo/blob/850d2d84f28f199cf192881a9c46d76f7692f958/.agent/src/__tests__/publish-orchestration-progress-cli.test.ts#L93-L102) and finalization failures. |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Ordinary terminal PR stops now call the [finalized-note path](https://github.com/self-evolving/repo/blob/850d2d84f28f199cf192881a9c46d76f7692f958/.agent/src/cli/orchestrate-handoff.ts#L1420-L1428). |\n| communication / generic | Keep status comments compact | pass | 6/6 | Final notes use a short outcome, optional requester/summary, compact metadata bullets, and one next-step sentence. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Architecture, lifecycle, configuration, and supported-workflow documentation describe the permission split, finalization, cleanup, and progress behavior. |\n| communication / generic | Keep temporary migration notes out of durable docs | partial | 3/6 | One-time legacy-marker migration is documented in both [architecture](https://github.com/self-evolving/repo/blob/850d2d84f28f199cf192881a9c46d76f7692f958/.agent/docs/architecture/agent-orchestrator.md#L157-L159) and [durable usage docs](https://github.com/self-evolving/repo/blob/850d2d84f28f199cf192881a9c46d76f7692f958/.agent/docs/usage/supported-workflows.md#L86-L87). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The [14 changed files](https://github.com/self-evolving/repo/pull/495/files) are confined to orchestration runtime, focused tests, workflow/prompt wiring, and matching documentation. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The safe permission split uses one narrow model-free publisher and the existing deterministic handoff CLI, without a new subsystem or dependency. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The implementation follows the accepted [issue #452 plan](https://github.com/self-evolving/repo/issues/452#issuecomment-4884869261), including success-only cleanup and retaining blocked context. |\n| coding_workflow / generic | Leave release notes to release preparation | pass | 8/8 | The PR does not modify `.agent/CHANGELOG.md` or other release notes. |\n\n## Notes\n\n- Exact head [`850d2d84`](https://github.com/self-evolving/repo/commit/850d2d84f28f199cf192881a9c46d76f7692f958) passes the hosted [build, runtime, workflow, documentation, shell, and diff checks](https://github.com/self-evolving/repo/actions/runs/31443401576/job/93632563431).\n- Authorization isolation, terminal-state validation, failure visibility, documentation, and regression coverage are strong. The deductions are limited to rerun idempotency and temporary migration wording.\n- Smallest useful follow-up: reuse a trusted same-run progress marker before creating a comment, and keep the legacy-marker migration note in short-lived PR/release guidance rather than durable usage docs.\n\n## Findings\n\n- **WARNING:** `publish-orchestration-progress.ts` renders a stable `sepo-progress:run-<id>` marker but unconditionally calls `createIssueComment`. A rerun has no lookup/update path, so progress/final notes can accumulate despite the stable marker. This partially violates `idempotent-user-facing-automation`.\n- **WARNING:** The legacy `sepo-agent-orchestrate-stop` migration is a one-time compatibility detail duplicated in permanent architecture and usage documentation. This partially violates `keep-temporary-migration-notes-out-of-durable-docs`.\n\n## Final Rubric Verdict\n\nPARTIAL\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-5`",
+      "createdAt": "2026-08-10T23:56:06Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/495#issuecomment-5247391996",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOMd4dg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 850d2d84f28f199cf192881a9c46d76f7692f958 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #495 implements #452 by publishing or updating one finalized orchestration note at terminal states. It reuses report-only progress comments, includes planner context, mentions human requesters, and migrates legacy markers. Successful PR outcomes collapse older trusted agent artifacts while blocked and failed outcomes retain actionable context. The PR also separates read-only planning from write-scoped progress and dispatch jobs, with accompanying tests and documentation.\n\n## Review\n\nThe design is strong and exact-head CI is green, but two workflow-boundary regressions still require rework. Reviewers disagreed—one considered the PR ship-ready—yet direct inspection of head `850d2d84` confirms the two blockers and four non-blocking warnings below.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Durable planner session state cannot be written | BLOCKING | The read-only planner token is also used for `refs/agent-state/*` pushes and session-bundle registration, so newly produced planner state is not persisted for later runners. |\n| Artifact-transfer failures skip terminal resolution | BLOCKING | Failure while downloading or locating the planner response skips the resolver through its implicit `success()` gate, leaving no safe-stop note and potentially a stale working comment. |\n| Non-open PRs discard the planner summary | WARNING | The PR-state shortcut returns before reading the planner decision, so a close-during-planning race can replace cumulative context with a generic stop. |\n| Finalized progress renders a false `0s` duration | WARNING | The cross-job finalizer omits elapsed time, and the shared renderer defaults the missing value to zero. |\n| Progress publication is not idempotent on reruns | WARNING | The publisher emits a stable run marker but always creates a new comment, allowing rerun attempts to leave duplicate progress notes. |\n| Legacy-marker migration is documented as permanent behavior | WARNING | One-time compatibility guidance appears in durable architecture and usage documentation instead of short-lived upgrade guidance. |\n\n## Progress\n\n- Head `850d2d84` is open and unchanged; the hosted Test Scripts check and local `git diff --check` pass.\n- Prior fixes for blocked-state retention, final-note cleanup exclusion, legacy-marker migration, cancellation handling, and invalid-planner classification remain present.\n- Resolved the fixed same-agent [invalid-planner](https://github.com/self-evolving/repo/pull/495#discussion_r3754136406) and [cancellation](https://github.com/self-evolving/repo/pull/495#discussion_r3754136408) threads.\n- Posted inline findings for [session persistence](https://github.com/self-evolving/repo/pull/495#discussion_r3754403725), [artifact failure recovery](https://github.com/self-evolving/repo/pull/495#discussion_r3754403735), [non-open PR summaries](https://github.com/self-evolving/repo/pull/495#discussion_r3754403723), and [elapsed metadata](https://github.com/self-evolving/repo/pull/495#discussion_r3754403724).\n- The current [rubrics review](https://github.com/self-evolving/repo/pull/495#issuecomment-5247391996) already covers rerun idempotency and migration-doc placement, so those were not duplicated inline.\n- Cosmetic double-finalization, manual-cancellation stale notes, and optional runner overhead remain INFO-only follow-ups and are excluded from required automation work.\n\n## Issue Details\n\n<details>\n<summary>Durable planner session state cannot be written</summary>\n\n**Cause:** The planner passes its [`contents: read` token](https://github.com/self-evolving/repo/blob/850d2d84f28f199cf192881a9c46d76f7692f958/.github/workflows/agent-orchestrator.yml#L150-L190) into `run-agent-task`. That token is subsequently used for [thread-state pushes](https://github.com/self-evolving/repo/blob/850d2d84f28f199cf192881a9c46d76f7692f958/.agent/src/run.ts#L516-L575), completion writes, and session-bundle registration; `resume-best-effort` warns and continues after those writes fail.\n\n**Candidate solutions:** Move thread and bundle persistence into separately write-scoped deterministic steps, or introduce a narrow state credential that is never exposed to the model. Add a cross-round persistence regression under the actual job permissions.\n\n**Comments:** The ship-ready review assumed every write had moved out of the planner job, but deterministic session-state writes remain inside that path.\n\n</details>\n\n<details>\n<summary>Artifact-transfer failures skip terminal resolution</summary>\n\n**Cause:** The [download, locate, and resolver steps](https://github.com/self-evolving/repo/blob/850d2d84f28f199cf192881a9c46d76f7692f958/.github/workflows/agent-orchestrator.yml#L292-L349) retain normal step success gating. A failed download or missing `.md` makes the resolver skip instead of converting the failure into an invalid-planner terminal outcome.\n\n**Candidate solutions:** Ensure the resolver runs after non-cancellation transfer failures, while guarding only prerequisites required to invoke it. Cover download failure and missing-response artifacts.\n\n</details>\n\n<details>\n<summary>Non-open PRs discard the planner summary</summary>\n\n**Cause:** [`decidePlannerOrchestration()`](https://github.com/self-evolving/repo/blob/850d2d84f28f199cf192881a9c46d76f7692f958/.agent/src/cli/orchestrate-handoff.ts#L1477-L1503) returns a generic stop for a non-open PR before calling `readPlannerDecision()`, leaving the final formatter without `userMessage`.\n\n**Candidate solutions:** Preserve validated terminal summary fields while overriding the decision to a non-dispatching stop. Add a closed-during-planning regression.\n\n**Comments:** This is non-blocking because dispatch remains safely prohibited, but it degrades the PR’s primary finalized-summary behavior.\n\n</details>\n\n<details>\n<summary>Finalized progress renders a false `0s` duration</summary>\n\n**Cause:** [`tryFinalizeProgressActivity()`](https://github.com/self-evolving/repo/blob/850d2d84f28f199cf192881a9c46d76f7692f958/.agent/src/progress-final-comment.ts#L77-L100) supplies no `elapsedMs`; the renderer defaults it to zero.\n\n**Candidate solutions:** Carry a start timestamp or elapsed duration across jobs, or omit duration when unavailable. Assert the final rendered metadata.\n\n</details>\n\n<details>\n<summary>Progress publication is not idempotent on reruns</summary>\n\n**Cause:** [`publish-orchestration-progress.ts`](https://github.com/self-evolving/repo/blob/850d2d84f28f199cf192881a9c46d76f7692f958/.agent/src/cli/publish-orchestration-progress.ts#L44-L54) emits a stable `sepo-progress:run-<id>` marker but unconditionally creates a comment.\n\n**Candidate solutions:** Reuse the newest trusted comment carrying the same marker and create one only when no match exists. Add a workflow-rerun regression.\n\n**Comments:** Non-blocking and already reported in the current rubrics review.\n\n</details>\n\n<details>\n<summary>Legacy-marker migration is documented as permanent behavior</summary>\n\n**Cause:** The one-time migration is described in durable [architecture](https://github.com/self-evolving/repo/blob/850d2d84f28f199cf192881a9c46d76f7692f958/.agent/docs/architecture/agent-orchestrator.md#L157-L159) and [usage](https://github.com/self-evolving/repo/blob/850d2d84f28f199cf192881a9c46d76f7692f958/.agent/docs/usage/supported-workflows.md#L86-L87) documentation.\n\n**Candidate solutions:** Retain the runtime compatibility and tests, but move temporary migration guidance to the PR description or another short-lived upgrade surface.\n\n**Comments:** This is documentation-only and excluded from required automation action items.\n\n</details>\n\n## Recommended Next Step\n\n`FIX_PR`: Two confirmed workflow regressions require focused branch changes and regression coverage suitable for an automated fix pass.\n\n## Final Verdict\n\n`NEEDS_REWORK`\n\n## Action Items\n\n- [ ] Keep the planner model read-only while restoring durable thread-state and session-bundle persistence, with cross-round coverage.\n- [ ] Run terminal safe-stop resolution after non-cancellation planner artifact download or location failures, with regression tests.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-1`",
+      "createdAt": "2026-08-11T00:21:51Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/495#issuecomment-5247563894",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOMe2-Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #495 | 8 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: The latest review identified two concrete unresolved regressions requiring branch changes and explicitly recommended FIX_PR.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Keep the planner model read-only while restoring durable thread-state and session-bundle persistence, with cross-round coverage.\n- Run terminal safe-stop resolution after non-cancellation planner artifact download or location failures, with regression tests.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1786407862433 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MzE0NDM0OTQ0MDM6cmV2aWV3OjQ5NTpmaXhfcHI6NDk1Ojg -->",
+      "createdAt": "2026-08-11T00:24:23Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/495#issuecomment-5247579897",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOMpkkQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-452/codex-31434926660`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Kept the planner read-scoped while moving thread-state persistence and session-bundle registration into the deterministic write job, with fresh-runner restore coverage.\n- Made planner artifact download/location failures fall through to terminal safe-stop resolution unless cancelled.\n- Verified build, 93 workflow checks, 47 session/thread tests, 77 handoff tests, 5 docs checks, and `git diff --check`.\n\n---\n`codex` | `gpt-5.6-sol` | `max` | `Macmini-runner-5`",
+      "createdAt": "2026-08-11T00:47:51Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/495#issuecomment-5247755409",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOMqPzg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #495 | 9 / 40 | Dispatched |\n\nReason: agent planner selected review: The fix-pr action succeeded, so another review is warranted to verify the corrections and check for remaining regressions.\n\n<!-- sepo-agent-handoff state:dispatched created:1786409389150 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MzE0NDU5MjMxNDk6Zml4X3ByOjQ5NTpyZXZpZXc6NDk1Ojk -->",
+      "createdAt": "2026-08-11T00:49:49Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/495#issuecomment-5247766478",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOMvIeQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 94 | PARTIAL | 15 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Delegated capability checks remain in [preflight](https://github.com/self-evolving/repo/blob/0566d05bc6349a91ceed42604ec0071333c1c424/.github/workflows/agent-orchestrator.yml#L118-L132) and are repeated by the deterministic resolver. |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | The [planner is read-only](https://github.com/self-evolving/repo/blob/0566d05bc6349a91ceed42604ec0071333c1c424/.github/workflows/agent-orchestrator.yml#L86-L113); session persistence, comments, cleanup, and dispatch live in the [separately authorized deterministic job](https://github.com/self-evolving/repo/blob/0566d05bc6349a91ceed42604ec0071333c1c424/.github/workflows/agent-orchestrator.yml#L275-L350). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Reuses existing comment, progress-rendering, final-merge, footer, marker, cleanup, and thread-state helpers in typed modules. |\n| coding_workflow / generic | Generate context-derived artifact metadata | pass | 7/7 | [Final-note formatting](https://github.com/self-evolving/repo/blob/0566d05bc6349a91ceed42604ec0071333c1c424/.agent/src/cli/orchestrate-handoff.ts#L1210-L1247) combines planner summary, requester, source, target, round, reason, and run metadata. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Requester authorization, planner response, progress ID, stream file, source state, and model display remain [separate resolver fields](https://github.com/self-evolving/repo/blob/0566d05bc6349a91ceed42604ec0071333c1c424/.github/workflows/agent-orchestrator.yml#L385-L416). |\n| coding_workflow / generic | Make user-facing automation idempotent | partial | 4/7 | Final and legacy markers are reused, but the [progress publisher always creates a comment](https://github.com/self-evolving/repo/blob/0566d05bc6349a91ceed42604ec0071333c1c424/.agent/src/cli/publish-orchestration-progress.ts#L44-L54) without looking up its stable run marker. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Persistence failures emit workflow warnings, artifact-transfer failures fall through to safe-stop resolution, and publication/finalization failures have focused coverage. |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Ordinary terminal PR stops now enter the [finalized-note path](https://github.com/self-evolving/repo/blob/0566d05bc6349a91ceed42604ec0071333c1c424/.agent/src/cli/orchestrate-handoff.ts#L1420-L1428). |\n| communication / generic | Keep status comments compact | pass | 6/6 | Final notes use a short outcome, optional requester/summary, compact metadata bullets, and one next-step sentence. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Architecture, lifecycle, configuration, internal-action, and workflow docs cover the permission split, persistence, finalization, and cleanup behavior. |\n| communication / generic | Keep temporary migration notes out of durable docs | partial | 3/6 | The one-time legacy-marker migration remains in permanent [architecture](https://github.com/self-evolving/repo/blob/0566d05bc6349a91ceed42604ec0071333c1c424/.agent/docs/architecture/agent-orchestrator.md#L157-L159) and [usage](https://github.com/self-evolving/repo/blob/0566d05bc6349a91ceed42604ec0071333c1c424/.agent/docs/usage/supported-workflows.md#L87-L88) documentation. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The changed files are confined to orchestration runtime, necessary session-persistence extraction, focused tests, workflow wiring, and matching documentation. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The secure job split uses narrow deterministic CLIs and existing helpers without a new dependency or public setting. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The implementation follows the accepted [issue #452 plan](https://github.com/self-evolving/repo/issues/452#issuecomment-4884869261), including success-only cleanup and retention of blocked context. |\n| coding_workflow / generic | Leave release notes to release preparation | pass | 8/8 | The PR does not modify `.agent/CHANGELOG.md` or other release notes. |\n\n## Notes\n\n- Exact head [`0566d05b`](https://github.com/self-evolving/repo/commit/0566d05bc6349a91ceed42604ec0071333c1c424) passes the hosted [check](https://github.com/self-evolving/repo/actions/runs/31447254399/job/93644020094); `git diff --check` also passes.\n- The latest fixes restore durable planner-session persistence and safe-stop resolution after artifact failures.\n- Smallest useful follow-up: reuse a trusted same-run progress marker before creating a comment, and remove the legacy-marker migration detail from durable docs.\n\n## Findings\n\n- **WARNING:** `publish-orchestration-progress.ts` emits a stable `sepo-progress:run-<id>` marker but unconditionally calls `createIssueComment`. Workflow reruns can therefore accumulate progress/final notes instead of updating the existing same-run artifact, partially violating `idempotent-user-facing-automation`.\n- **WARNING:** Legacy `sepo-agent-orchestrate-stop` migration is a one-time compatibility detail duplicated in permanent architecture and usage documentation, partially violating `keep-temporary-migration-notes-out-of-durable-docs`.\n\n## Final Rubric Verdict\n\nPARTIAL\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-2`",
+      "createdAt": "2026-08-11T01:03:51Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/495#issuecomment-5247846521",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOM1KKg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 0566d05bc6349a91ceed42604ec0071333c1c424 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #495 implements #452 by publishing or updating one finalized orchestration note at terminal states. It preserves planner context, mentions human requesters, reuses progress comments, and collapses trusted agent artifacts after successful outcomes. The latest revisions also separate read-only planning from deterministic write-scoped persistence and dispatch. This reduces PR noise while retaining actionable context for failed or blocked runs.\n\n## Review\n\nNo `BLOCKING` findings remain on current head `0566d05b`; the earlier authorization, persistence, and failure-recovery issues are fixed. Three concrete but non-blocking behavior gaps remain.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Non-open PRs discard the finalized summary | WARNING | A close-during-planning or self-merge path returns before reading the planner response, replacing its cumulative summary with a generic stop and skipping successful cleanup classification. |\n| Finalized progress reports a false `0s` duration | WARNING | Cross-job finalization omits elapsed time, but the shared renderer defaults it to zero and displays incorrect metadata. |\n| Progress publication duplicates same-run notes on rerun | WARNING | The publisher emits a stable run marker but always creates a new comment, so rerunning the workflow can leave duplicate progress or final notes. |\n\n## Progress\n\n- Current head [`0566d05b`](https://github.com/self-evolving/repo/commit/0566d05bc6349a91ceed42604ec0071333c1c424) is open, mergeable, and passes the hosted check; reviewer validation also passed the runtime, workflow, documentation, focused, and diff checks.\n- The read-only planner boundary, delegated authorization checks, deferred session persistence, artifact-failure safe stop, blocked-context retention, legacy-marker migration, and final-note cleanup exclusion are now implemented.\n- Resolved the fixed same-agent [session-persistence](https://github.com/self-evolving/repo/pull/495#discussion_r3754403725) and [artifact-failure recovery](https://github.com/self-evolving/repo/pull/495#discussion_r3754403735) threads after re-verifying authorship, PR ownership, and current-head behavior.\n- Existing threads already cover the [non-open PR](https://github.com/self-evolving/repo/pull/495#discussion_r3754403723) and [false-duration](https://github.com/self-evolving/repo/pull/495#discussion_r3754403724) findings. The current [rubrics review](https://github.com/self-evolving/repo/pull/495#issuecomment-5247846521) covers rerun idempotency, so no duplicate inline comments were posted.\n- The rubric reviewer rated permanent legacy-migration wording as `WARNING`; both code reviewers treated it as optional documentation hygiene. It is excluded from required branch work, along with variable-shadowing and double-write observations.\n- Release notes remain untouched as required.\n\n## Issue Details\n\n<details>\n<summary>Non-open PRs discard the finalized summary</summary>\n\n**Cause:** [`decidePlannerOrchestration()`](https://github.com/self-evolving/repo/blob/0566d05bc6349a91ceed42604ec0071333c1c424/.agent/src/cli/orchestrate-handoff.ts#L1477) returns a generic stop for a non-open PR before reading and validating the planner response.\n\n**Candidate solutions:** Preserve validated `userMessage`, clarification, and terminal-decision fields while overriding dispatch to a safe stop. Add close-during-planning and self-merge regressions that verify summary retention and successful cleanup.\n\n**Comments:** Dispatch remains safely prohibited, so this is non-blocking, but it degrades the feature’s primary terminal-summary path.\n\n</details>\n\n<details>\n<summary>Finalized progress reports a false `0s` duration</summary>\n\n**Cause:** [`tryFinalizeProgressActivity()`](https://github.com/self-evolving/repo/blob/0566d05bc6349a91ceed42604ec0071333c1c424/.agent/src/progress-final-comment.ts#L77) supplies no elapsed duration; the renderer interprets the missing value as zero.\n\n**Candidate solutions:** Carry a start timestamp or duration between jobs, or make unknown elapsed time explicitly optional and omit it from rendered metadata. Assert the exact finalized heading.\n\n</details>\n\n<details>\n<summary>Progress publication duplicates same-run notes on rerun</summary>\n\n**Cause:** [`publish-orchestration-progress.ts`](https://github.com/self-evolving/repo/blob/0566d05bc6349a91ceed42604ec0071333c1c424/.agent/src/cli/publish-orchestration-progress.ts#L44) emits a stable `sepo-progress:run-<id>` marker but unconditionally creates a comment.\n\n**Candidate solutions:** Reuse or update the newest trusted same-agent comment carrying that run marker, creating a comment only when none exists. Cover repeated invocations with the same run ID across attempts.\n\n</details>\n\n## Recommended Next Step\n\n`FIX_PR`: The three remaining current-head behavior gaps have narrow, concrete fixes and regression coverage suitable for an automated pass.\n\n## Final Verdict\n\n`MINOR_ISSUES`\n\n## Action Items\n\n- [ ] Preserve validated planner summaries and successful cleanup classification when a PR closes during planning.\n- [ ] Omit unknown elapsed time or carry a real duration into cross-job finalization, with exact rendering coverage.\n- [ ] Make initial orchestration-progress publication idempotent for repeated attempts of the same workflow run.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-5`",
+      "createdAt": "2026-08-11T01:20:08Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/495#issuecomment-5247945258",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOM2Dkw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #495 | 10 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: The review identified three concrete, testable runtime issues requiring branch changes and explicitly recommended FIX_PR; they are suitable for automated correction.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items:\n- Preserve validated planner summaries and successful cleanup classification when a PR closes during planning.\n- Omit unknown elapsed time or carry a real duration into cross-job finalization, with exact rendering coverage.\n- Make initial orchestration-progress publication idempotent for repeated attempts of the same workflow run.\n\nConstraints: Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those action items.\n\n<!-- sepo-agent-handoff state:dispatched created:1786411309949 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MzE0NDczNTc3ODc6cmV2aWV3OjQ5NTpmaXhfcHI6NDk1OjEw -->",
+      "createdAt": "2026-08-11T01:21:50Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/495#issuecomment-5247959955",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOM6VVQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-452/codex-31434926660`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Preserved validated planner summaries and successful cleanup when PR state changes during planning.\n- Omitted unknown elapsed time and made same-run progress publication trusted and idempotent.\n- Passed build, 138 focused runtime tests, 93 workflow checks, and `git diff --check`.\n\n---\n`codex` | `gpt-5.6-sol` | `max` | `Macmini-runner-2`",
+      "createdAt": "2026-08-11T01:34:48Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/495#issuecomment-5248030037",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOM7DyA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #495 | 11 / 40 | Dispatched |\n\nReason: agent planner selected review: The fix-pr run succeeded, advanced the open mergeable PR from reviewed head 0566d05b to f3cee280, and the hosted check passed; the three targeted runtime fixes warrant current-head verification.\n\n<!-- sepo-agent-handoff state:dispatched created:1786412215237 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MzE0NDkwNjk4NTk6Zml4X3ByOjQ5NTpyZXZpZXc6NDk1OjEx -->",
+      "createdAt": "2026-08-11T01:36:55Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/495#issuecomment-5248041928",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOM-kaw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 97 | PARTIAL | 16 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | The [capability guard](https://github.com/self-evolving/repo/blob/f3cee28025994cae4bbb7a9640ce3324dc636967/.agent/src/orchestrator-capabilities.ts#L38-L68) requires access to every enabled delegated route, with preflight and runtime enforcement. |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | The [planner job is read-only](https://github.com/self-evolving/repo/blob/f3cee28025994cae4bbb7a9640ce3324dc636967/.github/workflows/agent-orchestrator.yml#L86-L113); write operations belong to the [deterministic resolver](https://github.com/self-evolving/repo/blob/f3cee28025994cae4bbb7a9640ce3324dc636967/.github/workflows/agent-orchestrator.yml#L275-L305). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Finalization reuses existing comment, footer, progress, handoff, authorization, and cleanup helpers in the [typed orchestration CLI](https://github.com/self-evolving/repo/blob/f3cee28025994cae4bbb7a9640ce3324dc636967/.agent/src/cli/orchestrate-handoff.ts#L13-L47). |\n| coding_workflow / generic | Generate context-derived artifact metadata | pass | 7/7 | The [final-note formatter](https://github.com/self-evolving/repo/blob/f3cee28025994cae4bbb7a9640ce3324dc636967/.agent/src/cli/orchestrate-handoff.ts#L1100-L1247) combines requester, planner summary, source outcome, target, round, reason, and run metadata. |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Planner response, progress ID, stream, authorization, source state, requester, and model display remain [separate resolver fields](https://github.com/self-evolving/repo/blob/f3cee28025994cae4bbb7a9640ce3324dc636967/.github/workflows/agent-orchestrator.yml#L383-L417). |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Publication now [reuses the latest trusted same-run marker](https://github.com/self-evolving/repo/blob/f3cee28025994cae4bbb7a9640ce3324dc636967/.agent/src/cli/publish-orchestration-progress.ts#L52-L71), with forged-marker and repeated-attempt coverage. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Deferred persistence and bundle-registration failures emit explicit [workflow warnings](https://github.com/self-evolving/repo/blob/f3cee28025994cae4bbb7a9640ce3324dc636967/.github/workflows/agent-orchestrator.yml#L306-L354); publication failures also exit visibly. |\n| coding_workflow / generic | Comment on accepted workflow stops | pass | 6/6 | Terminal outcomes enter the [finalized-comment path](https://github.com/self-evolving/repo/blob/f3cee28025994cae4bbb7a9640ce3324dc636967/.agent/src/cli/orchestrate-handoff.ts#L1575-L1587), including closed PRs and blocked decisions. |\n| communication / generic | Keep status comments compact | pass | 6/6 | Final notes use one outcome heading, an optional summary, compact metadata bullets, and one next-step sentence. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Architecture and usage docs explain finalization, permission separation, persistence, progress reuse, cleanup, and failure fallback. |\n| communication / generic | Keep temporary migration notes out of durable docs | partial | 3/6 | One-time legacy-marker migration remains in permanent [architecture](https://github.com/self-evolving/repo/blob/f3cee28025994cae4bbb7a9640ce3324dc636967/.agent/docs/architecture/agent-orchestrator.md#L157-L159) and [workflow usage](https://github.com/self-evolving/repo/blob/f3cee28025994cae4bbb7a9640ce3324dc636967/.agent/docs/usage/supported-workflows.md#L87-L88) documentation. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are confined to orchestration runtime, necessary persistence extraction, focused tests, workflow wiring, and corresponding docs. |\n| coding_style / generic | Prefer simple implementations | pass | 7/7 | The required security boundary uses narrow deterministic CLIs and existing helpers, without a new dependency or public configuration knob. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The implementation follows the accepted [issue #452 plan](https://github.com/self-evolving/repo/issues/452#issuecomment-4884869261), including success-only cleanup and retention of blocked context. |\n| coding_workflow / generic | Leave release notes to release preparation | pass | 8/8 | The [changed files](https://github.com/self-evolving/repo/pull/495/files) contain no changelog or release-note edits. |\n| coding_workflow / generic | Separate context from execution dependencies | pass | 7/7 | The resolver [stops dispatch when a PR becomes ineligible while preserving validated planner context](https://github.com/self-evolving/repo/blob/f3cee28025994cae4bbb7a9640ce3324dc636967/.agent/src/cli/orchestrate-handoff.ts#L1477-L1518), with closed/merged regressions. |\n\n## Notes\n\n- Current head [`f3cee280`](https://github.com/self-evolving/repo/commit/f3cee28025994cae4bbb7a9640ce3324dc636967) passes the hosted [Test Scripts check](https://github.com/self-evolving/repo/actions/runs/31449732911/job/93651419256) and `git diff --check`.\n- Earlier authorization, state-change, duration, and same-run idempotency findings are resolved on this head.\n- Smallest useful follow-up: remove the two legacy-marker migration notes from durable docs while retaining the compatibility code and tests.\n\n## Findings\n\n- **WARNING:** The PR documents the one-time `sepo-agent-orchestrate-stop` migration in two permanent documentation pages, partially violating `keep-temporary-migration-notes-out-of-durable-docs`.\n\n## Final Rubric Verdict\n\nPARTIAL\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-4`",
+      "createdAt": "2026-08-11T01:47:46Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/495#issuecomment-5248099435",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABONA7VA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer why it become so big? ",
+      "createdAt": "2026-08-11T01:55:08Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/495#issuecomment-5248138068",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABONBfbg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "It snowballed through the automated review/fix loop.\n\nThe [original implementation](https://github.com/self-evolving/repo/commit/dd129eb3d245c859aaf49facae5d3bc11dcea280) was 7 files, `+451/−60`. A security review then required splitting the read-only planner from the write-authorized resolver. That introduced cross-job progress and session-state handling, followed by fixes for persistence, failure recovery, cleanup, and deduplication. Four follow-up commits grew it to 24 files, `+2,019/−168`.\n\nThe largest expansion was [session persistence and artifact recovery](https://github.com/self-evolving/repo/commit/0566d05bc6349a91ceed42604ec0071333c1c424) at `+640/−55`. About 1,043 current additions—roughly half—are tests.\n\nSo the size is mostly an architectural hardening cascade, not the finalized-comment feature itself. In hindsight, the job-boundary/session-persistence refactor should likely have been separated into a prerequisite or follow-up PR instead of being absorbed into #495.\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — answer · 2m57s · 16 steps**\n\nLast message\n> It snowballed through the automated review/fix loop. The [original implementation](https://github.com/self-evolving/repo/commit/dd129eb3d245c859aaf49facae5d3bc11dcea280) was 7 files, `+451/−60`. A security review then required splitting th…\n\nActivity\n\n- 🔧 Used tool `gh api repos/self-evolving/repo/commits/b41afca252e85b25292b4d6ab85f1730db3ad065 | jq '{sha:(.sha[0:8]),message:(.commi…` (completed)\n- 🔧 Used tool `gh api repos/self-evolving/repo/commits/850d2d84f28f199cf192881a9c46d76f7692f958 | jq '{sha:(.sha[0:8]),message:(.commi…` (completed)\n- 🔧 Used tool `gh api repos/self-evolving/repo/commits/f3cee28025994cae4bbb7a9640ce3324dc636967 | jq '{sha:(.sha[0:8]),message:(.commi…` (completed)\n- 🔧 Used tool `gh api repos/self-evolving/repo/commits/0566d05bc6349a91ceed42604ec0071333c1c424 | jq '{sha:(.sha[0:8]),message:(.commi…` (completed)\n- 🔧 Used tool `gh api repos/self-evolving/repo/commits/dd129eb3d245c859aaf49facae5d3bc11dcea280 | jq '{sha:(.sha[0:8]),message:(.commi…` (completed)\n- 💬 Message \"It snowballed through the automated review/fix loop. The [original implementation](https://github.com/self-evolving/repo/commit/dd129eb3d245c859aaf49facae5d3bc11dcea280) was 7 files, `+451/−60`. A security review then required splitting th…\"\n</details>\n\n<!-- sepo-progress:run-31450771039 -->\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-1`",
+      "createdAt": "2026-08-11T01:56:51Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/495#issuecomment-5248147310",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABONDmIA",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "I don't understand. \r\n\r\nwhy https://github.com/self-evolving/repo/commit/0566d05bc6349a91ceed42604ec0071333c1c424 should be added in this chain of PRs? ",
+      "createdAt": "2026-08-11T02:03:07Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/495#issuecomment-5248181792",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABONEJ8w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "You’re right to question it: [`0566d05b`](https://github.com/self-evolving/repo/commit/0566d05bc6349a91ceed42604ec0071333c1c424) is **not directly required by issue #452**.\n\nIt entered through this cascade:\n\n1. Earlier fixes split orchestration into a read-only planner job and a write-authorized resolver job.\n2. Existing session persistence still tried to write from the now-read-only planner, so session state could be lost between orchestration rounds.\n3. Passing the planner response between jobs also introduced an artifact-transfer failure path that could skip the terminal comment entirely.\n4. The [review on `850d2d84`](https://github.com/self-evolving/repo/pull/495#issuecomment-5247563894) classified those two regressions as blocking, so the automated chain dispatched `/fix-pr`, producing `0566d05b`.\n\nSo `0566d05b` repairs consequences of the earlier permission/job split; it does not implement finalized comments. If that split remains in #495, the commit is needed to avoid breaking session continuity. If #495 should stay focused on #452, the better boundary is to move **the job split and `0566d05b` together** into a separate prerequisite/follow-up PR—not remove `0566d05b` alone.\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — answer · 1m55s · 5 steps**\n\nLast message\n> You’re right to question it: [`0566d05b`](https://github.com/self-evolving/repo/commit/0566d05bc6349a91ceed42604ec0071333c1c424) is **not directly required by issue #452**. It entered through this cascade: 1. Earlier fixes split orchestrat…\n\nActivity\n\n- 💬 Message \"I’ll trace that commit back to the exact review finding that triggered it, then distinguish what was genuinely required for #452 from what was scope expansion.\"\n- ✏️ Edited `gh api repos/self-evolving/repo/commits/0566d05bc6349a91ceed42604ec0071333c1c424 | jq '{sha,parent:.parents[0].sha,mess…` (completed)\n- ✏️ Edited `gh api --paginate repos/self-evolving/repo/issues/495/comments | jq '[.[] | select((.body | contains(\"850d2d84\")) or (.…` (completed)\n- ✏️ Edited `gh api --paginate repos/self-evolving/repo/pulls/495/comments | jq '[.[] | select((.commit_id | startswith(\"850d2d84\"))…` (completed)\n- 💬 Message \"You’re right to question it: [`0566d05b`](https://github.com/self-evolving/repo/commit/0566d05bc6349a91ceed42604ec0071333c1c424) is **not directly required by issue #452**. It entered through this cascade: 1. Earlier fixes split orchestrat…\"\n</details>\n\n<!-- sepo-progress:run-31451184325 -->\n\n---\n`codex` | `gpt-5.6-sol` | `max` | `Macmini-runner-1`",
+      "createdAt": "2026-08-11T02:04:53Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/495#issuecomment-5248190963",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABONIM-A",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer what's the lean, minimum design here? ",
+      "createdAt": "2026-08-11T02:16:08Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/495#issuecomment-5248257272",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABONIwiQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: f3cee28025994cae4bbb7a9640ce3324dc636967 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #495 implements issue #452 by publishing or updating one finalized orchestration note at terminal states. It preserves planner context, mentions human requesters, reuses progress comments, and collapses trusted automation artifacts after successful outcomes. Subsequent review rounds added a read-only planner/write-resolver split, deferred session persistence, and failure recovery. The current draft contains 24 changed files and remains open, mergeable, and passing checks.\n\n## Review\n\nBoth reviewers found no remaining correctness or security blocker on current head `f3cee280`. The sole actionable concern is a minor documentation-hygiene issue.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| One-time migration guidance remains in durable docs | WARNING | The architecture and workflow documentation permanently describe migration of the legacy `sepo-agent-orchestrate-stop` marker, although this is temporary upgrade guidance that will become stale. |\n\n## Progress\n\n- Earlier authorization, cleanup, cancellation, session-persistence, artifact-recovery, summary-retention, duration, and idempotency findings are fixed with focused regressions.\n- Current head [`f3cee280`](https://github.com/self-evolving/repo/commit/f3cee28025994cae4bbb7a9640ce3324dc636967) passes the hosted [Test Scripts check](https://github.com/self-evolving/repo/actions/runs/31449732911/job/93651419256) and `git diff --check`.\n- Resolved the fixed same-agent [summary-retention](https://github.com/self-evolving/repo/pull/495#discussion_r3754403723) and [false-duration](https://github.com/self-evolving/repo/pull/495#discussion_r3754403724) threads after re-verifying authorship and current-head behavior.\n- No new inline comment was posted because the current [rubrics review](https://github.com/self-evolving/repo/pull/495#issuecomment-5248099435) already covers the documentation warning.\n- Claude’s INFO observations about crash-time persistence, the broader non-open-PR guard, and variable shadowing were accepted tradeoffs, intentional behavior, or pre-existing polish and are excluded from required work.\n- The maintainer has questioned whether the workflow/session-persistence expansion belongs in #495. Current discussion acknowledges that commit `0566d05b` is not directly required by #452 but is coupled to the permission split; retaining or splitting that broader work remains a maintainer scope decision.\n- Release notes remain untouched.\n\n## Issue Details\n\n<details>\n<summary>One-time migration guidance remains in durable docs</summary>\n\n**Cause:** [Architecture lines 157–159](https://github.com/self-evolving/repo/blob/f3cee28025994cae4bbb7a9640ce3324dc636967/.agent/docs/architecture/agent-orchestrator.md#L157-L159) and [workflow usage lines 87–88](https://github.com/self-evolving/repo/blob/f3cee28025994cae4bbb7a9640ce3324dc636967/.agent/docs/usage/supported-workflows.md#L87-L88) describe the one-time legacy-marker migration as permanent behavior.\n\n**Candidate solutions:** Remove those two migration notes while retaining the compatibility code and regression tests. If indefinite legacy compatibility is intentional, reframe it as a supported contract rather than temporary migration guidance.\n\n**Comments:** Both reviewers identified the same issue; the rubric reviewer made it the sole scoring deduction, while the code reviewer considered it cosmetic.\n\n</details>\n\n## Recommended Next Step\n\n`HUMAN_DECISION`: The remaining review issue is minor documentation hygiene, while the maintainer is actively deciding whether the expanded workflow/session scope belongs in this PR, so another automated fix round should not start yet.\n\n## Final Verdict\n\n`MINOR_ISSUES`\n\n## Action Items\n\n- [ ] Remove the one-time legacy-marker migration wording from the two durable documentation pages while retaining compatibility code and tests.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-1`",
+      "createdAt": "2026-08-11T02:17:34Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/495#issuecomment-5248266377",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABONI2tg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "The lean design is a **single-job, single-CLI extension**. Finalization should be comment formatting/publishing—not a planner-permission or session-persistence refactor.\n\nThe existing architecture already provides everything needed:\n\n- The [orchestrator runs planning and deterministic handoff in one job](https://github.com/self-evolving/repo/blob/5f9b54a6a62e87be1e6eeaa5a64cfde402ab455f/.github/workflows/agent-orchestrator.yml#L78-L235).\n- The [handoff CLI already handles terminal comments](https://github.com/self-evolving/repo/blob/5f9b54a6a62e87be1e6eeaa5a64cfde402ab455f/.agent/src/cli/orchestrate-handoff.ts#L1053-L1223).\n- Existing helpers already [merge into a progress comment](https://github.com/self-evolving/repo/blob/5f9b54a6a62e87be1e6eeaa5a64cfde402ab455f/.agent/src/progress-final-comment.ts#L19-L64), [upsert marker comments](https://github.com/self-evolving/repo/blob/5f9b54a6a62e87be1e6eeaa5a64cfde402ab455f/.agent/src/github.ts#L410-L432), and [collapse trusted generated artifacts](https://github.com/self-evolving/repo/blob/5f9b54a6a62e87be1e6eeaa5a64cfde402ab455f/.agent/src/review-summary-minimize.ts#L424-L454).\n\nMinimum behavior:\n\n1. When a PR reaches a validated terminal `stop`, format one concise note containing the planner summary, source outcome, round, reason, and human requester mention.\n2. Keep the existing `sepo-agent-orchestrate-stop` marker; its internal name does not need migration.\n3. Merge the result into this run’s progress comment when available; otherwise upsert by that existing marker.\n4. On exact successful outcomes only, best-effort collapse older same-agent PR conversation comments. Never clean up blocked, clarification, failed, or malformed-planner outcomes.\n5. Keep cleanup failures non-fatal and retain the existing permissions.\n\nExplicitly out of scope:\n\n- planner/write-job split\n- planner-response artifacts\n- session persistence changes\n- new progress-publishing CLIs\n- legacy-marker migration\n- cross-job duration and recovery machinery\n- formal review-object cleanup requiring broader authorization\n\nThat should be roughly 6–7 focused files and a few hundred lines including tests and docs, rather than 24 files. A separate PR can later design read-only planner isolation and session persistence together.\n\nIf this boundary looks right, send:\n\n`@sepo-agent /fix-pr replace the current implementation with the lean single-job design above; remove the job-split/session-persistence expansion and retain only terminal PR note finalization plus best-effort successful cleanup.`\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — answer · 5m26s · 22 steps**\n\nLast message\n> The lean design is a **single-job, single-CLI extension**. Finalization should be comment formatting/publishing—not a planner-permission or session-persistence refactor. The existing architecture already provides everything needed: - The […\n\nActivity\n\n- 📖 Read `Search for 'minimize|collapsePreviousReviewSummaries|collapsePreviousRubricsReviews|collapsePreviousFixPrComments|colla…` (completed)\n- ✏️ Edited `gh api repos/self-evolving/repo/commits/dd129eb3d245c859aaf49facae5d3bc11dcea280 | jq '{message:.commit.message,files:[…` (completed)\n- 🔧 Used tool `\"sed -n '85,180p' .agent/src/cli/post-comment.ts sed -n '70,130p' .agent/src/cli/post-response.ts\"` (completed)\n- 📖 Read `for f in .github/workflows/agent-review.yml .github/workflows/agent-rubrics-review.yml .github/workflows/agent-fix-pr.y…` (completed)\n- ✏️ Edited `gh api repos/self-evolving/repo/commits/b41afca252e85b25292b4d6ab85f1730db3ad065 | jq '{message:.commit.message,files:[…` (completed)\n- 💬 Message \"The lean design is a **single-job, single-CLI extension**. Finalization should be comment formatting/publishing—not a planner-permission or session-persistence refactor. The existing architecture already provides everything needed: - The […\"\n</details>\n\n<!-- sepo-progress:run-31451858946 -->\n\n---\n`codex` | `gpt-5.6-sol` | `max` | `Macmini-runner-6`",
+      "createdAt": "2026-08-11T02:17:50Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/495#issuecomment-5248267958",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-08-10T22:04:20Z",
+  "files": [
+    {
+      "path": ".agent/docs/architecture/agent-orchestrator.md",
+      "additions": 34,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/request-lifecycle.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/internal-actions.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/supported-workflows.md",
+      "additions": 17,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 195,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrate-handoff-cli.test.ts",
+      "additions": 492,
+      "deletions": 17,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/progress-render.test.ts",
+      "additions": 13,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/publish-orchestration-progress-cli.test.ts",
+      "additions": 156,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/session-state-persistence.test.ts",
+      "additions": 187,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrate-handoff.ts",
+      "additions": 270,
+      "deletions": 68,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/publish-orchestration-progress.ts",
+      "additions": 83,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/session-persist.ts",
+      "additions": 113,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/session-restore.ts",
+      "additions": 28,
+      "deletions": 18,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/github.ts",
+      "additions": 14,
+      "deletions": 6,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/handoff.ts",
+      "additions": 7,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/progress-final-comment.ts",
+      "additions": 37,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/progress-render.ts",
+      "additions": 5,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/review-summary-minimize.ts",
+      "additions": 8,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/run.ts",
+      "additions": 38,
+      "deletions": 24,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/session-state-persistence.ts",
+      "additions": 99,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/actions/run-agent-task/action.yml",
+      "additions": 13,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-orchestrator.md",
+      "additions": 5,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-orchestrator.yml",
+      "additions": 202,
+      "deletions": 17,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-452/codex-31434926660",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 495,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABJCX9tQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-08-10T22:28:44Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "dd129eb3d245c859aaf49facae5d3bc11dcea280"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABJCX9uQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-08-10T22:28:44Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "dd129eb3d245c859aaf49facae5d3bc11dcea280"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABJCmjdA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-08-10T23:17:19Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "b41afca252e85b25292b4d6ab85f1730db3ad065"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABJCmjdQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-08-10T23:17:19Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "b41afca252e85b25292b4d6ab85f1730db3ad065"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABJC50QQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-08-11T00:19:49Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "850d2d84f28f199cf192881a9c46d76f7692f958"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABJC50Qw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-08-11T00:19:49Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "850d2d84f28f199cf192881a9c46d76f7692f958"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABJC50RA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-08-11T00:19:49Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "850d2d84f28f199cf192881a9c46d76f7692f958"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABJC50VA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-08-11T00:19:49Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "850d2d84f28f199cf192881a9c46d76f7692f958"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Add finalized orchestration summaries",
+  "updatedAt": "2026-08-11T02:23:25Z",
+  "url": "https://github.com/self-evolving/repo/pull/495"
+}
