@@ -504,6 +504,7 @@ test("collapsePreviousReviewSummaries paginates comments", () => {
 });
 
 test("terminal cleanup stops at the causal source artifact", () => {
+  const head = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
   const generated = (id: string, databaseId: number, body: string) => ({
     id,
     databaseId,
@@ -519,8 +520,9 @@ test("terminal cleanup stops at the causal source artifact", () => {
           comments: {
             nodes: [
               generated("older-final", 100, "<!-- sepo-agent-orchestrate-stop -->"),
-              generated("source-review", 101, "## AI Review Synthesis\nsource"),
-              generated("later-review", 102, "## AI Review Synthesis\nlater overlapping run"),
+              generated("source-review", 101, `## AI Review Synthesis\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: ${head} -->\nsource`),
+              generated("later-review", 102, "## AI Review Synthesis\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb -->\nlater overlapping run"),
+              generated("current-final", 103, "<!-- sepo-agent-orchestrate-stop -->\n<!-- sepo-agent-orchestration-source-artifact: 101 -->"),
             ],
             pageInfo: { hasNextPage: false, endCursor: null },
           },
@@ -531,13 +533,15 @@ test("terminal cleanup stops at the causal source artifact", () => {
     { minimizeComment: { minimizedComment: { isMinimized: true } } },
   ]);
 
-  assert.equal(collapsePreviousPrConversationArtifacts({
+  assert.deepEqual(collapsePreviousPrConversationArtifacts({
     repo: "self-evolving/repo",
     prNumber: 320,
+    currentFinalCommentDatabaseId: "103",
     excludeBodyMarker: "<!-- sepo-agent-orchestrate-stop -->",
+    expectedHeadSha: head,
     sourceArtifactDatabaseId: "101",
     client,
-  }), 2);
+  }), { collapsed: 2 });
   assert.deepEqual(
     calls.slice(2).map((call) => call.variables),
     [
@@ -550,29 +554,44 @@ test("terminal cleanup stops at the causal source artifact", () => {
 test("terminal cleanup fails closed without a safe source artifact boundary", () => {
   const { client, calls } = createQueuedClient([]);
 
-  assert.equal(collapsePreviousPrConversationArtifacts({
+  assert.deepEqual(collapsePreviousPrConversationArtifacts({
     repo: "self-evolving/repo",
     prNumber: 320,
+    currentFinalCommentDatabaseId: "102",
+    expectedHeadSha: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     sourceArtifactDatabaseId: "not-a-database-id",
     client,
-  }), 0);
+  }), {
+    collapsed: 0,
+    skippedReason: "source artifact database ID is missing or invalid",
+  });
   assert.equal(calls.length, 0);
 });
 
-test("terminal cleanup rejects a boundary that is not a matching source artifact", () => {
+test("terminal cleanup rejects a boundary that points to the wrong artifact type", () => {
+  const head = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
   const { client, calls } = createQueuedClient([
     { viewer: { login: "sepo-agent" } },
     {
       repository: {
         pullRequest: {
           comments: {
-            nodes: [{
-              id: "older-review",
-              databaseId: 100,
-              body: "## AI Review Synthesis\nolder",
-              isMinimized: false,
-              author: { login: "sepo-agent" },
-            }],
+            nodes: [
+              {
+                id: "older-review",
+                databaseId: 100,
+                body: `## AI Review Synthesis\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: ${head} -->\nolder`,
+                isMinimized: false,
+                author: { login: "sepo-agent" },
+              },
+              {
+                id: "wrong-source-type",
+                databaseId: 101,
+                body: "## Rubrics Review\nnot a synthesis",
+                isMinimized: false,
+                author: { login: "sepo-agent" },
+              },
+            ],
             pageInfo: { hasNextPage: false, endCursor: null },
           },
         },
@@ -580,11 +599,113 @@ test("terminal cleanup rejects a boundary that is not a matching source artifact
     },
   ]);
 
-  assert.equal(collapsePreviousPrConversationArtifacts({
+  assert.deepEqual(collapsePreviousPrConversationArtifacts({
     repo: "self-evolving/repo",
     prNumber: 320,
+    currentFinalCommentDatabaseId: "102",
+    expectedHeadSha: head,
     sourceArtifactDatabaseId: "101",
     client,
-  }), 0);
+  }), {
+    collapsed: 0,
+    skippedReason: "source artifact is not the latest trusted review synthesis for the expected head",
+  });
+  assert.equal(calls.length, 2);
+});
+
+test("terminal cleanup converges same-source reruns without hiding unrelated later artifacts", () => {
+  const head = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  const sourceMarker = "<!-- sepo-agent-orchestration-source-artifact: 101 -->";
+  const generated = (
+    id: string,
+    databaseId: number,
+    body: string,
+    isMinimized = false,
+  ) => ({
+    id,
+    databaseId,
+    body,
+    isMinimized,
+    author: { login: "sepo-agent" },
+  });
+  const { client, calls } = createQueuedClient([
+    { viewer: { login: "sepo-agent" } },
+    {
+      repository: {
+        pullRequest: {
+          comments: {
+            nodes: [
+              generated("older-status", 100, "<!-- sepo-agent-fix-pr-status -->"),
+              generated(
+                "source-review",
+                101,
+                `## AI Review Synthesis\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: ${head} -->`,
+                true,
+              ),
+              generated("old-final", 102, `<!-- sepo-agent-orchestrate-stop -->\n${sourceMarker}`),
+              generated("old-handoff", 103, `<!-- sepo-agent-handoff state:dispatched created:123 base64:aGFuZG9m -->\n${sourceMarker}`),
+              generated("unrelated-final", 104, "<!-- sepo-agent-orchestrate-stop -->"),
+              generated("current-final", 105, `<!-- sepo-agent-orchestrate-stop -->\n${sourceMarker}`),
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      },
+    },
+    { minimizeComment: { minimizedComment: { isMinimized: true } } },
+    { minimizeComment: { minimizedComment: { isMinimized: true } } },
+    { minimizeComment: { minimizedComment: { isMinimized: true } } },
+  ]);
+
+  assert.deepEqual(collapsePreviousPrConversationArtifacts({
+    repo: "self-evolving/repo",
+    prNumber: 320,
+    currentFinalCommentDatabaseId: "105",
+    excludeBodyMarker: "<!-- sepo-agent-orchestrate-stop -->",
+    expectedHeadSha: head,
+    sourceArtifactDatabaseId: "101",
+    client,
+  }), { collapsed: 3 });
+  assert.deepEqual(calls.slice(2).map((call) => call.variables.id), [
+    "older-status",
+    "old-final",
+    "old-handoff",
+  ]);
+});
+
+test("terminal cleanup rejects a superseded same-head source synthesis", () => {
+  const head = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+  const generated = (id: string, databaseId: number, verdict: string) => ({
+    id,
+    databaseId,
+    body: `## AI Review Synthesis\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: ${head} -->\nVerdict: ${verdict}`,
+    isMinimized: false,
+    author: { login: "sepo-agent" },
+  });
+  const { client, calls } = createQueuedClient([
+    { viewer: { login: "sepo-agent" } },
+    {
+      repository: {
+        pullRequest: {
+          comments: {
+            nodes: [generated("source", 101, "SHIP"), generated("newer", 102, "NEEDS_REWORK")],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      },
+    },
+  ]);
+
+  assert.deepEqual(collapsePreviousPrConversationArtifacts({
+    repo: "self-evolving/repo",
+    prNumber: 320,
+    currentFinalCommentDatabaseId: "103",
+    expectedHeadSha: head,
+    sourceArtifactDatabaseId: "101",
+    client,
+  }), {
+    collapsed: 0,
+    skippedReason: "source artifact is not the latest trusted review synthesis for the expected head",
+  });
   assert.equal(calls.length, 2);
 });

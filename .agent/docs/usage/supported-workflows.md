@@ -132,9 +132,12 @@ generated status prominent while leaving older generated comments expandable.
 Successful terminal PR orchestration also best-effort minimizes older matching
 conversation comments and older trusted final notes while leaving the current
 final note, newer concurrent comments, and pending handoffs visible. Cleanup
-runs only with a validated source-result comment database ID and minimizes
-matching comments through that causal boundary; fallback finalization without
-that boundary skips cleanup.
+runs only when the source database ID is still the latest trusted synthesis for
+the current head and the current final note is verified as part of that source
+chain. It minimizes matching comments through the causal boundary plus later
+completed handoffs and prior final notes carrying the same chain marker, so
+same-source reruns converge without hiding unrelated later comments. Unsafe
+cleanup skips are reported in the workflow log.
 Blocked, clarification, failed, malformed-planner, and other non-success
 outcomes never trigger this terminal cleanup.
 Set `AGENT_COLLAPSE_OLD_REVIEWS=false` to skip this cleanup and leave prior
@@ -407,7 +410,9 @@ current-head `SHIP` review synthesis; orchestrated review `HUMAN_DECISION`
 handoffs also trust the matching current-head synthesis as the decision gate.
 An approved handoff exports that validated head for a fresh comparison before
 terminal success formatting or cleanup. It also preserves the originating
-review synthesis comment as the causal cleanup boundary.
+review synthesis comment as the causal cleanup boundary. Orchestrated
+self-merge revalidates both values before marking ready, merging, or enabling
+auto-merge.
 Non-approval outcomes post a compact PR status comment. In full
 self-governance mode, same-actor approvals are recorded as a current-head
 self-approval status comment rather than a GitHub review approval. In

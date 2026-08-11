@@ -1019,6 +1019,22 @@ test("self-merge workflow stays opt-in and deterministic", () => {
   assert.match(workflowText, /agent-self-merge-result-\$\{\{ inputs\.pr_number \}\}/);
   assert.match(workflowText, /SOURCE_ACTION:\s*agent-self-merge/);
 
+  const resolveStep = job.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Resolve self-merge",
+  );
+  assert.ok(resolveStep, "self-merge resolver should receive causal provenance");
+  assert.ok(isRecord(resolveStep.env), "self-merge resolver should define env");
+  assert.equal(resolveStep.env.ORCHESTRATION_ENABLED, "${{ inputs.orchestration_enabled }}");
+  assert.equal(
+    resolveStep.env.SOURCE_ARTIFACT_DATABASE_ID,
+    "${{ inputs.source_artifact_database_id }}",
+  );
+  assert.equal(
+    resolveStep.env.SOURCE_APPROVED_HEAD_SHA,
+    "${{ inputs.source_approved_head_sha }}",
+  );
+
   const handoffStep = job.steps.find(
     (step): step is Record<string, unknown> =>
       isRecord(step) && step.name === "Orchestrate automation handoff",

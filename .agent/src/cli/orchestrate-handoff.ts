@@ -19,6 +19,7 @@ import {
   gh,
   updateIssueComment,
   upsertPrCommentByMarker,
+  upsertPrCommentByMarkersWithId,
 } from "../github.js";
 import { setOutput } from "../output.js";
 import {
@@ -37,8 +38,10 @@ import {
 import { initialOrchestrateCapabilityStopReason } from "../orchestrator-capabilities.js";
 import { tryMergeProgressFinalComment } from "../progress-final-comment.js";
 import {
+  buildOrchestrationSourceArtifactMarker,
   collapsePreviousHandoffComments,
   collapsePreviousPrConversationArtifacts,
+  validateLatestReviewSynthesisSource,
 } from "../review-summary-minimize.js";
 import { appendRunDisplayFooter } from "../response.js";
 import {
@@ -879,6 +882,11 @@ const collapseOldReviews = !["false", "0", "no", "off"].includes(
   (process.env.AGENT_COLLAPSE_OLD_REVIEWS || "").trim().toLowerCase(),
 );
 
+function appendSourceArtifactMarker(body: string): string {
+  const marker = buildOrchestrationSourceArtifactMarker(sourceArtifactDatabaseId);
+  return marker ? `${body}\n${marker}` : body;
+}
+
 function manualPrChangesRequestedFixPrHandoffContext(): string {
   return [
     "Address the latest unresolved requested-change review comments on this pull request.",
@@ -1152,6 +1160,8 @@ function sourceHeadProvenance(): SourceHeadProvenance | null {
 }
 
 let sourceHeadProvenanceValid: boolean | null = null;
+let sourceReviewProvenanceValid: boolean | null = null;
+let sourceReviewProvenanceReason = "";
 
 function hasValidSourceHeadProvenance(refresh = false): boolean {
   const provenance = sourceHeadProvenance();
@@ -1187,6 +1197,38 @@ function hasValidSourceHeadProvenance(refresh = false): boolean {
   return sourceHeadProvenanceValid;
 }
 
+function hasValidSourceReviewProvenance(refresh = false): boolean {
+  const provenance = sourceHeadProvenance();
+  if (!provenance) return true;
+  if (!refresh && sourceReviewProvenanceValid !== null) return sourceReviewProvenanceValid;
+
+  const prNumber = parsePositiveTargetNumber(targetNumber);
+  if (!repo || !prNumber) {
+    sourceReviewProvenanceValid = false;
+    sourceReviewProvenanceReason = "pull request target is missing or invalid";
+  } else {
+    try {
+      const validation = validateLatestReviewSynthesisSource({
+        repo,
+        prNumber,
+        sourceArtifactDatabaseId,
+        expectedHeadSha: provenance.sha,
+      });
+      sourceReviewProvenanceValid = validation.valid;
+      sourceReviewProvenanceReason = validation.reason;
+    } catch (err: unknown) {
+      sourceReviewProvenanceValid = false;
+      sourceReviewProvenanceReason = `review synthesis provenance could not be read: ${errorText(err)}`;
+    }
+  }
+  if (!sourceReviewProvenanceValid) {
+    console.warn(
+      `${provenance.sourceLabel}-driven terminal success rejected because ${sourceReviewProvenanceReason}.`,
+    );
+  }
+  return sourceReviewProvenanceValid;
+}
+
 function hasEnabledSuccessfulPrFollowup(): boolean {
   const action = normalizeToken(sourceAction);
   const conclusion = normalizeToken(sourceConclusion);
@@ -1202,15 +1244,20 @@ function isValidatedSuccessfulPrStop(decision: HandoffDecision): boolean {
     normalizeToken(sourceTargetKind) !== "pull_request" ||
     !isSuccessfulPrSourceOutcome() ||
     hasEnabledSuccessfulPrFollowup() ||
-    !hasValidSourceHeadProvenance() ||
     Boolean(String(decision.clarificationRequest || "").trim())
   ) {
     return false;
   }
-  return automationMode !== "agent" || (
-    decision.plannerDecisionKind === "stop" &&
-    Boolean(String(decision.userMessage || "").trim())
-  );
+  if (
+    automationMode === "agent" &&
+    (
+      decision.plannerDecisionKind !== "stop" ||
+      !String(decision.userMessage || "").trim()
+    )
+  ) {
+    return false;
+  }
+  return hasValidSourceHeadProvenance() && hasValidSourceReviewProvenance();
 }
 
 function isSuccessfulPlannerStopSummaryMissing(decision: HandoffDecision): boolean {
@@ -1309,14 +1356,38 @@ function formatOrchestrateStopComment(decision: HandoffDecision): string {
       ? `Sepo orchestration finished successfully after \`${sourceAction || "unknown"}\` concluded \`${sourceConclusion || "unknown"}\`.`
       : `Sepo orchestration stopped after \`${sourceAction || "unknown"}\` concluded \`${sourceConclusion || "unknown"}\`.`,
   );
+  const terminalSummaryEligible = (
+    !String(decision.clarificationRequest || "").trim() &&
+    (
+      automationMode !== "agent" ||
+      (
+        decision.plannerDecisionKind === "stop" &&
+        Boolean(String(decision.userMessage || "").trim())
+      )
+    )
+  );
   const sourceHeadRejected = (
     !successful &&
+    terminalSummaryEligible &&
     sourceHeadProvenance() !== null &&
     isSuccessfulPrSourceOutcome() &&
     !hasEnabledSuccessfulPrFollowup() &&
     !hasValidSourceHeadProvenance()
   );
-  const userMessage = normalizeToken(sourceTargetKind) === "pull_request" && !sourceHeadRejected
+  const sourceReviewRejected = (
+    !successful &&
+    terminalSummaryEligible &&
+    !sourceHeadRejected &&
+    sourceHeadProvenance() !== null &&
+    isSuccessfulPrSourceOutcome() &&
+    !hasEnabledSuccessfulPrFollowup() &&
+    !hasValidSourceReviewProvenance()
+  );
+  const userMessage = (
+    normalizeToken(sourceTargetKind) === "pull_request" &&
+    !sourceHeadRejected &&
+    !sourceReviewRejected
+  )
     ? String(decision.userMessage || "").trim()
     : "";
   if (userMessage) lines.push("", userMessage);
@@ -1325,6 +1396,12 @@ function formatOrchestrateStopComment(decision: HandoffDecision): string {
     lines.push(
       "",
       `The ${provenance?.description || "validated source head"} no longer matches the current pull request head, so this result was not finalized as a success.`,
+    );
+  }
+  if (sourceReviewRejected) {
+    lines.push(
+      "",
+      `The causal review could not be validated as the latest trusted synthesis for the current pull request head (${sourceReviewProvenanceReason}), so this result was not finalized as a success.`,
     );
   }
   if (isSuccessfulPlannerStopSummaryMissing(decision)) {
@@ -1354,24 +1431,34 @@ function formatOrchestrateStopComment(decision: HandoffDecision): string {
     "",
     ORCHESTRATE_STOP_MARKER,
   );
+  const sourceMarker = buildOrchestrationSourceArtifactMarker(sourceArtifactDatabaseId);
+  if (sourceMarker) lines.push(sourceMarker);
   return lines.join("\n");
 }
 
 function collapseSuccessfulPrArtifacts(
   prNumber: number,
   decision: HandoffDecision,
+  currentFinalCommentDatabaseId: string,
 ): void {
   if (!collapseOldReviews || !isValidatedSuccessfulPrStop(decision)) return;
   if (!hasValidSourceHeadProvenance(true)) return;
+  if (!hasValidSourceReviewProvenance(true)) return;
   try {
-    const collapsed = collapsePreviousPrConversationArtifacts({
+    const cleanup = collapsePreviousPrConversationArtifacts({
       repo,
       prNumber,
+      currentFinalCommentDatabaseId,
       excludeBodyMarker: ORCHESTRATE_STOP_MARKER,
+      expectedHeadSha: sourceHeadProvenance()?.sha,
       sourceArtifactDatabaseId,
     });
-    if (collapsed > 0) {
-      console.log(`Collapsed ${collapsed} previous orchestration artifact comment(s).`);
+    if (cleanup.skippedReason) {
+      console.warn(
+        `Skipped terminal PR cleanup for ${repo}#${prNumber}: ${cleanup.skippedReason}.`,
+      );
+    } else if (cleanup.collapsed > 0) {
+      console.log(`Collapsed ${cleanup.collapsed} previous orchestration artifact comment(s).`);
     }
   } catch (err: unknown) {
     console.warn(`Failed to collapse previous orchestration artifacts for ${repo}#${prNumber}: ${errorText(err)}`);
@@ -1413,21 +1500,30 @@ function createOrchestrateStopComment(decision: HandoffDecision): void {
       finalBody: body,
       footer: modelDisplay,
     });
-    let currentFinalNoteIsAfterSource = merged;
+    let currentFinalCommentDatabaseId = merged ? progressCommentId : "";
     if (!merged) {
-      const action = upsertPrCommentByMarker(
-        target,
-        repo,
-        ORCHESTRATE_STOP_MARKER,
-        appendRunDisplayFooter(body, modelDisplay),
-      );
-      console.log(`${action === "updated" ? "Updated" : "Created"} orchestrator final comment.`);
-      currentFinalNoteIsAfterSource = action === "created";
+      if (isValidatedSuccessfulPrStop(decision)) {
+        const sourceMarker = buildOrchestrationSourceArtifactMarker(sourceArtifactDatabaseId);
+        const result = upsertPrCommentByMarkersWithId(
+          target,
+          repo,
+          [ORCHESTRATE_STOP_MARKER, sourceMarker],
+          appendRunDisplayFooter(body, modelDisplay),
+        );
+        console.log(`${result.action === "updated" ? "Updated" : "Created"} orchestrator final comment.`);
+        currentFinalCommentDatabaseId = result.commentId;
+      } else {
+        const action = upsertPrCommentByMarker(
+          target,
+          repo,
+          ORCHESTRATE_STOP_MARKER,
+          appendRunDisplayFooter(body, modelDisplay),
+        );
+        console.log(`${action === "updated" ? "Updated" : "Created"} orchestrator final comment.`);
+      }
     }
     orchestrateStopCommentHandled = true;
-    if (currentFinalNoteIsAfterSource) {
-      collapseSuccessfulPrArtifacts(target, decision);
-    }
+    collapseSuccessfulPrArtifacts(target, decision, currentFinalCommentDatabaseId);
     return;
   }
   if (hasMatchingOrchestrateStopComment(repo, target, body)) {
@@ -1641,13 +1737,34 @@ if (decision.decision !== "dispatch" && decision.decision !== "delegate_issue") 
   console.log(`Handoff ${decision.decision}: ${decision.reason}`);
   try {
     commentOnPlannerClarificationStop(decision);
+  } catch (err: unknown) {
+    console.warn(`Failed to report planner clarification stop: ${errorText(err)}`);
+  }
+  try {
     commentOnInitialOrchestrateStop(decision);
+  } catch (err: unknown) {
+    console.warn(`Failed to report initial orchestration stop: ${errorText(err)}`);
+  }
+  try {
     commentOnUnsatisfactoryActionStop(decision);
-    const reportedToParent = reportTerminalToParent(decision);
+  } catch (err: unknown) {
+    console.warn(`Failed to report unsatisfactory action stop: ${errorText(err)}`);
+  }
+  let reportedToParent = false;
+  try {
+    reportedToParent = reportTerminalToParent(decision);
+  } catch (err: unknown) {
+    console.warn(`Failed to report optional terminal parent state: ${errorText(err)}`);
+  }
+  try {
     commentOnTerminalPullRequestStop(decision, reportedToParent);
+  } catch (err: unknown) {
+    console.warn(`Failed to report terminal pull request stop: ${errorText(err)}`);
+  }
+  try {
     commentOnTerminalMetaOrchestratorStop(decision);
   } catch (err: unknown) {
-    console.warn(`Failed to report terminal sub-orchestration state: ${errorText(err)}`);
+    console.warn(`Failed to report terminal meta-orchestration stop: ${errorText(err)}`);
   }
   process.exit(0);
 }
@@ -1742,7 +1859,7 @@ for (const staleMarker of existingMarkers.filter((marker) =>
   isPendingHandoffMarkerStale(marker, nowMs, PENDING_MARKER_TTL_MS)
 )) {
   try {
-    updateIssueComment(repo, staleMarker.id, formatHandoffMarkerComment({
+    updateIssueComment(repo, staleMarker.id, appendSourceArtifactMarker(formatHandoffMarkerComment({
       key: dedupeKey,
       state: "failed",
       sourceAction,
@@ -1754,13 +1871,13 @@ for (const staleMarker of existingMarkers.filter((marker) =>
       reason: decision.reason,
       handoffContext: decision.handoffContext,
       error: "Pending handoff marker expired before dispatch completed; retrying handoff.",
-    }));
+    })));
   } catch (err: unknown) {
     console.warn(`Failed to expire stale pending handoff marker ${staleMarker.id}: ${errorText(err)}`);
   }
 }
 
-const pendingBody = formatHandoffMarkerComment({
+const pendingBody = appendSourceArtifactMarker(formatHandoffMarkerComment({
   key: dedupeKey,
   state: "pending",
   sourceAction,
@@ -1772,7 +1889,7 @@ const pendingBody = formatHandoffMarkerComment({
   reason: decision.reason,
   handoffContext: decision.handoffContext,
   createdAtMs: nowMs,
-});
+}));
 const markerCommentId = createIssueComment(repo, markerTargetNumber, pendingBody);
 setOutput("marker_comment_id", markerCommentId);
 
@@ -1847,7 +1964,7 @@ try {
 } catch (err: unknown) {
   const message = errorText(err).slice(0, 1000);
   try {
-    updateIssueComment(repo, markerCommentId, formatHandoffMarkerComment({
+    updateIssueComment(repo, markerCommentId, appendSourceArtifactMarker(formatHandoffMarkerComment({
       key: dedupeKey,
       state: "failed",
       sourceAction,
@@ -1859,14 +1976,14 @@ try {
       reason: decision.reason,
       handoffContext: decision.handoffContext,
       error: message,
-    }));
+    })));
   } catch (updateErr: unknown) {
     console.warn(`Failed to mark handoff ${dedupeKey} as failed: ${errorText(updateErr)}`);
   }
   throw err;
 }
 
-const dispatchedBody = formatHandoffMarkerComment({
+const dispatchedBody = appendSourceArtifactMarker(formatHandoffMarkerComment({
   key: dedupeKey,
   state: "dispatched",
   sourceAction,
@@ -1878,7 +1995,7 @@ const dispatchedBody = formatHandoffMarkerComment({
   reason: decision.reason,
   handoffContext: decision.handoffContext,
   createdAtMs: nowMs,
-});
+}));
 
 try {
   updateIssueComment(repo, markerCommentId, dispatchedBody);

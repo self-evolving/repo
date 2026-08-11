@@ -4,7 +4,11 @@ import {
 } from "./github-graphql.js";
 import { hasAnyHandoffMarker, parseAnyHandoffMarker } from "./handoff.js";
 import { isFixPrStatusBody } from "./fix-pr-status.js";
-import { isReviewSynthesisBody } from "./review-synthesis.js";
+import {
+  REVIEW_SYNTHESIS_MARKER,
+  extractReviewSynthesisHeadSha,
+  isReviewSynthesisBody,
+} from "./review-synthesis.js";
 
 type PageInfo = {
   hasNextPage: boolean;
@@ -63,9 +67,21 @@ type CollapsePreviousReviewSummariesOptions = {
 };
 
 type CollapsePreviousPrConversationArtifactsOptions = CollapsePreviousReviewSummariesOptions & {
+  currentFinalCommentDatabaseId?: string;
   excludeBodyMarker?: string;
+  expectedHeadSha?: string;
   sourceArtifactDatabaseId?: string;
 };
+
+export interface ReviewSynthesisSourceValidationResult {
+  valid: boolean;
+  reason: string;
+}
+
+export interface CollapsePreviousPrConversationArtifactsResult {
+  collapsed: number;
+  skippedReason?: string;
+}
 
 type CollapsePreviousHandoffCommentsOptions = {
   repo: string;
@@ -209,8 +225,9 @@ function isGeneratedReviewComment(
   node: ReviewSummaryNode,
   viewerLogin: string,
   bodyMatcher: ReviewBodyMatcher,
+  includeMinimized = false,
 ): boolean {
-  if (!node.id || node.isMinimized) return false;
+  if (!node.id || (!includeMinimized && node.isMinimized)) return false;
   if (!isSameActorLogin(node.author?.login || "", viewerLogin)) return false;
   return bodyMatcher(node.body || "");
 }
@@ -232,6 +249,7 @@ function fetchMatchingNodes(
   prNumber: number,
   viewerLogin: string,
   bodyMatcher: ReviewBodyMatcher,
+  includeMinimized = false,
 ): ReviewSummaryNode[] {
   const matches: ReviewSummaryNode[] = [];
   let after: string | undefined;
@@ -253,7 +271,7 @@ function fetchMatchingNodes(
     if (!connection) return matches;
 
     for (const node of connection.nodes || []) {
-      if (isGeneratedReviewComment(node, viewerLogin, bodyMatcher)) {
+      if (isGeneratedReviewComment(node, viewerLogin, bodyMatcher, includeMinimized)) {
         matches.push(node);
       }
     }
@@ -360,6 +378,103 @@ function parsePositiveDatabaseId(value: unknown): bigint | null {
 function isDatabaseIdAtOrBefore(value: unknown, boundary: bigint): boolean {
   const databaseId = parsePositiveDatabaseId(value);
   return databaseId !== null && databaseId <= boundary;
+}
+
+const ORCHESTRATION_SOURCE_ARTIFACT_MARKER_PREFIX = "sepo-agent-orchestration-source-artifact";
+
+export function buildOrchestrationSourceArtifactMarker(sourceArtifactDatabaseId: string): string {
+  const databaseId = parsePositiveDatabaseId(sourceArtifactDatabaseId);
+  return databaseId === null
+    ? ""
+    : `<!-- ${ORCHESTRATION_SOURCE_ARTIFACT_MARKER_PREFIX}: ${databaseId} -->`;
+}
+
+function evaluateReviewSynthesisSource(
+  nodes: ReviewSummaryNode[],
+  sourceArtifactDatabaseId: string | undefined,
+  expectedHeadSha: string | undefined,
+): ReviewSynthesisSourceValidationResult {
+  const invalidInput = validateReviewSynthesisSourceInputs(
+    sourceArtifactDatabaseId,
+    expectedHeadSha,
+  );
+  if (invalidInput) return invalidInput;
+  const sourceDatabaseId = parsePositiveDatabaseId(sourceArtifactDatabaseId) as bigint;
+  const normalizedExpectedHead = String(expectedHeadSha || "").trim().toLowerCase();
+
+  const currentHeadSyntheses = nodes
+    .filter((node) => {
+      const body = String(node.body || "");
+      return body.includes(REVIEW_SYNTHESIS_MARKER) &&
+        extractReviewSynthesisHeadSha(body).toLowerCase() === normalizedExpectedHead;
+    })
+    .map((node) => ({ node, databaseId: parsePositiveDatabaseId(node.databaseId) }))
+    .filter((entry): entry is { node: ReviewSummaryNode; databaseId: bigint } => entry.databaseId !== null)
+    .sort((left, right) => left.databaseId < right.databaseId ? -1 : left.databaseId > right.databaseId ? 1 : 0);
+  if (!currentHeadSyntheses.length) {
+    return {
+      valid: false,
+      reason: "no trusted review synthesis with explicit markers matches the expected head",
+    };
+  }
+
+  const latest = currentHeadSyntheses[currentHeadSyntheses.length - 1];
+  if (latest.databaseId !== sourceDatabaseId) {
+    return {
+      valid: false,
+      reason: "source artifact is not the latest trusted review synthesis for the expected head",
+    };
+  }
+  return { valid: true, reason: "source artifact is the latest trusted current-head review synthesis" };
+}
+
+function validateReviewSynthesisSourceInputs(
+  sourceArtifactDatabaseId: string | undefined,
+  expectedHeadSha: string | undefined,
+): ReviewSynthesisSourceValidationResult | null {
+  if (parsePositiveDatabaseId(sourceArtifactDatabaseId) === null) {
+    return { valid: false, reason: "source artifact database ID is missing or invalid" };
+  }
+  if (!/^[0-9a-f]{6,64}$/i.test(String(expectedHeadSha || "").trim())) {
+    return { valid: false, reason: "expected reviewed head SHA is missing or invalid" };
+  }
+  return null;
+}
+
+function fetchTrustedPrCommentNodes(
+  options: CollapsePreviousReviewSummariesOptions,
+): ReviewSummaryNode[] {
+  const client = options.client || createGhGraphqlClient();
+  const repo = parseRepo(options.repo);
+  const viewerLogin = fetchViewerLogin(client);
+  return fetchMatchingNodes(
+    client,
+    COMMENTS_QUERY,
+    "comments",
+    repo,
+    options.prNumber,
+    viewerLogin,
+    () => true,
+    true,
+  );
+}
+
+export function validateLatestReviewSynthesisSource(
+  options: CollapsePreviousReviewSummariesOptions & {
+    expectedHeadSha?: string;
+    sourceArtifactDatabaseId?: string;
+  },
+): ReviewSynthesisSourceValidationResult {
+  const invalidInput = validateReviewSynthesisSourceInputs(
+    options.sourceArtifactDatabaseId,
+    options.expectedHeadSha,
+  );
+  if (invalidInput) return invalidInput;
+  return evaluateReviewSynthesisSource(
+    fetchTrustedPrCommentNodes(options),
+    options.sourceArtifactDatabaseId,
+    options.expectedHeadSha,
+  );
 }
 
 function isTerminalPrConversationArtifact(body: string): boolean {
@@ -498,15 +613,87 @@ export function collapsePreviousFixPrComments(
  */
 export function collapsePreviousPrConversationArtifacts(
   options: CollapsePreviousPrConversationArtifactsOptions,
-): number {
+): CollapsePreviousPrConversationArtifactsResult {
   const excludeBodyMarker = String(options.excludeBodyMarker || "");
   const sourceArtifactDatabaseId = parsePositiveDatabaseId(options.sourceArtifactDatabaseId);
-  if (sourceArtifactDatabaseId === null) return 0;
+  if (sourceArtifactDatabaseId === null) {
+    return { collapsed: 0, skippedReason: "source artifact database ID is missing or invalid" };
+  }
+  const currentFinalCommentDatabaseId = parsePositiveDatabaseId(options.currentFinalCommentDatabaseId);
+  if (currentFinalCommentDatabaseId === null) {
+    return { collapsed: 0, skippedReason: "current finalized comment database ID is missing or invalid" };
+  }
+  const invalidSourceInput = validateReviewSynthesisSourceInputs(
+    options.sourceArtifactDatabaseId,
+    options.expectedHeadSha,
+  );
+  if (invalidSourceInput) {
+    return { collapsed: 0, skippedReason: invalidSourceInput.reason };
+  }
 
-  return collapsePreviousMatchingPrComments(options, (body) => (
-    Boolean(excludeBodyMarker && body.includes(excludeBodyMarker)) ||
-    isTerminalPrConversationArtifact(body)
-  ), sourceArtifactDatabaseId);
+  const client = options.client || createGhGraphqlClient();
+  const nodes = fetchTrustedPrCommentNodes({ ...options, client });
+  const sourceValidation = evaluateReviewSynthesisSource(
+    nodes,
+    options.sourceArtifactDatabaseId,
+    options.expectedHeadSha,
+  );
+  if (!sourceValidation.valid) {
+    return { collapsed: 0, skippedReason: sourceValidation.reason };
+  }
+
+  const sourceMarker = buildOrchestrationSourceArtifactMarker(options.sourceArtifactDatabaseId || "");
+  const currentFinalNode = nodes.find((node) => (
+    parsePositiveDatabaseId(node.databaseId) === currentFinalCommentDatabaseId
+  ));
+  const currentFinalBody = String(currentFinalNode?.body || "");
+  if (
+    !currentFinalNode ||
+    currentFinalNode.isMinimized ||
+    !excludeBodyMarker ||
+    !currentFinalBody.includes(excludeBodyMarker) ||
+    !sourceMarker ||
+    !currentFinalBody.includes(sourceMarker)
+  ) {
+    return {
+      collapsed: 0,
+      skippedReason: "current finalized comment could not be verified as part of the causal source chain",
+    };
+  }
+  const uniqueNodeIds = Array.from(new Set(
+    nodes
+      .filter((node) => {
+        const databaseId = parsePositiveDatabaseId(node.databaseId);
+        if (
+          !node.id ||
+          node.isMinimized ||
+          databaseId === null ||
+          databaseId === currentFinalCommentDatabaseId
+        ) {
+          return false;
+        }
+        const body = String(node.body || "");
+        const terminalArtifact = (
+          Boolean(excludeBodyMarker && body.includes(excludeBodyMarker)) ||
+          isTerminalPrConversationArtifact(body)
+        );
+        return terminalArtifact && (
+          databaseId <= sourceArtifactDatabaseId ||
+          Boolean(sourceMarker && body.includes(sourceMarker))
+        );
+      })
+      .map((node) => node.id)
+      .filter((id): id is string => Boolean(id)),
+  ));
+
+  for (const id of uniqueNodeIds) {
+    client.graphql(MINIMIZE_COMMENT_MUTATION, {
+      id,
+      classifier: "OUTDATED",
+    });
+  }
+
+  return { collapsed: uniqueNodeIds.length };
 }
 
 /**

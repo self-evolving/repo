@@ -46,7 +46,18 @@ if [ "$1" = "pr" ] && [ "$2" = "view" ]; then
   exit 0
 fi
 if [ "$1" = "api" ] && [ "$2" = "graphql" ]; then
-  printf '{"data":{"viewer":{"login":"sepo-agent-app[bot]"}}}\\n'
+  case "$*" in
+    *ViewerLogin*)
+      printf '{"data":{"viewer":{"login":"sepo-agent-app[bot]"}}}\\n'
+      ;;
+    *PullRequestReviewSummaryComments*)
+      printf '{"data":{"repository":{"pullRequest":{"comments":{"nodes":%s,"pageInfo":{"hasNextPage":false,"endCursor":null}}}}}}\\n' "\${FAKE_GRAPHQL_PR_COMMENTS-[]}"
+      ;;
+    *)
+      printf 'unexpected graphql query: %s\\n' "$*" >&2
+      exit 1
+      ;;
+  esac
   exit 0
 fi
 if [ "$1" = "api" ] && [ "$2" = "--paginate" ] && [ "$3" = "--slurp" ]; then
@@ -226,6 +237,43 @@ test("resolve-self-merge blocks stale self-approval heads", () => {
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.outputs.get("conclusion"), "blocked");
     assert.match(result.outputs.get("reason") || "", /different head SHA/);
+    assert.doesNotMatch(result.log, /^pr merge /m);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("orchestrated self-merge rejects a superseded same-head review source", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-self-merge-cli-"));
+  try {
+    writeFakeGh(tempDir);
+    const review = (databaseId: number, verdict: string) => ({
+      id: `review-${databaseId}`,
+      databaseId,
+      body: [
+        "## AI Review Synthesis",
+        "<!-- sepo-agent-review-synthesis -->",
+        "<!-- sepo-agent-review-synthesis-head: abc123 -->",
+        `Verdict: ${verdict}`,
+      ].join("\n"),
+      isMinimized: false,
+      author: { login: "sepo-agent-app[bot]" },
+    });
+
+    const result = runResolveSelfMerge(tempDir, {
+      ORCHESTRATION_ENABLED: "true",
+      SOURCE_APPROVED_HEAD_SHA: "abc123",
+      SOURCE_ARTIFACT_DATABASE_ID: "101",
+      FAKE_GRAPHQL_PR_COMMENTS: JSON.stringify([
+        review(101, "SHIP"),
+        review(102, "NEEDS_REWORK"),
+      ]),
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.outputs.get("conclusion"), "blocked");
+    assert.match(result.outputs.get("reason") || "", /source artifact is not the latest trusted review synthesis/);
+    assert.doesNotMatch(result.log, /^pr ready /m);
     assert.doesNotMatch(result.log, /^pr merge /m);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
