@@ -5,7 +5,8 @@
 //      SESSION_BUNDLE_MODE, SOURCE_RUN_ID, PLANNER_RESPONSE_FILE, TARGET_KIND,
 //      BASE_BRANCH, BASE_PR, AGENT_COLLAPSE_OLD_REVIEWS, AGENT_ALLOW_SELF_APPROVE,
 //      AGENT_ALLOW_SELF_MERGE, AGENT_HANDLE, AGENT_PROGRESS_COMMENT_ID,
-//      AGENT_PROGRESS_FINAL_COMMENT_MODE, MODEL_DISPLAY
+//      AGENT_PROGRESS_FINAL_COMMENT_MODE, MODEL_DISPLAY,
+//      SOURCE_ARTIFACT_DATABASE_ID, SOURCE_REVIEWED_HEAD_SHA
 
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -13,6 +14,7 @@ import { join } from "node:path";
 import {
   createIssueComment,
   dispatchWorkflow,
+  fetchPrMeta,
   gh,
   updateIssueComment,
   upsertPrCommentByMarker,
@@ -846,6 +848,8 @@ const sourceConclusion = process.env.SOURCE_CONCLUSION || "unknown";
 const sourceRunId = process.env.SOURCE_RUN_ID || process.env.GITHUB_RUN_ID || "";
 const sourceRecommendedNextStep = process.env.SOURCE_RECOMMENDED_NEXT_STEP || "";
 const sourceHandoffContext = process.env.SOURCE_HANDOFF_CONTEXT || "";
+const sourceArtifactDatabaseId = process.env.SOURCE_ARTIFACT_DATABASE_ID || "";
+const sourceReviewedHeadSha = process.env.SOURCE_REVIEWED_HEAD_SHA || "";
 const sourceTargetKind = process.env.TARGET_KIND || "";
 const sourceAssociationRaw = process.env.AUTHOR_ASSOCIATION || "";
 const accessPolicyRaw = process.env.ACCESS_POLICY || "";
@@ -1109,10 +1113,44 @@ function isSuccessfulPrSourceOutcome(): boolean {
   const action = normalizeToken(sourceAction);
   const conclusion = normalizeToken(sourceConclusion);
   return (
-    (action === "review" && conclusion === "ship") ||
+    (
+      action === "review" &&
+      conclusion === "ship" &&
+      normalizeToken(sourceRecommendedNextStep) !== "human_decision"
+    ) ||
     (action === "agent_self_approve" && conclusion === "approved") ||
     (action === "agent_self_merge" && ["merged", "auto_merge_enabled"].includes(conclusion))
   );
+}
+
+let reviewedHeadProvenanceValid: boolean | null = null;
+
+function hasValidReviewedHeadProvenance(refresh = false): boolean {
+  if (normalizeToken(sourceAction) !== "review") return true;
+  if (!refresh && reviewedHeadProvenanceValid !== null) return reviewedHeadProvenanceValid;
+
+  const reviewedHeadSha = sourceReviewedHeadSha.trim();
+  const prNumber = parsePositiveTargetNumber(targetNumber);
+  if (!repo || !prNumber || !/^[0-9a-f]{40}$/i.test(reviewedHeadSha)) {
+    console.warn("Review-driven terminal success rejected because reviewed-head provenance is missing or invalid.");
+    reviewedHeadProvenanceValid = false;
+    return false;
+  }
+
+  try {
+    const currentHeadSha = fetchPrMeta(prNumber, repo).headOid.trim();
+    reviewedHeadProvenanceValid = (
+      /^[0-9a-f]{40}$/i.test(currentHeadSha) &&
+      currentHeadSha.toLowerCase() === reviewedHeadSha.toLowerCase()
+    );
+    if (!reviewedHeadProvenanceValid) {
+      console.warn("Review-driven terminal success rejected because the reviewed head no longer matches the PR head.");
+    }
+  } catch (err: unknown) {
+    console.warn(`Review-driven terminal success rejected because the PR head could not be read: ${errorText(err)}`);
+    reviewedHeadProvenanceValid = false;
+  }
+  return reviewedHeadProvenanceValid;
 }
 
 function hasEnabledSuccessfulPrFollowup(): boolean {
@@ -1130,6 +1168,7 @@ function isValidatedSuccessfulPrStop(decision: HandoffDecision): boolean {
     normalizeToken(sourceTargetKind) !== "pull_request" ||
     !isSuccessfulPrSourceOutcome() ||
     hasEnabledSuccessfulPrFollowup() ||
+    !hasValidReviewedHeadProvenance() ||
     Boolean(String(decision.clarificationRequest || "").trim())
   ) {
     return false;
@@ -1236,10 +1275,23 @@ function formatOrchestrateStopComment(decision: HandoffDecision): string {
       ? `Sepo orchestration finished successfully after \`${sourceAction || "unknown"}\` concluded \`${sourceConclusion || "unknown"}\`.`
       : `Sepo orchestration stopped after \`${sourceAction || "unknown"}\` concluded \`${sourceConclusion || "unknown"}\`.`,
   );
-  const userMessage = normalizeToken(sourceTargetKind) === "pull_request"
+  const reviewedHeadRejected = (
+    !successful &&
+    normalizeToken(sourceAction) === "review" &&
+    isSuccessfulPrSourceOutcome() &&
+    !hasEnabledSuccessfulPrFollowup() &&
+    !hasValidReviewedHeadProvenance()
+  );
+  const userMessage = normalizeToken(sourceTargetKind) === "pull_request" && !reviewedHeadRejected
     ? String(decision.userMessage || "").trim()
     : "";
   if (userMessage) lines.push("", userMessage);
+  if (reviewedHeadRejected) {
+    lines.push(
+      "",
+      "The reviewed head no longer matches the current pull request head, so this result was not finalized as a success.",
+    );
+  }
   if (isSuccessfulPlannerStopSummaryMissing(decision)) {
     lines.push(
       "",
@@ -1273,15 +1325,15 @@ function formatOrchestrateStopComment(decision: HandoffDecision): string {
 function collapseSuccessfulPrArtifacts(
   prNumber: number,
   decision: HandoffDecision,
-  currentCommentDatabaseId = "",
 ): void {
   if (!collapseOldReviews || !isValidatedSuccessfulPrStop(decision)) return;
+  if (!hasValidReviewedHeadProvenance(true)) return;
   try {
     const collapsed = collapsePreviousPrConversationArtifacts({
       repo,
       prNumber,
       excludeBodyMarker: ORCHESTRATE_STOP_MARKER,
-      currentCommentDatabaseId,
+      sourceArtifactDatabaseId,
     });
     if (collapsed > 0) {
       console.log(`Collapsed ${collapsed} previous orchestration artifact comment(s).`);
@@ -1326,6 +1378,7 @@ function createOrchestrateStopComment(decision: HandoffDecision): void {
       finalBody: body,
       footer: modelDisplay,
     });
+    let currentFinalNoteIsAfterSource = merged;
     if (!merged) {
       const action = upsertPrCommentByMarker(
         target,
@@ -1334,12 +1387,12 @@ function createOrchestrateStopComment(decision: HandoffDecision): void {
         appendRunDisplayFooter(body, modelDisplay),
       );
       console.log(`${action === "updated" ? "Updated" : "Created"} orchestrator final comment.`);
+      currentFinalNoteIsAfterSource = action === "created";
     }
     orchestrateStopCommentHandled = true;
-    const currentCommentDatabaseId = merged && /^\d+$/.test(progressCommentId.trim())
-      ? progressCommentId.trim()
-      : "";
-    collapseSuccessfulPrArtifacts(target, decision, currentCommentDatabaseId);
+    if (currentFinalNoteIsAfterSource) {
+      collapseSuccessfulPrArtifacts(target, decision);
+    }
     return;
   }
   if (hasMatchingOrchestrateStopComment(repo, target, body)) {

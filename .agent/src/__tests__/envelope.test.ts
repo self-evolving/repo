@@ -937,6 +937,20 @@ test("review workflow captures reviewed head as best-effort prepare output", () 
     postCommentStep.env.REVIEWED_HEAD_SHA,
     "${{ needs.prepare.outputs.reviewed_head_sha }}",
   );
+
+  const handoffStep = synthesizeJob.steps.find(
+    (step): step is Record<string, unknown> => isRecord(step) && step.name === "Orchestrate automation handoff",
+  );
+  assert.ok(handoffStep, "synthesize job should dispatch orchestration");
+  assert.ok(isRecord(handoffStep.env), "orchestration handoff step should define env");
+  assert.equal(
+    handoffStep.env.SOURCE_ARTIFACT_DATABASE_ID,
+    "${{ steps.post_comment.outputs.comment_database_id }}",
+  );
+  assert.equal(
+    handoffStep.env.SOURCE_REVIEWED_HEAD_SHA,
+    "${{ needs.prepare.outputs.reviewed_head_sha }}",
+  );
 });
 
 test("self-approval workflow stays opt-in and read-only until deterministic resolution", () => {
@@ -2130,6 +2144,8 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(approveWorkflow, /AUTOMATION_MODE:\s*\$\{\{ vars\.AGENT_AUTOMATION_MODE \|\| 'agent' \}\}/);
   assert.match(orchestratorWorkflow, /name: Agent \/ Orchestrator/);
   assert.match(orchestratorWorkflow, /source_run_id:/);
+  assert.match(orchestratorWorkflow, /source_artifact_database_id:/);
+  assert.match(orchestratorWorkflow, /source_reviewed_head_sha:/);
   assert.match(orchestratorWorkflow, /issues: write/);
   assert.match(orchestratorWorkflow, /uses: \.\/\.github\/actions\/resolve-agent-provider/);
   assert.match(orchestratorWorkflow, /route:\s*orchestrator/);
@@ -2172,6 +2188,8 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestratorWorkflow, /AGENT_COLLAPSE_OLD_REVIEWS:\s*\$\{\{ vars\.AGENT_COLLAPSE_OLD_REVIEWS \}\}/);
   assert.match(orchestratorWorkflow, /BASE_BRANCH:\s*\$\{\{ inputs\.base_branch \}\}/);
   assert.match(orchestratorWorkflow, /SOURCE_HANDOFF_CONTEXT:\s*\$\{\{ inputs\.source_handoff_context \}\}/);
+  assert.match(orchestratorWorkflow, /SOURCE_ARTIFACT_DATABASE_ID:\s*\$\{\{ inputs\.source_artifact_database_id \}\}/);
+  assert.match(orchestratorWorkflow, /SOURCE_REVIEWED_HEAD_SHA:\s*\$\{\{ inputs\.source_reviewed_head_sha \}\}/);
   assert.match(orchestratorWorkflow, /ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT:\s*\$\{\{ inputs\.source_handoff_context \}\}/);
   assert.match(orchestrateHandoffCli, /resolveEffectiveBaseInputs/);
   assert.match(orchestrateHandoffCli, /baseBranch:\s*decision\.baseBranch \|\| baseBranch/);

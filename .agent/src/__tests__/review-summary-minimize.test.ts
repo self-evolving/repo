@@ -4,6 +4,7 @@ import { strict as assert } from "node:assert";
 import {
   collapsePreviousFixPrComments,
   collapsePreviousHandoffComments,
+  collapsePreviousPrConversationArtifacts,
   collapsePreviousReviewSummaries,
   collapsePreviousRubricsReviews,
   isRubricsReviewBody,
@@ -500,4 +501,90 @@ test("collapsePreviousReviewSummaries paginates comments", () => {
   }), 1);
   assert.equal(calls[1]?.variables.after, undefined);
   assert.equal(calls[2]?.variables.after, "cursor-1");
+});
+
+test("terminal cleanup stops at the causal source artifact", () => {
+  const generated = (id: string, databaseId: number, body: string) => ({
+    id,
+    databaseId,
+    body,
+    isMinimized: false,
+    author: { login: "sepo-agent" },
+  });
+  const { client, calls } = createQueuedClient([
+    { viewer: { login: "sepo-agent" } },
+    {
+      repository: {
+        pullRequest: {
+          comments: {
+            nodes: [
+              generated("older-final", 100, "<!-- sepo-agent-orchestrate-stop -->"),
+              generated("source-review", 101, "## AI Review Synthesis\nsource"),
+              generated("later-review", 102, "## AI Review Synthesis\nlater overlapping run"),
+            ],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      },
+    },
+    { minimizeComment: { minimizedComment: { isMinimized: true } } },
+    { minimizeComment: { minimizedComment: { isMinimized: true } } },
+  ]);
+
+  assert.equal(collapsePreviousPrConversationArtifacts({
+    repo: "self-evolving/repo",
+    prNumber: 320,
+    excludeBodyMarker: "<!-- sepo-agent-orchestrate-stop -->",
+    sourceArtifactDatabaseId: "101",
+    client,
+  }), 2);
+  assert.deepEqual(
+    calls.slice(2).map((call) => call.variables),
+    [
+      { id: "older-final", classifier: "OUTDATED" },
+      { id: "source-review", classifier: "OUTDATED" },
+    ],
+  );
+});
+
+test("terminal cleanup fails closed without a safe source artifact boundary", () => {
+  const { client, calls } = createQueuedClient([]);
+
+  assert.equal(collapsePreviousPrConversationArtifacts({
+    repo: "self-evolving/repo",
+    prNumber: 320,
+    sourceArtifactDatabaseId: "not-a-database-id",
+    client,
+  }), 0);
+  assert.equal(calls.length, 0);
+});
+
+test("terminal cleanup rejects a boundary that is not a matching source artifact", () => {
+  const { client, calls } = createQueuedClient([
+    { viewer: { login: "sepo-agent" } },
+    {
+      repository: {
+        pullRequest: {
+          comments: {
+            nodes: [{
+              id: "older-review",
+              databaseId: 100,
+              body: "## AI Review Synthesis\nolder",
+              isMinimized: false,
+              author: { login: "sepo-agent" },
+            }],
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        },
+      },
+    },
+  ]);
+
+  assert.equal(collapsePreviousPrConversationArtifacts({
+    repo: "self-evolving/repo",
+    prNumber: 320,
+    sourceArtifactDatabaseId: "101",
+    client,
+  }), 0);
+  assert.equal(calls.length, 2);
 });

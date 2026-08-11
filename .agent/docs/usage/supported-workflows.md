@@ -132,8 +132,9 @@ generated status prominent while leaving older generated comments expandable.
 Successful terminal PR orchestration also best-effort minimizes older matching
 conversation comments and older trusted final notes while leaving the current
 final note, newer concurrent comments, and pending handoffs visible. Cleanup
-runs only with a validated current-comment database ID and minimizes strictly
-older comments; fallback finalization without that boundary skips cleanup.
+runs only with a validated source-result comment database ID and minimizes
+matching comments through that causal boundary; fallback finalization without
+that boundary skips cleanup.
 Blocked, clarification, failed, malformed-planner, and other non-success
 outcomes never trigger this terminal cleanup.
 Set `AGENT_COLLAPSE_OLD_REVIEWS=false` to skip this cleanup and leave prior
@@ -143,7 +144,9 @@ Review runs also attempt to capture the pull request head before reviewer lanes
 start. The synthesis comment includes a hidden reviewed-head marker only if the
 pull request still points at that same head before posting. If capture,
 comparison, or prepare metadata setup cannot read PR metadata, synthesis still
-posts without the hidden marker.
+posts without the hidden marker. Review-driven terminal success formatting and
+cleanup separately require the captured head to still match when orchestration
+finalizes; a changed or unverifiable head produces a non-success stop instead.
 
 Review synthesis can also make prompt-managed inline review comment updates:
 it may post a new inline comment, reply to an existing same-agent inline

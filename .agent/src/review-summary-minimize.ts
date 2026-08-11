@@ -64,7 +64,7 @@ type CollapsePreviousReviewSummariesOptions = {
 
 type CollapsePreviousPrConversationArtifactsOptions = CollapsePreviousReviewSummariesOptions & {
   excludeBodyMarker?: string;
-  currentCommentDatabaseId?: string;
+  sourceArtifactDatabaseId?: string;
 };
 
 type CollapsePreviousHandoffCommentsOptions = {
@@ -307,7 +307,7 @@ function collapsePreviousMatchingReviewComments(
 function collapsePreviousMatchingPrComments(
   options: CollapsePreviousReviewSummariesOptions,
   bodyMatcher: ReviewBodyMatcher,
-  olderThanCommentDatabaseId?: bigint,
+  atOrBeforeCommentDatabaseId?: bigint,
 ): number {
   const client = options.client || createGhGraphqlClient();
   const repo = parseRepo(options.repo);
@@ -321,11 +321,17 @@ function collapsePreviousMatchingPrComments(
     viewerLogin,
     bodyMatcher,
   );
+  if (
+    atOrBeforeCommentDatabaseId !== undefined &&
+    !nodes.some((node) => parsePositiveDatabaseId(node.databaseId) === atOrBeforeCommentDatabaseId)
+  ) {
+    return 0;
+  }
   const uniqueNodeIds = Array.from(new Set(
     nodes
       .filter((node) => (
-        olderThanCommentDatabaseId === undefined ||
-        isDatabaseIdStrictlyOlder(node.databaseId, olderThanCommentDatabaseId)
+        atOrBeforeCommentDatabaseId === undefined ||
+        isDatabaseIdAtOrBefore(node.databaseId, atOrBeforeCommentDatabaseId)
       ))
       .map((node) => node.id)
       .filter(Boolean),
@@ -351,9 +357,9 @@ function parsePositiveDatabaseId(value: unknown): bigint | null {
   }
 }
 
-function isDatabaseIdStrictlyOlder(value: unknown, boundary: bigint): boolean {
+function isDatabaseIdAtOrBefore(value: unknown, boundary: bigint): boolean {
   const databaseId = parsePositiveDatabaseId(value);
-  return databaseId !== null && databaseId < boundary;
+  return databaseId !== null && databaseId <= boundary;
 }
 
 function isTerminalPrConversationArtifact(body: string): boolean {
@@ -494,13 +500,13 @@ export function collapsePreviousPrConversationArtifacts(
   options: CollapsePreviousPrConversationArtifactsOptions,
 ): number {
   const excludeBodyMarker = String(options.excludeBodyMarker || "");
-  const currentCommentDatabaseId = parsePositiveDatabaseId(options.currentCommentDatabaseId);
-  if (currentCommentDatabaseId === null) return 0;
+  const sourceArtifactDatabaseId = parsePositiveDatabaseId(options.sourceArtifactDatabaseId);
+  if (sourceArtifactDatabaseId === null) return 0;
 
   return collapsePreviousMatchingPrComments(options, (body) => (
     Boolean(excludeBodyMarker && body.includes(excludeBodyMarker)) ||
     isTerminalPrConversationArtifact(body)
-  ), currentCommentDatabaseId);
+  ), sourceArtifactDatabaseId);
 }
 
 /**
