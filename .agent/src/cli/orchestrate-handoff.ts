@@ -1115,11 +1115,21 @@ function isSuccessfulPrSourceOutcome(): boolean {
   );
 }
 
+function hasEnabledSuccessfulPrFollowup(): boolean {
+  const action = normalizeToken(sourceAction);
+  const conclusion = normalizeToken(sourceConclusion);
+  return (
+    (action === "review" && conclusion === "ship" && allowSelfApprove) ||
+    (action === "agent_self_approve" && conclusion === "approved" && allowSelfMerge)
+  );
+}
+
 function isValidatedSuccessfulPrStop(decision: HandoffDecision): boolean {
   if (
     decision.decision !== "stop" ||
     normalizeToken(sourceTargetKind) !== "pull_request" ||
     !isSuccessfulPrSourceOutcome() ||
+    hasEnabledSuccessfulPrFollowup() ||
     Boolean(String(decision.clarificationRequest || "").trim())
   ) {
     return false;

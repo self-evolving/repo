@@ -78,7 +78,9 @@ Terminal PR stops reuse the current run's progress comment when available, or
 update one trusted `sepo-agent-orchestrate-stop` marker comment otherwise. The
 final note includes the planner summary and outcome metadata and mentions the
 original requester only when it is a human GitHub login. If an agent stop omits
-the summary, earlier context stays visible and success cleanup is skipped.
+the summary, or an enabled self-approval or self-merge step remains after a
+budget or policy stop, earlier context stays visible and success cleanup is
+skipped.
 
 When a child issue reaches a terminal stop, the handoff dispatcher resolves the
 trusted child metadata from the issue body or an agent-authored child issue
@@ -129,9 +131,11 @@ orchestrator handoffs match their hidden handoff marker. This keeps the latest
 generated status prominent while leaving older generated comments expandable.
 Successful terminal PR orchestration also best-effort minimizes older matching
 conversation comments and older trusted final notes while leaving the current
-final note and pending handoffs visible. Blocked, clarification, failed,
-malformed-planner, and other non-success outcomes never trigger this terminal
-cleanup.
+final note, newer concurrent comments, and pending handoffs visible. Cleanup
+runs only with a validated current-comment database ID and minimizes strictly
+older comments; fallback finalization without that boundary skips cleanup.
+Blocked, clarification, failed, malformed-planner, and other non-success
+outcomes never trigger this terminal cleanup.
 Set `AGENT_COLLAPSE_OLD_REVIEWS=false` to skip this cleanup and leave prior
 generated comments visible.
 

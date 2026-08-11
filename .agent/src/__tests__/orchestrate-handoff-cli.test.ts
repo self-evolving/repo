@@ -1647,13 +1647,19 @@ test("terminal PR fallback updates the trusted marker note and suppresses bot me
     TARGET_NUMBER: "128",
     AUTOMATION_MODE: "agent",
     AUTOMATION_CURRENT_ROUND: "4",
-    AGENT_COLLAPSE_OLD_REVIEWS: "false",
     REQUESTED_BY: "sepo-agent-app[bot]",
     FAKE_ISSUE_COMMENTS_JSON: JSON.stringify([{
       id: "existing-final",
       body: "Old final note\n\n<!-- sepo-agent-orchestrate-stop -->",
       created_at: "2026-08-10T00:00:00Z",
       user: { login: "app/sepo-agent-app" },
+    }]),
+    FAKE_GRAPHQL_PR_COMMENTS: JSON.stringify([{
+      id: "review-summary",
+      databaseId: 776,
+      body: "## AI Review Synthesis\nold",
+      isMinimized: false,
+      author: { login: "sepo-agent-app[bot]" },
     }]),
     FAKE_PLANNER_RESPONSE: JSON.stringify({
       decision: "stop",
@@ -1666,6 +1672,8 @@ test("terminal PR fallback updates the trusted marker note and suppresses bot me
   assert.match(run.ghLog, /api --method PATCH repos\/self-evolving\/repo\/issues\/comments\/existing-final/);
   assert.doesNotMatch(run.ghLog, /pr comment 128/);
   assert.doesNotMatch(run.ghLog, /Requested by/);
+  assert.doesNotMatch(run.ghLog, /PullRequestReviewSummaryComments/);
+  assert.doesNotMatch(run.ghLog, /classifier=OUTDATED/);
   assert.match(run.stdout, /Updated orchestrator final comment\./);
 });
 
@@ -1709,14 +1717,15 @@ test("two successful terminal PR runs leave only the current finalized note visi
     AGENT_PROGRESS_FINAL_COMMENT_MODE: "merge",
     FAKE_PROGRESS_BODY: "### Sepo is working\n\n<!-- sepo-progress:run-123 -->",
     FAKE_GRAPHQL_PR_COMMENTS: JSON.stringify([
-      generated("review-summary", "## AI Review Synthesis\nold"),
-      generated("rubrics-review", "## Rubrics Review\nold"),
-      generated("fix-status", "<!-- sepo-agent-fix-pr-status -->"),
-      generated("handoff", "<!-- sepo-agent-handoff state:dispatched created:123 base64:aGFuZG9m -->"),
-      generated("pending", "<!-- sepo-agent-handoff state:pending created:456 base64:cGVuZGluZw -->"),
+      generated("review-summary", "## AI Review Synthesis\nold", 770),
+      generated("rubrics-review", "## Rubrics Review\nold", 771),
+      generated("fix-status", "<!-- sepo-agent-fix-pr-status -->", 772),
+      generated("handoff", "<!-- sepo-agent-handoff state:dispatched created:123 base64:aGFuZG9m -->", 773),
+      generated("pending", "<!-- sepo-agent-handoff state:pending created:456 base64:cGVuZGluZw -->", 774),
+      { ...generated("human", "## AI Review Synthesis\nhuman", 775), author: { login: "lolipopshock" } },
       generated("old-final", "<!-- sepo-agent-orchestrate-stop -->", 776),
       generated("current-final", "<!-- sepo-agent-orchestrate-stop -->", 777),
-      { ...generated("human", "## AI Review Synthesis\nhuman"), author: { login: "lolipopshock" } },
+      generated("newer-review", "## AI Review Synthesis\nconcurrent", 778),
     ]),
     FAKE_PLANNER_RESPONSE: plannerResponse,
   });
@@ -1727,6 +1736,7 @@ test("two successful terminal PR runs leave only the current finalized note visi
   }
   assert.doesNotMatch(second.ghLog, /id=pending -f classifier=OUTDATED/);
   assert.doesNotMatch(second.ghLog, /id=current-final -f classifier=OUTDATED/);
+  assert.doesNotMatch(second.ghLog, /id=newer-review -f classifier=OUTDATED/);
   assert.doesNotMatch(second.ghLog, /id=human -f classifier=OUTDATED/);
   assert.doesNotMatch(second.ghLog, /PullRequestReviewSummaries/);
   assert.match(second.stdout, /Collapsed 5 previous orchestration artifact comment\(s\)\./);
@@ -1754,6 +1764,79 @@ for (const [sourceAction, sourceConclusion] of [
     assert.match(run.ghLog, /PullRequestReviewSummaryComments/);
   });
 }
+
+for (const [name, env] of [
+  ["review SHIP awaiting self-approval", {
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    AGENT_ALLOW_SELF_APPROVE: "true",
+  }],
+  ["approved self-approval awaiting self-merge", {
+    SOURCE_ACTION: "agent-self-approve",
+    SOURCE_CONCLUSION: "approved",
+    AGENT_ALLOW_SELF_MERGE: "true",
+  }],
+] as const) {
+  test(`${name} is not terminal success when the round budget is exhausted`, () => {
+    const run = runOrchestrateHandoff({
+      ...env,
+      TARGET_KIND: "pull_request",
+      TARGET_NUMBER: "128",
+      AUTOMATION_MODE: "heuristics",
+      AUTOMATION_CURRENT_ROUND: "5",
+      AUTOMATION_MAX_ROUNDS: "5",
+      AGENT_PROGRESS_COMMENT_ID: "777",
+      AGENT_PROGRESS_FINAL_COMMENT_MODE: "merge",
+      FAKE_PROGRESS_BODY: "### Sepo is working\n\n<!-- sepo-progress:run-123 -->",
+      FAKE_GRAPHQL_PR_COMMENTS: JSON.stringify([{
+        id: "review-summary",
+        databaseId: 776,
+        body: "## AI Review Synthesis\nold",
+        isMinimized: false,
+        author: { login: "sepo-agent-app[bot]" },
+      }]),
+    });
+
+    assert.equal(run.status, 0, run.stderr || run.stdout);
+    assert.equal(run.outputs.get("reason"), "automation round budget exhausted");
+    assert.match(run.ghLog, /Sepo orchestration stopped after/);
+    assert.doesNotMatch(run.ghLog, /finished successfully/);
+    assert.doesNotMatch(run.ghLog, /PullRequestReviewSummaryComments/);
+    assert.doesNotMatch(run.ghLog, /classifier=OUTDATED/);
+  });
+}
+
+test("planner stop is not terminal success while self-approval remains enabled", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "128",
+    AUTOMATION_MODE: "agent",
+    AGENT_ALLOW_SELF_APPROVE: "true",
+    AGENT_PROGRESS_COMMENT_ID: "777",
+    AGENT_PROGRESS_FINAL_COMMENT_MODE: "merge",
+    FAKE_PROGRESS_BODY: "### Sepo is working\n\n<!-- sepo-progress:run-123 -->",
+    FAKE_GRAPHQL_PR_COMMENTS: JSON.stringify([{
+      id: "review-summary",
+      databaseId: 776,
+      body: "## AI Review Synthesis\nold",
+      isMinimized: false,
+      author: { login: "sepo-agent-app[bot]" },
+    }]),
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "stop",
+      reason: "Leave approval to a maintainer.",
+      user_message: "Review completed, but approval remains pending.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.match(run.ghLog, /Sepo orchestration stopped after/);
+  assert.doesNotMatch(run.ghLog, /finished successfully/);
+  assert.doesNotMatch(run.ghLog, /PullRequestReviewSummaryComments/);
+  assert.doesNotMatch(run.ghLog, /classifier=OUTDATED/);
+});
 
 for (const [name, env] of [
   ["blocked planner", {

@@ -307,7 +307,7 @@ function collapsePreviousMatchingReviewComments(
 function collapsePreviousMatchingPrComments(
   options: CollapsePreviousReviewSummariesOptions,
   bodyMatcher: ReviewBodyMatcher,
-  excludeCommentDatabaseId = "",
+  olderThanCommentDatabaseId?: bigint,
 ): number {
   const client = options.client || createGhGraphqlClient();
   const repo = parseRepo(options.repo);
@@ -324,8 +324,8 @@ function collapsePreviousMatchingPrComments(
   const uniqueNodeIds = Array.from(new Set(
     nodes
       .filter((node) => (
-        !excludeCommentDatabaseId ||
-        String(node.databaseId ?? "") !== excludeCommentDatabaseId
+        olderThanCommentDatabaseId === undefined ||
+        isDatabaseIdStrictlyOlder(node.databaseId, olderThanCommentDatabaseId)
       ))
       .map((node) => node.id)
       .filter(Boolean),
@@ -339,6 +339,21 @@ function collapsePreviousMatchingPrComments(
   }
 
   return uniqueNodeIds.length;
+}
+
+function parsePositiveDatabaseId(value: unknown): bigint | null {
+  const text = String(value ?? "").trim();
+  if (!/^[1-9]\d*$/.test(text)) return null;
+  try {
+    return BigInt(text);
+  } catch {
+    return null;
+  }
+}
+
+function isDatabaseIdStrictlyOlder(value: unknown, boundary: bigint): boolean {
+  const databaseId = parsePositiveDatabaseId(value);
+  return databaseId !== null && databaseId < boundary;
 }
 
 function isTerminalPrConversationArtifact(body: string): boolean {
@@ -479,11 +494,12 @@ export function collapsePreviousPrConversationArtifacts(
   options: CollapsePreviousPrConversationArtifactsOptions,
 ): number {
   const excludeBodyMarker = String(options.excludeBodyMarker || "");
-  const currentCommentDatabaseId = String(options.currentCommentDatabaseId || "");
+  const currentCommentDatabaseId = parsePositiveDatabaseId(options.currentCommentDatabaseId);
+  if (currentCommentDatabaseId === null) return 0;
+
   return collapsePreviousMatchingPrComments(options, (body) => (
-    excludeBodyMarker && body.includes(excludeBodyMarker)
-      ? Boolean(currentCommentDatabaseId)
-      : isTerminalPrConversationArtifact(body)
+    Boolean(excludeBodyMarker && body.includes(excludeBodyMarker)) ||
+    isTerminalPrConversationArtifact(body)
   ), currentCommentDatabaseId);
 }
 
