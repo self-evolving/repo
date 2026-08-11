@@ -407,14 +407,13 @@ export function fetchIssueCommentRecords(issueNumber: number, repo: string): Iss
   return comments;
 }
 
-export function upsertPrCommentByMarker(
-  prNumber: number,
+export function findLatestTrustedIssueCommentByMarker(
+  issueNumber: number,
   repo: string,
   marker: string,
-  body: string,
-): "created" | "updated" {
+): IssueCommentRecord | undefined {
   const trustedActor = normalizeActorLogin(fetchAuthenticatedActorLogin());
-  const existing = fetchIssueCommentRecords(prNumber, repo)
+  const existing = fetchIssueCommentRecords(issueNumber, repo)
     .filter((comment) => (
       comment.id &&
       comment.body.includes(marker) &&
@@ -422,7 +421,16 @@ export function upsertPrCommentByMarker(
       normalizeActorLogin(comment.authorLogin) === trustedActor
     ))
     .sort((left, right) => createdAtMs(left.createdAt) - createdAtMs(right.createdAt));
-  const latest = existing[existing.length - 1];
+  return existing[existing.length - 1];
+}
+
+export function upsertPrCommentByMarker(
+  prNumber: number,
+  repo: string,
+  marker: string,
+  body: string,
+): "created" | "updated" {
+  const latest = findLatestTrustedIssueCommentByMarker(prNumber, repo, marker);
   if (latest) {
     updateIssueComment(repo, latest.id, body);
     return "updated";

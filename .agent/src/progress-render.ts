@@ -14,7 +14,7 @@ export interface ProgressViewModel {
   status: ProgressStatus;
   runId: string;
   route?: string;
-  elapsedMs: number;
+  elapsedMs?: number;
   stepCount: number;
   recentActivity: ProgressActivity[];
   lastMessage?: string;
@@ -134,7 +134,9 @@ export function buildProgressViewModel(
     status: options.status ?? "running",
     runId: normalizeRunId(options.runId),
     route: cleanSingleLine(options.route ?? ""),
-    elapsedMs: Math.max(0, Math.floor(options.elapsedMs ?? 0)),
+    elapsedMs: options.elapsedMs === undefined
+      ? undefined
+      : Math.max(0, Math.floor(options.elapsedMs)),
     stepCount: normalizeStepCount(options.totalStepCount, stepCount),
     recentActivity: allActivity.slice(-recentActivityLimit),
     lastMessage: lastMessage || undefined,
@@ -416,7 +418,7 @@ function toolDetail(toolName: string, label: string): string | undefined {
 function renderMeta(model: Pick<ProgressViewModel, "route" | "elapsedMs" | "stepCount">): string {
   const parts = [
     model.route?.trim() || undefined,
-    formatElapsed(model.elapsedMs),
+    model.elapsedMs === undefined ? undefined : formatElapsed(model.elapsedMs),
     `${model.stepCount} ${model.stepCount === 1 ? "step" : "steps"}`,
   ].filter(Boolean);
   return parts.length ? ` — ${parts.join(" · ")}` : "";

@@ -1476,17 +1476,7 @@ function decideManualOrchestration(): HandoffDecision {
 
 function decidePlannerOrchestration(): HandoffDecision {
   const nextRound = currentRound + 1;
-  const normalizedKind = normalizeToken(sourceTargetKind);
-  if (normalizedKind === "pull_request") {
-    const status = readPrStatus(repo, targetNumber);
-    if (!status) {
-      return { decision: "stop", reason: "could not read pull request status", nextRound };
-    }
-    if (status.state !== "OPEN") {
-      return { decision: "stop", reason: `pull request is ${status.state.toLowerCase()}`, nextRound };
-    }
-  }
-  return decideHandoff({
+  const plannedDecision = decideHandoff({
     automationMode,
     sourceAction,
     sourceConclusion,
@@ -1501,6 +1491,31 @@ function decidePlannerOrchestration(): HandoffDecision {
     sourceHandoffContext,
     plannerDecision: readPlannerDecision(),
   });
+  const normalizedKind = normalizeToken(sourceTargetKind);
+  if (normalizedKind === "pull_request") {
+    const status = readPrStatus(repo, targetNumber);
+    if (!status) {
+      return {
+        decision: "stop",
+        reason: "could not read pull request status",
+        nextRound,
+        plannerDecisionKind: plannedDecision.plannerDecisionKind,
+        userMessage: plannedDecision.userMessage,
+        clarificationRequest: plannedDecision.clarificationRequest,
+      };
+    }
+    if (status.state !== "OPEN") {
+      return {
+        decision: "stop",
+        reason: `pull request is ${status.state.toLowerCase()}`,
+        nextRound,
+        plannerDecisionKind: plannedDecision.plannerDecisionKind,
+        userMessage: plannedDecision.userMessage,
+        clarificationRequest: plannedDecision.clarificationRequest,
+      };
+    }
+  }
+  return plannedDecision;
 }
 
 function validateInitialOrchestrateCapabilities(): HandoffDecision | null {
@@ -1518,26 +1533,28 @@ function validateInitialOrchestrateCapabilities(): HandoffDecision | null {
 }
 
 const authorizationStop = validateInitialOrchestrateCapabilities();
-const routeDecision = authorizationStop || (normalizeToken(sourceAction) === "orchestrate"
-  ? automationMode === "agent" &&
-      ["issue", "pull_request"].includes(normalizeToken(sourceTargetKind))
+const plannerTargetSupported = ["issue", "pull_request"].includes(normalizeToken(sourceTargetKind));
+const routeDecision = authorizationStop || (
+  automationMode === "agent" && plannerTargetSupported
     ? decidePlannerOrchestration()
-    : decideManualOrchestration()
-  : decideHandoff({
-    automationMode,
-    sourceAction,
-    sourceConclusion,
-    sourceRecommendedNextStep,
-    targetKind: sourceTargetKind,
-    targetNumber,
-    nextTargetNumber: process.env.NEXT_TARGET_NUMBER || "",
-    currentRound,
-    maxRounds,
-    allowSelfApprove,
-    allowSelfMerge,
-    sourceHandoffContext,
-    plannerDecision: automationMode === "agent" ? readPlannerDecision() : null,
-  }));
+    : normalizeToken(sourceAction) === "orchestrate"
+      ? decideManualOrchestration()
+      : decideHandoff({
+          automationMode,
+          sourceAction,
+          sourceConclusion,
+          sourceRecommendedNextStep,
+          targetKind: sourceTargetKind,
+          targetNumber,
+          nextTargetNumber: process.env.NEXT_TARGET_NUMBER || "",
+          currentRound,
+          maxRounds,
+          allowSelfApprove,
+          allowSelfMerge,
+          sourceHandoffContext,
+          plannerDecision: automationMode === "agent" ? readPlannerDecision() : null,
+        })
+);
 const decision = routeDecision;
 
 if (decision.decision === "dispatch" && decision.nextAction === "fix-pr" && !decision.handoffContext) {

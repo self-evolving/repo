@@ -6,10 +6,18 @@
 //      TARGET_KIND, TARGET_NUMBER
 // Output: progress_comment_id
 
-import { createIssueComment } from "../github.js";
+import {
+  createIssueComment,
+  findLatestTrustedIssueCommentByMarker,
+  updateIssueComment,
+} from "../github.js";
 import { setOutput } from "../output.js";
 import { resolveProgressPolicy } from "./progress/resolve-policy.js";
-import { buildProgressViewModel, renderRunning } from "../progress-render.js";
+import {
+  buildProgressViewModel,
+  progressMarker,
+  renderRunning,
+} from "../progress-render.js";
 
 function positiveTargetNumber(value: string): number {
   const normalized = String(value || "").trim();
@@ -41,17 +49,26 @@ export function runPublishOrchestrationProgressCli(
     throw new Error("GITHUB_REPOSITORY and a positive TARGET_NUMBER are required");
   }
 
+  const runId = String(env.GITHUB_RUN_ID || "unknown");
   const body = renderRunning(buildProgressViewModel("", {
-    runId: String(env.GITHUB_RUN_ID || "unknown"),
+    runId,
     route,
   }));
-  const commentId = createIssueComment(repo, targetNumber, body);
+  const existing = findLatestTrustedIssueCommentByMarker(
+    targetNumber,
+    repo,
+    progressMarker(runId),
+  );
+  const commentId = existing?.id || createIssueComment(repo, targetNumber, body);
   if (!commentId) {
     throw new Error("GitHub returned an empty orchestration progress comment id");
   }
+  if (existing) {
+    updateIssueComment(repo, commentId, body);
+  }
 
   setOutput("progress_comment_id", commentId);
-  console.log(`Published orchestration progress comment ${commentId}.`);
+  console.log(`${existing ? "Updated" : "Published"} orchestration progress comment ${commentId}.`);
   return 0;
 }
 

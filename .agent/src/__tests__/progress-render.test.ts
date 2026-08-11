@@ -96,6 +96,19 @@ test("renders empty running progress as starting with marker", () => {
   assert.match(body, /<!-- sepo-progress:run-123 -->/);
 });
 
+test("omits elapsed metadata when the duration is unknown", () => {
+  const model = buildProgressViewModel(messageEvent("Done."), {
+    runId: "cross-job",
+    route: "orchestrator",
+    status: "finalized",
+  });
+
+  assert.equal(
+    renderFinal(model, "finished").split("\n", 1)[0],
+    "### Sepo finished — orchestrator · 1 step",
+  );
+});
+
 test("derives friendly running progress from tools and messages", () => {
   const tail = [
     toolEvent("Read"),

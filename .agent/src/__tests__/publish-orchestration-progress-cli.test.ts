@@ -7,7 +7,11 @@ import { strict as assert } from "node:assert";
 
 const repoRoot = resolve(__dirname, "../../..");
 
-function runPublisher(options: { policy: string; ghExit?: number }): {
+function runPublisher(options: {
+  policy: string;
+  ghExit?: number;
+  comments?: Array<Record<string, unknown>>;
+}): {
   status: number | null;
   stderr: string;
   stdout: string;
@@ -25,11 +29,26 @@ function runPublisher(options: { policy: string; ghExit?: number }): {
       `#!/usr/bin/env bash
 set -euo pipefail
 printf '%s\\n' "$*" >> "$FAKE_GH_LOG"
-if [ "${options.ghExit || 0}" -ne 0 ]; then
-  printf 'comment publication denied\\n' >&2
-  exit ${options.ghExit || 0}
+if [ "\${1-}" = "api" ] && [ "\${2-}" = "graphql" ]; then
+  printf '{"data":{"viewer":{"login":"sepo-agent-app[bot]"}}}\\n'
+  exit 0
 fi
-printf '4242\\n'
+if [ "\${1-}" = "api" ] && [ "\${2-}" = "--paginate" ] && [ "\${3-}" = "--slurp" ]; then
+  printf '%s\\n' "$FAKE_ISSUE_COMMENTS_JSON"
+  exit 0
+fi
+if [ "\${1-}" = "api" ] && [ "\${2-}" = "--method" ] && { [ "\${3-}" = "POST" ] || [ "\${3-}" = "PATCH" ]; }; then
+  if [ "${options.ghExit || 0}" -ne 0 ]; then
+    printf 'comment publication denied\\n' >&2
+    exit ${options.ghExit || 0}
+  fi
+  if [ "\${3-}" = "POST" ]; then
+    printf '4242\\n'
+  fi
+  exit 0
+fi
+printf 'unexpected gh args: %s\\n' "$*" >&2
+exit 1
 `,
       { encoding: "utf8", mode: 0o755 },
     );
@@ -44,6 +63,7 @@ printf '4242\\n'
           PATH: `${tempDir}:${process.env.PATH || ""}`,
           AGENT_PROGRESS_POLICY: options.policy,
           FAKE_GH_LOG: ghLog,
+          FAKE_ISSUE_COMMENTS_JSON: JSON.stringify([options.comments || []]),
           GH_TOKEN: "fake-token",
           GITHUB_OUTPUT: output,
           GITHUB_REPOSITORY: "self-evolving/repo",
@@ -79,6 +99,39 @@ test("report-only orchestration progress publishes through the trusted CLI", () 
   assert.match(run.ghLog, /<!-- sepo-progress:run-12345 -->/);
   assert.match(run.output, /progress_comment_id<</);
   assert.match(run.output, /4242/);
+});
+
+test("report-only orchestration progress reuses a trusted same-run comment", () => {
+  const run = runPublisher({
+    policy: '{"orchestration_mode":"report-only"}',
+    comments: [
+      {
+        id: 7171,
+        body: "Earlier attempt.\n\n<!-- sepo-progress:run-12345 -->",
+        created_at: "2026-08-10T19:00:00Z",
+        user: { login: "sepo-agent-app[bot]" },
+      },
+      {
+        id: 8181,
+        body: "Prior attempt.\n\n<!-- sepo-progress:run-12345 -->",
+        created_at: "2026-08-10T20:00:00Z",
+        user: { login: "sepo-agent-app[bot]" },
+      },
+      {
+        id: 9191,
+        body: "Forged marker.\n\n<!-- sepo-progress:run-12345 -->",
+        created_at: "2026-08-10T21:00:00Z",
+        user: { login: "someone-else" },
+      },
+    ],
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.match(run.ghLog, /api --method PATCH repos\/self-evolving\/repo\/issues\/comments\/8181/);
+  assert.doesNotMatch(run.ghLog, /issues\/comments\/(?:7171|9191)/);
+  assert.doesNotMatch(run.ghLog, /api --method POST repos\/self-evolving\/repo\/issues\/495\/comments/);
+  assert.match(run.output, /8181/);
+  assert.match(run.stdout, /Updated orchestration progress comment 8181\./);
 });
 
 test("disabled orchestration progress performs no publication", () => {
