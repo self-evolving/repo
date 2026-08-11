@@ -1,0 +1,39 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "body": "## Goal\n\nReplace the expanded implementation in https://github.com/self-evolving/repo/pull/495 with the lean scope originally intended by https://github.com/self-evolving/repo/issues/452: terminal PR-note finalization and best-effort cleanup within the existing single-job orchestrator.\n\n## Context\n\nPR #495 grew from a focused final-comment change into a 24-file planner/write-job split with planner-response artifacts, session persistence, progress-publishing CLIs, and cross-job recovery machinery. The maintainer explicitly wants that expansion removed.\n\nThe existing architecture already runs planning and deterministic handoff in one job, and `orchestrate-handoff.ts` already owns terminal comments. Existing helpers can merge into a progress comment, upsert a marker-bearing PR comment, and minimize trusted generated comments.\n\n## Acceptance criteria\n\n- Retain the existing single orchestration job and its existing permission model.\n- Implement terminal PR-note finalization as a focused extension of the existing handoff CLI.\n- For a validated terminal `stop`, publish one concise note containing the planner summary, source outcome, round, reason, and a human requester mention when applicable.\n- Keep the existing `sepo-agent-orchestrate-stop` marker; do not add legacy-marker migration.\n- Merge the finalized result into the current run's progress comment when available; otherwise update or create the marker-bearing note without duplicates.\n- On exact successful terminal outcomes only, best-effort collapse older trusted, same-agent PR conversation artifacts while keeping the finalized note visible.\n- Never perform cleanup for blocked, clarification, failed, malformed-planner, or other non-success outcomes.\n- Cleanup failures remain non-fatal and do not prevent final-note publication.\n- Remove the planner/write-job split, planner-response artifacts, session-persistence changes, new progress-publishing CLIs, cross-job duration/recovery machinery, and formal review-object cleanup introduced by the expanded implementation.\n- Add focused regression coverage for requester tagging, marker upsert and progress-note reuse, terminal-state eligibility, cleanup exclusions, and non-fatal cleanup failures.\n- Update only directly relevant documentation and leave release notes unchanged.\n\n---\n\nRequested via issue_comment at https://github.com/self-evolving/repo/pull/495\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABONSm3g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-496/codex-31453399868`\n- Pull request: https://github.com/self-evolving/repo/pull/497\n\nImplemented the lean single-job orchestration finalization design across seven focused files. Terminal PR stops now reuse the live progress comment or upsert the existing stop marker, mention human requesters, and best-effort collapse only trusted PR conversation artifacts after validated successful outcomes. The existing workflow permissions, session behavior, and single-job architecture remain unchanged. Verified with the TypeScript build, 73 handoff tests, 10 cleanup tests, 92 workflow checks, five documentation checks, and `git diff --check`.\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — implement · 13m29s · 54 steps**\n\nLast message\n> {\"summary\":\"Implemented the lean single-job orchestration finalization design across seven focused files. Terminal PR stops now reuse the live progress comment or upsert the existing stop marker, mention human requesters, and best-effort c…\n\nActivity\n\n- 🔧 Used tool `git diff --numstat git diff --check git status --short --branch` (completed)\n- 🔧 Used tool `npm --prefix .agent run check:docs` (completed)\n- 💬 Message \"Verification is green: TypeScript build, 73 focused handoff tests, 10 cleanup-helper tests, 92 workflow checks, five documentation checks, and diff validation. The working tree contains only the seven intended files.\"\n- 🔍 Searched `git diff --name-only | rg 'CHANGELOG|release' || true` (completed)\n- 🔧 Used tool `git diff --check git status --short --branch git diff --stat` (completed)\n- 💬 Message \"{\"summary\":\"Implemented the lean single-job orchestration finalization design across seven focused files. Terminal PR stops now reuse the live progress comment or upsert the existing stop marker, mention human requesters, and best-effort c…\"\n</details>\n\n<!-- sepo-progress:run-31453399868 -->\n\n---\n`codex` | `gpt-5.6-sol` | `max` | `Macmini-runner-2`",
+      "createdAt": "2026-08-11T02:47:45Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/496#issuecomment-5248427742",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-08-11T02:46:54Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "number": 496,
+  "state": "OPEN",
+  "title": "Refocus orchestration finalization on a lean single-job design",
+  "updatedAt": "2026-08-11T03:01:35Z",
+  "url": "https://github.com/self-evolving/repo/issues/496"
+}

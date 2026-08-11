@@ -1,0 +1,177 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n\n- finalize terminal PR orchestration in the current progress note or a trusted `sepo-agent-orchestrate-stop` marker fallback\n- include planner summaries and human requester mentions while retaining the existing single job and permissions\n- best-effort minimize older trusted PR conversation artifacts only after validated successful outcomes\n- keep final notes, pending handoffs, formal review objects, and all non-success context visible\n- document the focused lifecycle and add regression coverage\n\nThis supersedes the expanded planner-job and session-persistence approach in #495.\n\n## Verification\n\n- `npm --prefix .agent run build`\n- `node --test .agent/dist/__tests__/orchestrate-handoff-cli.test.js`\n- `node --test .agent/dist/__tests__/review-summary-minimize.test.js`\n- `npm --prefix .agent run check:workflow`\n- `npm --prefix .agent run check:docs`\n- `git diff --check`\n\nCloses #496\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABONa-uQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review ",
+      "createdAt": "2026-08-11T03:13:01Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/497#issuecomment-5248564921",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABONirTg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 92 | PARTIAL | 12 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Generate context-derived artifact metadata | partial | 5/7 | The prompt requests a cumulative stop summary, but calls `user_message` optional and the parser accepts its absence; the formatter then conditionally omits it. [Prompt](https://github.com/self-evolving/repo/blob/2f8a5863fbfd779805fe56d88d28bfec01b1bd40/.github/prompts/agent-orchestrator.md#L71-L117), [parser](https://github.com/self-evolving/repo/blob/2f8a5863fbfd779805fe56d88d28bfec01b1bd40/.agent/src/handoff.ts#L235-L283), [formatter](https://github.com/self-evolving/repo/blob/2f8a5863fbfd779805fe56d88d28bfec01b1bd40/.agent/src/cli/orchestrate-handoff.ts#L1193-L1234). |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | The focused CLI reuses `tryMergeProgressFinalComment`, `upsertPrCommentByMarker`, `appendRunDisplayFooter`, and the existing minimization infrastructure. [Imports and integration](https://github.com/self-evolving/repo/blob/2f8a5863fbfd779805fe56d88d28bfec01b1bd40/.agent/src/cli/orchestrate-handoff.ts#L24-L40). |\n| coding_workflow / generic | Prefer explicit structured inputs | pass | 7/7 | Agent handle, progress-comment ID, merge mode, planner response, and model display remain separate workflow-to-CLI fields. [Workflow wiring](https://github.com/self-evolving/repo/blob/2f8a5863fbfd779805fe56d88d28bfec01b1bd40/.github/workflows/agent-orchestrator.yml#L204-L235). |\n| coding_workflow / generic | Make user-facing automation idempotent | partial | 4/7 | Marker fallback updates a trusted existing note, but the progress path creates a new comment per run, always prefers that comment, and excludes every prior stop-marker note from cleanup. [Progress creation](https://github.com/self-evolving/repo/blob/2f8a5863fbfd779805fe56d88d28bfec01b1bd40/.agent/src/cli/progress-report.ts#L139-L147), [finalization](https://github.com/self-evolving/repo/blob/2f8a5863fbfd779805fe56d88d28bfec01b1bd40/.agent/src/cli/orchestrate-handoff.ts#L1272-L1299), [cleanup exclusion](https://github.com/self-evolving/repo/blob/2f8a5863fbfd779805fe56d88d28bfec01b1bd40/.agent/src/review-summary-minimize.ts#L466-L473). |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Progress merge failures warn and fall back to marker upsert; cleanup failures warn without preventing publication. [Implementation](https://github.com/self-evolving/repo/blob/2f8a5863fbfd779805fe56d88d28bfec01b1bd40/.agent/src/cli/orchestrate-handoff.ts#L1237-L1299), [regression](https://github.com/self-evolving/repo/blob/2f8a5863fbfd779805fe56d88d28bfec01b1bd40/.agent/src/__tests__/orchestrate-handoff-cli.test.ts#L1726-L1747). |\n| coding_workflow / generic | Comment on accepted workflow stops | partial | 4/6 | Ordinary terminal PR stops now publish, but a strict optional parent/child-context read occurs first; if it throws, the shared catch skips final-note publication. [Strict lookup](https://github.com/self-evolving/repo/blob/2f8a5863fbfd779805fe56d88d28bfec01b1bd40/.agent/src/cli/orchestrate-handoff.ts#L933-L950), [terminal ordering](https://github.com/self-evolving/repo/blob/2f8a5863fbfd779805fe56d88d28bfec01b1bd40/.agent/src/cli/orchestrate-handoff.ts#L1508-L1519). |\n| communication / generic | Keep status comments compact | pass | 6/6 | Final notes use a concise heading, optional requester/summary, six stable metadata fields, and one next-step sentence. [Formatter](https://github.com/self-evolving/repo/blob/2f8a5863fbfd779805fe56d88d28bfec01b1bd40/.agent/src/cli/orchestrate-handoff.ts#L1193-L1234). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | Architecture and workflow docs describe final-note reuse, human mentions, success eligibility, exclusions, and non-fatal cleanup. [Architecture](https://github.com/self-evolving/repo/blob/2f8a5863fbfd779805fe56d88d28bfec01b1bd40/.agent/docs/architecture/agent-orchestrator.md#L145-L166), [workflow usage](https://github.com/self-evolving/repo/blob/2f8a5863fbfd779805fe56d88d28bfec01b1bd40/.agent/docs/usage/supported-workflows.md#L70-L80). |\n| communication / generic | Keep temporary migration notes out of durable docs | pass | 6/6 | The implementation retains the existing `sepo-agent-orchestrate-stop` marker and documents only durable behavior; no migration note was introduced. [Marker](https://github.com/self-evolving/repo/blob/2f8a5863fbfd779805fe56d88d28bfec01b1bd40/.agent/src/cli/orchestrate-handoff.ts#L100). |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | The existing planner derives the cumulative summary from target history; no new repository-level decision setting was added. [Planner contract](https://github.com/self-evolving/repo/blob/2f8a5863fbfd779805fe56d88d28bfec01b1bd40/.github/prompts/agent-orchestrator.md#L65-L117). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The PR changes seven directly relevant files while retaining the existing single job and permission block. [Files](https://github.com/self-evolving/repo/pull/497/files), [workflow](https://github.com/self-evolving/repo/blob/2f8a5863fbfd779805fe56d88d28bfec01b1bd40/.github/workflows/agent-orchestrator.yml#L78-L93). |\n| coding_workflow / generic | Leave release notes to release preparation | pass | 8/8 | No changelog or release-note file is changed. [PR files](https://github.com/self-evolving/repo/pull/497/files). |\n\n## Notes\n\n- The lean scope, helper reuse, unchanged permissions, documentation, requester filtering, exact success guards, and failure handling are strong.\n- Exact head `2f8a5863` passes the hosted check and independent build, 766 runtime tests, 92 workflow checks, five documentation checks, and `git diff --check`.\n- Smallest useful follow-up: validate `user_message` for planner stops, make the progress path reconcile older finalized notes, and isolate optional parent-resolution failures so ordinary PR finalization still runs.\n\n## Findings\n\n- **WARNING — Generate context-derived artifact metadata:** A valid planner `stop` may omit `user_message`; success cleanup still proceeds, potentially minimizing the detailed review/fix context while leaving only generic outcome metadata. Require a non-empty stop summary or skip cleanup and surface an explicit fallback.\n- **WARNING — Make user-facing automation idempotent:** With orchestration progress enabled, every rerun receives a fresh progress comment. Finalization merges into it before marker lookup, while cleanup preserves all marker-bearing final notes, so reruns can leave multiple visible finalized notes.\n- **WARNING — Comment on accepted workflow stops:** `reportTerminalToParent()` performs strict PR-body and linked-issue reads before `commentOnTerminalPullRequestStop()`. An optional context lookup failure therefore prevents the promised terminal PR note; catch that lookup separately and fall back to ordinary finalization.\n\n## Final Rubric Verdict\n\nPARTIAL\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-4`",
+      "createdAt": "2026-08-11T03:36:33Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/497#issuecomment-5248691022",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABONn5PA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 2f8a5863fbfd779805fe56d88d28bfec01b1bd40 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #497 replaces the expanded #495 implementation with the lean, single-job design requested in #496. It finalizes terminal PR orchestration in the current progress comment or a trusted marker-bearing fallback, then conditionally minimizes superseded automation artifacts after exact successful outcomes. It preserves existing permissions, formal reviews, non-success context, and release-note boundaries while adding focused tests and documentation. The intended result is one concise, durable final note without introducing planner or session architecture.\n\n## Review\n\nThe focused architecture, authorization boundary, and overall test coverage are strong. However, current head `2f8a5863` has one core finalization failure and two state-management gaps that should be fixed before merge.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Parent-resolution failures can suppress final notes | BLOCKING | Strict parent-context reads occur before PR finalization inside the same `try`; an exception skips the final note, logs a warning, and exits successfully. |\n| Successful stops do not enforce a planner summary | WARNING | An agent planner `stop` without `user_message` still qualifies for success cleanup, leaving no cumulative summary while potentially minimizing the detailed context. |\n| Reruns can accumulate finalized notes | WARNING | Each run creates a fresh progress comment, while cleanup excludes every marker-bearing final note, allowing multiple finalized notes to remain visible. |\n\n## Progress\n\n- Current head is open and mergeable, with the hosted [Test Scripts check passing](https://github.com/self-evolving/repo/actions/runs/31454144388/job/93664387799); reviewer verification also passed the build, runtime, workflow, documentation, shell, and diff checks.\n- The reviewers agree that the lean scope, unchanged permissions, trust filtering, documentation, and success-only cleanup design are sound.\n- Posted three non-duplicate inline comments covering [summary enforcement](https://github.com/self-evolving/repo/pull/497#discussion_r3755107968), [parent-resolution isolation](https://github.com/self-evolving/repo/pull/497#discussion_r3755107969), and [rerun reconciliation](https://github.com/self-evolving/repo/pull/497#discussion_r3755107970). No prior inline comments or threads required cleanup.\n- Variable-shadowing, unused fallback scaffolding, and wording suggestions were intentionally excluded from required work because they are non-functional polish.\n- Release notes remain untouched as required.\n\n## Issue Details\n\n<details>\n<summary>Parent-resolution failures can suppress final notes</summary>\n\n**Cause:** [`reportTerminalToParent()`](https://github.com/self-evolving/repo/blob/2f8a5863fbfd779805fe56d88d28bfec01b1bd40/.agent/src/cli/orchestrate-handoff.ts#L1510-L1519) calls strict PR-body and linked-issue lookups before `commentOnTerminalPullRequestStop()`. Any lookup exception jumps directly to the shared catch, bypassing the core finalization path.\n\n**Candidate solutions:** Guard parent resolution separately and fall back to attempting the ordinary PR final note when it fails. Add a regression where the PR-body or linked-issue lookup throws but the progress merge or marker fallback still publishes.\n\n**Comments:** Codex rated this BLOCKING, the rubrics reviewer rated it WARNING, and Claude treated it as an INFO robustness edge. The synthesis treats it as BLOCKING because it directly violates #496’s terminal-note guarantee.\n\n</details>\n\n<details>\n<summary>Successful stops do not enforce a planner summary</summary>\n\n**Cause:** The planner schema calls `user_message` [optional](https://github.com/self-evolving/repo/blob/2f8a5863fbfd779805fe56d88d28bfec01b1bd40/.github/prompts/agent-orchestrator.md#L71-L78), the parser accepts its absence, and the [success predicate](https://github.com/self-evolving/repo/blob/2f8a5863fbfd779805fe56d88d28bfec01b1bd40/.agent/src/cli/orchestrate-handoff.ts#L1112-L1121) does not require it. Cleanup can therefore run even though the formatter has no cumulative planner summary to preserve.\n\n**Candidate solutions:** Require a non-empty summary before treating an agent stop as cleanup-eligible, or emit an explicit safe fallback and skip cleanup. Cover a successful planner stop without `user_message`.\n\n</details>\n\n<details>\n<summary>Reruns can accumulate finalized notes</summary>\n\n**Cause:** The finalizer [prefers the new run’s progress comment](https://github.com/self-evolving/repo/blob/2f8a5863fbfd779805fe56d88d28bfec01b1bd40/.agent/src/cli/orchestrate-handoff.ts#L1280-L1298), while cleanup excludes every comment containing the stop marker rather than only the current finalized comment.\n\n**Candidate solutions:** After merging the current progress note, reconcile or minimize older trusted stop-marker notes while excluding only the current comment. Add a two-run regression asserting that exactly one finalized note remains visible.\n\n</details>\n\n## Recommended Next Step\n\n`FIX_PR`: All three findings require concrete, localized branch changes and regression tests and are safe for an automated fix pass.\n\n## Final Verdict\n\n`NEEDS_REWORK`\n\n## Action Items\n\n- [ ] Isolate parent-resolution failures so terminal PR finalization still runs, with a lookup-failure regression.\n- [ ] Enforce or safely fall back from a missing planner summary before success cleanup, with coverage.\n- [ ] Reconcile older trusted finalized notes after progress-comment reuse, with a rerun regression.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-4`",
+      "createdAt": "2026-08-11T03:52:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/497#issuecomment-5248776508",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-08-11T03:01:30Z",
+  "files": [
+    {
+      "path": ".agent/docs/architecture/agent-orchestrator.md",
+      "additions": 12,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/supported-workflows.md",
+      "additions": 8,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/orchestrate-handoff-cli.test.ts",
+      "additions": 226,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/orchestrate-handoff.ts",
+      "additions": 154,
+      "deletions": 19,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/review-summary-minimize.ts",
+      "additions": 28,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-orchestrator.md",
+      "additions": 4,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-orchestrator.yml",
+      "additions": 4,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-496/codex-31453399868",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 497,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABJDqe7g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-08-11T03:50:43Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "2f8a5863fbfd779805fe56d88d28bfec01b1bd40"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABJDqe8A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-08-11T03:50:43Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "2f8a5863fbfd779805fe56d88d28bfec01b1bd40"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABJDqe8Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-08-11T03:50:43Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "2f8a5863fbfd779805fe56d88d28bfec01b1bd40"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Refocus orchestration finalization on the single-job flow",
+  "updatedAt": "2026-08-11T03:52:28Z",
+  "url": "https://github.com/self-evolving/repo/pull/497"
+}
