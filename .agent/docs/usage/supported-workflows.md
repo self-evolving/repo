@@ -405,6 +405,9 @@ are enabled, parses the agent verdict, and approves only when the expected,
 current, and inspected head SHAs match. Normal handoffs require trusted
 current-head `SHIP` review synthesis; orchestrated review `HUMAN_DECISION`
 handoffs also trust the matching current-head synthesis as the decision gate.
+An approved handoff exports that validated head for a fresh comparison before
+terminal success formatting or cleanup. It also preserves the originating
+review synthesis comment as the causal cleanup boundary.
 Non-approval outcomes post a compact PR status comment. In full
 self-governance mode, same-actor approvals are recorded as a current-head
 self-approval status comment rather than a GitHub review approval. In
@@ -431,7 +434,9 @@ approved head SHA, so a push after preflight cannot merge an unapproved head.
 Self-merge status comments are marker-upserted against comments authored by the
 authenticated Sepo actor. In orchestrated chains, an `agent-self-approve`
 `APPROVED` result can hand off to `agent-self-merge` only when self-merge is
-also enabled.
+also enabled. The downstream handoff retains both that resolver-approved head
+and the originating review synthesis boundary, so terminal finalization can
+revalidate the approved head and preserve artifacts from overlapping runs.
 
 ### `agent-approve.yml`
 

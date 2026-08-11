@@ -89,6 +89,7 @@ exit 1
         GITHUB_REPOSITORY: "self-evolving/repo",
         DEFAULT_BRANCH: "main",
         SOURCE_ACTION: "review",
+        SOURCE_APPROVED_HEAD_SHA: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
         SOURCE_ARTIFACT_DATABASE_ID: "9901",
         SOURCE_REVIEWED_HEAD_SHA: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         RESPONSE_FILE: responsePath,
@@ -108,6 +109,10 @@ exit 1
     assert.equal(payload.inputs.source_conclusion, "minor_issues");
     assert.equal(payload.inputs.source_recommended_next_step, "human_decision");
     assert.equal(payload.inputs.source_artifact_database_id, "9901");
+    assert.equal(
+      payload.inputs.source_approved_head_sha,
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    );
     assert.equal(
       payload.inputs.source_reviewed_head_sha,
       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",

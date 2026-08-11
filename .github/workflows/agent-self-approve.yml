@@ -20,6 +20,10 @@ on:
         description: "Optional source review recommended next step from the orchestrator handoff"
         required: false
         default: ""
+      source_artifact_database_id:
+        description: "Optional source comment database ID used as a safe cleanup boundary"
+        required: false
+        default: ""
       session_bundle_mode:
         description: "Session bundle persistence mode"
         required: false
@@ -235,6 +239,8 @@ jobs:
           REQUEST_TEXT: ${{ inputs.request_text }}
           SESSION_BUNDLE_MODE: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
           SOURCE_ACTION: agent-self-approve
+          SOURCE_APPROVED_HEAD_SHA: ${{ steps.result.outputs.approved_head_sha }}
+          SOURCE_ARTIFACT_DATABASE_ID: ${{ inputs.source_artifact_database_id }}
           SOURCE_CONCLUSION: ${{ steps.result.outputs.conclusion }}
           SOURCE_HANDOFF_CONTEXT: ${{ steps.result.outputs.handoff_context }}
           SOURCE_RUN_ID: ${{ github.run_id }}

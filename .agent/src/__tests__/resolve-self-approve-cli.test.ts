@@ -123,8 +123,10 @@ test("resolve-self-approve submits approval only for matching trusted head", () 
     }));
 
     assert.equal(result.status, 0, result.stderr);
-    assert.match(result.output, /approved<<[^\n]+\ntrue/);
-    assert.match(result.output, /conclusion<<[^\n]+\napproved/);
+    const outputs = parseGithubOutput(result.output);
+    assert.equal(outputs.get("approved"), "true");
+    assert.equal(outputs.get("approved_head_sha"), "abc123");
+    assert.equal(outputs.get("conclusion"), "approved");
     assert.match(result.log, /^api --method POST repos\/self-evolving\/repo\/pulls\/42\/reviews /m);
     assert.match(result.log, /commit_id=abc123/);
     assert.match(result.log, /event=APPROVE/);
@@ -148,8 +150,10 @@ test("resolve-self-approve blocks approval by the pull request author", () => {
     }));
 
     assert.equal(result.status, 0, result.stderr);
-    assert.match(result.output, /approved<<[^\n]+\nfalse/);
-    assert.match(result.output, /conclusion<<[^\n]+\nblocked/);
+    const outputs = parseGithubOutput(result.output);
+    assert.equal(outputs.get("approved"), "false");
+    assert.equal(outputs.get("approved_head_sha"), "");
+    assert.equal(outputs.get("conclusion"), "blocked");
     assert.match(result.output, /approval actor matches the pull request author/);
     assert.doesNotMatch(result.log, /^api --method POST repos\/self-evolving\/repo\/pulls\/42\/reviews /m);
   } finally {

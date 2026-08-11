@@ -985,6 +985,21 @@ test("self-approval workflow stays opt-in and read-only until deterministic reso
   assert.doesNotMatch(workflowText, /steps\.result\.outputs\.conclusion == 'request_changes'/);
   assert.match(workflowText, /steps\.result\.outcome == 'success' &&\s+inputs\.orchestration_enabled == 'true'/);
   assert.match(workflowText, /node \.agent\/dist\/cli\/dispatch-agent-orchestrator\.js/);
+
+  const handoffStep = job.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Orchestrate automation handoff",
+  );
+  assert.ok(handoffStep, "self-approval workflow should preserve orchestration provenance");
+  assert.ok(isRecord(handoffStep.env), "self-approval handoff should define env");
+  assert.equal(
+    handoffStep.env.SOURCE_ARTIFACT_DATABASE_ID,
+    "${{ inputs.source_artifact_database_id }}",
+  );
+  assert.equal(
+    handoffStep.env.SOURCE_APPROVED_HEAD_SHA,
+    "${{ steps.result.outputs.approved_head_sha }}",
+  );
 });
 
 test("self-merge workflow stays opt-in and deterministic", () => {
@@ -1003,6 +1018,21 @@ test("self-merge workflow stays opt-in and deterministic", () => {
   assert.match(workflowText, /Post self-merge status[\s\S]*steps\.result\.outputs\.status_post == 'true'/);
   assert.match(workflowText, /agent-self-merge-result-\$\{\{ inputs\.pr_number \}\}/);
   assert.match(workflowText, /SOURCE_ACTION:\s*agent-self-merge/);
+
+  const handoffStep = job.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Orchestrate automation handoff",
+  );
+  assert.ok(handoffStep, "self-merge workflow should preserve orchestration provenance");
+  assert.ok(isRecord(handoffStep.env), "self-merge handoff should define env");
+  assert.equal(
+    handoffStep.env.SOURCE_ARTIFACT_DATABASE_ID,
+    "${{ inputs.source_artifact_database_id }}",
+  );
+  assert.equal(
+    handoffStep.env.SOURCE_APPROVED_HEAD_SHA,
+    "${{ inputs.source_approved_head_sha }}",
+  );
 });
 
 test("review synthesis uses a shared reviews directory contract", () => {
@@ -2131,6 +2161,7 @@ test("execution workflows expose automation handoff inputs", () => {
   const fixPrWorkflow = readRepoFile(".github/workflows/agent-fix-pr.yml");
   const reviewWorkflow = readRepoFile(".github/workflows/agent-review.yml");
   const selfApprovalWorkflow = readRepoFile(".github/workflows/agent-self-approve.yml");
+  const selfMergeWorkflow = readRepoFile(".github/workflows/agent-self-merge.yml");
   const runSource = readRepoFile(".agent/src/run.ts");
   const handoffSource = readRepoFile(".agent/src/handoff.ts");
   const orchestrateHandoffCli = readRepoFile(".agent/src/cli/orchestrate-handoff.ts");
@@ -2146,6 +2177,7 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestratorWorkflow, /source_run_id:/);
   assert.match(orchestratorWorkflow, /source_artifact_database_id:/);
   assert.match(orchestratorWorkflow, /source_reviewed_head_sha:/);
+  assert.match(orchestratorWorkflow, /source_approved_head_sha:/);
   assert.match(orchestratorWorkflow, /issues: write/);
   assert.match(orchestratorWorkflow, /uses: \.\/\.github\/actions\/resolve-agent-provider/);
   assert.match(orchestratorWorkflow, /route:\s*orchestrator/);
@@ -2165,7 +2197,7 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestratorWorkflow, /agent:\s*\$\{\{\s*steps\.provider\.outputs\.provider\s*\}\}/);
   assert.match(orchestratorWorkflow, /node \.agent\/dist\/cli\/orchestrate-handoff\.js/);
 
-  for (const workflow of [implementWorkflow, fixPrWorkflow, reviewWorkflow, selfApprovalWorkflow]) {
+  for (const workflow of [implementWorkflow, fixPrWorkflow, reviewWorkflow, selfApprovalWorkflow, selfMergeWorkflow]) {
     assert.match(workflow, /automation_mode:/);
     assert.match(workflow, /automation_current_round:/);
     assert.match(workflow, /automation_max_rounds:/);
@@ -2190,6 +2222,7 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestratorWorkflow, /SOURCE_HANDOFF_CONTEXT:\s*\$\{\{ inputs\.source_handoff_context \}\}/);
   assert.match(orchestratorWorkflow, /SOURCE_ARTIFACT_DATABASE_ID:\s*\$\{\{ inputs\.source_artifact_database_id \}\}/);
   assert.match(orchestratorWorkflow, /SOURCE_REVIEWED_HEAD_SHA:\s*\$\{\{ inputs\.source_reviewed_head_sha \}\}/);
+  assert.match(orchestratorWorkflow, /SOURCE_APPROVED_HEAD_SHA:\s*\$\{\{ inputs\.source_approved_head_sha \}\}/);
   assert.match(orchestratorWorkflow, /ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT:\s*\$\{\{ inputs\.source_handoff_context \}\}/);
   assert.match(orchestrateHandoffCli, /resolveEffectiveBaseInputs/);
   assert.match(orchestrateHandoffCli, /baseBranch:\s*decision\.baseBranch \|\| baseBranch/);
@@ -2205,6 +2238,8 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestrateHandoffCli, /orchestrator_context:\s*decision\.handoffContext/);
   assert.match(orchestrateHandoffCli, /agent-self-approve\.yml/);
   assert.match(orchestrateHandoffCli, /agent-self-merge\.yml/);
+  assert.match(orchestrateHandoffCli, /source_artifact_database_id:\s*sourceArtifactDatabaseId/);
+  assert.match(orchestrateHandoffCli, /source_approved_head_sha:\s*sourceApprovedHeadSha/);
   assert.match(handoffSource, /Task for fix-pr/);
   assert.match(orchestrateHandoffCli, /collapsePreviousHandoffComments/);
   assert.match(orchestrateHandoffCli, /manual orchestrate start on issue; dispatching implement/);

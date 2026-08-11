@@ -154,9 +154,12 @@ human GitHub logins. An agent-planned successful stop without a non-empty
 summary leaves earlier context visible and skips success cleanup. Budget or
 policy stops do the same while an enabled self-approval or self-merge step is
 still pending. Review outcomes that recommend `HUMAN_DECISION` are also
-non-successful stops in both automation modes. A review-driven stop is eligible
-for successful formatting or cleanup only while the head captured before the
-review still matches the current pull request head.
+non-successful stops in both automation modes, as are `SHIP` outcomes that
+recommend `FIX_PR`. A review-driven stop is eligible for successful formatting
+or cleanup only while the head captured before the review still matches the
+current pull request head. Self-approval-driven success uses the same guard with
+the head validated by the deterministic approval resolver, including after a
+self-merge handoff.
 If the resumed parent planner decides there is no next child or action, the
 parent run posts a terminal stop comment on the parent issue with the source
 conclusion, target, round, reason, and hidden `sepo-agent-orchestrate-stop`
@@ -174,7 +177,9 @@ comment's database ID as an inclusive causal boundary, so comments from later
 overlapping runs remain visible even when finalization is delayed. Without that
 safe boundary, a matching trusted source artifact, or a safely newer current
 final note, cleanup is skipped. Every other outcome also skips cleanup, and
-failures warn without hiding the final note.
+failures warn without hiding the final note. Review handoffs preserve that
+boundary through self-approval and self-merge rather than substituting a later
+route-local timestamp or unverified comment.
 
 Initial user-launched `/orchestrate` requests validate that the requester has
 access to the delegated route capability set before dispatching work. When

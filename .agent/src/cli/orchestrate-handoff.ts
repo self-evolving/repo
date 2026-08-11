@@ -6,7 +6,8 @@
 //      BASE_BRANCH, BASE_PR, AGENT_COLLAPSE_OLD_REVIEWS, AGENT_ALLOW_SELF_APPROVE,
 //      AGENT_ALLOW_SELF_MERGE, AGENT_HANDLE, AGENT_PROGRESS_COMMENT_ID,
 //      AGENT_PROGRESS_FINAL_COMMENT_MODE, MODEL_DISPLAY,
-//      SOURCE_ARTIFACT_DATABASE_ID, SOURCE_REVIEWED_HEAD_SHA
+//      SOURCE_ARTIFACT_DATABASE_ID, SOURCE_REVIEWED_HEAD_SHA,
+//      SOURCE_APPROVED_HEAD_SHA
 
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -850,6 +851,7 @@ const sourceRecommendedNextStep = process.env.SOURCE_RECOMMENDED_NEXT_STEP || ""
 const sourceHandoffContext = process.env.SOURCE_HANDOFF_CONTEXT || "";
 const sourceArtifactDatabaseId = process.env.SOURCE_ARTIFACT_DATABASE_ID || "";
 const sourceReviewedHeadSha = process.env.SOURCE_REVIEWED_HEAD_SHA || "";
+const sourceApprovedHeadSha = process.env.SOURCE_APPROVED_HEAD_SHA || "";
 const sourceTargetKind = process.env.TARGET_KIND || "";
 const sourceAssociationRaw = process.env.AUTHOR_ASSOCIATION || "";
 const accessPolicyRaw = process.env.ACCESS_POLICY || "";
@@ -1112,45 +1114,77 @@ function startOrchestrationComment(heading: string): string[] {
 function isSuccessfulPrSourceOutcome(): boolean {
   const action = normalizeToken(sourceAction);
   const conclusion = normalizeToken(sourceConclusion);
+  const recommendedNextStep = normalizeToken(sourceRecommendedNextStep);
   return (
     (
       action === "review" &&
       conclusion === "ship" &&
-      normalizeToken(sourceRecommendedNextStep) !== "human_decision"
+      ["", "no_automated_action"].includes(recommendedNextStep)
     ) ||
     (action === "agent_self_approve" && conclusion === "approved") ||
     (action === "agent_self_merge" && ["merged", "auto_merge_enabled"].includes(conclusion))
   );
 }
 
-let reviewedHeadProvenanceValid: boolean | null = null;
+interface SourceHeadProvenance {
+  sha: string;
+  description: string;
+  sourceLabel: string;
+}
 
-function hasValidReviewedHeadProvenance(refresh = false): boolean {
-  if (normalizeToken(sourceAction) !== "review") return true;
-  if (!refresh && reviewedHeadProvenanceValid !== null) return reviewedHeadProvenanceValid;
+function sourceHeadProvenance(): SourceHeadProvenance | null {
+  const action = normalizeToken(sourceAction);
+  if (action === "review") {
+    return {
+      sha: sourceReviewedHeadSha.trim(),
+      description: "reviewed head",
+      sourceLabel: "Review",
+    };
+  }
+  if (action === "agent_self_approve" || action === "agent_self_merge") {
+    return {
+      sha: sourceApprovedHeadSha.trim(),
+      description: "approved head",
+      sourceLabel: "Self-approval",
+    };
+  }
+  return null;
+}
 
-  const reviewedHeadSha = sourceReviewedHeadSha.trim();
+let sourceHeadProvenanceValid: boolean | null = null;
+
+function hasValidSourceHeadProvenance(refresh = false): boolean {
+  const provenance = sourceHeadProvenance();
+  if (!provenance) return true;
+  if (!refresh && sourceHeadProvenanceValid !== null) return sourceHeadProvenanceValid;
+
   const prNumber = parsePositiveTargetNumber(targetNumber);
-  if (!repo || !prNumber || !/^[0-9a-f]{40}$/i.test(reviewedHeadSha)) {
-    console.warn("Review-driven terminal success rejected because reviewed-head provenance is missing or invalid.");
-    reviewedHeadProvenanceValid = false;
+  if (!repo || !prNumber || !/^[0-9a-f]{40}$/i.test(provenance.sha)) {
+    console.warn(
+      `${provenance.sourceLabel}-driven terminal success rejected because ${provenance.description} provenance is missing or invalid.`,
+    );
+    sourceHeadProvenanceValid = false;
     return false;
   }
 
   try {
     const currentHeadSha = fetchPrMeta(prNumber, repo).headOid.trim();
-    reviewedHeadProvenanceValid = (
+    sourceHeadProvenanceValid = (
       /^[0-9a-f]{40}$/i.test(currentHeadSha) &&
-      currentHeadSha.toLowerCase() === reviewedHeadSha.toLowerCase()
+      currentHeadSha.toLowerCase() === provenance.sha.toLowerCase()
     );
-    if (!reviewedHeadProvenanceValid) {
-      console.warn("Review-driven terminal success rejected because the reviewed head no longer matches the PR head.");
+    if (!sourceHeadProvenanceValid) {
+      console.warn(
+        `${provenance.sourceLabel}-driven terminal success rejected because the ${provenance.description} no longer matches the PR head.`,
+      );
     }
   } catch (err: unknown) {
-    console.warn(`Review-driven terminal success rejected because the PR head could not be read: ${errorText(err)}`);
-    reviewedHeadProvenanceValid = false;
+    console.warn(
+      `${provenance.sourceLabel}-driven terminal success rejected because the PR head could not be read: ${errorText(err)}`,
+    );
+    sourceHeadProvenanceValid = false;
   }
-  return reviewedHeadProvenanceValid;
+  return sourceHeadProvenanceValid;
 }
 
 function hasEnabledSuccessfulPrFollowup(): boolean {
@@ -1168,7 +1202,7 @@ function isValidatedSuccessfulPrStop(decision: HandoffDecision): boolean {
     normalizeToken(sourceTargetKind) !== "pull_request" ||
     !isSuccessfulPrSourceOutcome() ||
     hasEnabledSuccessfulPrFollowup() ||
-    !hasValidReviewedHeadProvenance() ||
+    !hasValidSourceHeadProvenance() ||
     Boolean(String(decision.clarificationRequest || "").trim())
   ) {
     return false;
@@ -1275,21 +1309,22 @@ function formatOrchestrateStopComment(decision: HandoffDecision): string {
       ? `Sepo orchestration finished successfully after \`${sourceAction || "unknown"}\` concluded \`${sourceConclusion || "unknown"}\`.`
       : `Sepo orchestration stopped after \`${sourceAction || "unknown"}\` concluded \`${sourceConclusion || "unknown"}\`.`,
   );
-  const reviewedHeadRejected = (
+  const sourceHeadRejected = (
     !successful &&
-    normalizeToken(sourceAction) === "review" &&
+    sourceHeadProvenance() !== null &&
     isSuccessfulPrSourceOutcome() &&
     !hasEnabledSuccessfulPrFollowup() &&
-    !hasValidReviewedHeadProvenance()
+    !hasValidSourceHeadProvenance()
   );
-  const userMessage = normalizeToken(sourceTargetKind) === "pull_request" && !reviewedHeadRejected
+  const userMessage = normalizeToken(sourceTargetKind) === "pull_request" && !sourceHeadRejected
     ? String(decision.userMessage || "").trim()
     : "";
   if (userMessage) lines.push("", userMessage);
-  if (reviewedHeadRejected) {
+  if (sourceHeadRejected) {
+    const provenance = sourceHeadProvenance();
     lines.push(
       "",
-      "The reviewed head no longer matches the current pull request head, so this result was not finalized as a success.",
+      `The ${provenance?.description || "validated source head"} no longer matches the current pull request head, so this result was not finalized as a success.`,
     );
   }
   if (isSuccessfulPlannerStopSummaryMissing(decision)) {
@@ -1327,7 +1362,7 @@ function collapseSuccessfulPrArtifacts(
   decision: HandoffDecision,
 ): void {
   if (!collapseOldReviews || !isValidatedSuccessfulPrStop(decision)) return;
-  if (!hasValidReviewedHeadProvenance(true)) return;
+  if (!hasValidSourceHeadProvenance(true)) return;
   try {
     const collapsed = collapsePreviousPrConversationArtifacts({
       repo,
@@ -1763,11 +1798,14 @@ try {
       pr_number: decision.targetNumber,
       source_conclusion: sourceConclusion,
       source_recommended_next_step: sourceRecommendedNextStep,
+      source_artifact_database_id: sourceArtifactDatabaseId,
     });
   } else if (decision.nextAction === "agent-self-merge") {
     dispatchWorkflow(repo, "agent-self-merge.yml", ref, {
       ...commonInputs,
       pr_number: decision.targetNumber,
+      source_artifact_database_id: sourceArtifactDatabaseId,
+      source_approved_head_sha: sourceApprovedHeadSha,
     });
   } else if (decision.nextAction === "implement") {
     dispatchWorkflow(repo, "agent-implement.yml", ref, {
