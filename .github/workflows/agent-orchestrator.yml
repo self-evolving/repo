@@ -92,8 +92,19 @@ jobs:
       issues: read
       pull-requests: read
     outputs:
+      acpx_record_id: ${{ steps.planner.outputs.acpx_record_id }}
+      acpx_session_id: ${{ steps.planner.outputs.acpx_session_id }}
+      agent_exit_code: ${{ steps.planner.outputs.agent_exit_code }}
+      last_resume_error: ${{ steps.planner.outputs.last_resume_error }}
       model_display: ${{ steps.planner.outputs.model_display }}
       planner_response_artifact_id: ${{ steps.upload_planner_response.outputs.artifact-id }}
+      resumed_from_session_id: ${{ steps.planner.outputs.resumed_from_session_id }}
+      resume_status: ${{ steps.planner.outputs.resume_status }}
+      session_bundle_artifact_id: ${{ steps.planner.outputs.session_bundle_artifact_id }}
+      session_bundle_artifact_name: ${{ steps.planner.outputs.session_bundle_artifact_name }}
+      session_bundle_restore_error: ${{ steps.planner.outputs.session_bundle_restore_error }}
+      session_bundle_restore_status: ${{ steps.planner.outputs.session_bundle_restore_status }}
+      thread_key: ${{ steps.planner.outputs.thread_key }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -177,6 +188,7 @@ jobs:
           prompt: orchestrator
           reasoning_effort: ${{ steps.provider.outputs.reasoning_effort || 'high' }}
           lane: planner
+          defer_session_state_persistence: "true"
           memory_mode_override: read-only
           memory_ref: ${{ vars.AGENT_MEMORY_REF || 'agent/memory' }}
           memory_policy: ${{ vars.AGENT_MEMORY_POLICY || '' }}
@@ -266,12 +278,13 @@ jobs:
     runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
     permissions:
       actions: write
-      contents: read
+      contents: write
       issues: write
       pull-requests: write
       id-token: write # required for GitHub Actions OIDC broker exchange
     steps:
       - uses: actions/checkout@v4
+        id: resolver_checkout
         with:
           ref: ${{ github.event.repository.default_branch }}
           token: ${{ github.token }}
@@ -287,10 +300,63 @@ jobs:
           fallback_token: ${{ github.token }}
 
       - name: Setup agent runtime
+        id: resolver_runtime
         uses: ./.github/actions/setup-agent-runtime
 
+      - name: Persist planner thread state
+        id: persist_session_state
+        if: ${{ !cancelled() && steps.resolver_checkout.outcome == 'success' && steps.auth.outcome == 'success' && steps.resolver_runtime.outcome == 'success' && needs.plan.outputs.agent_exit_code != '' }}
+        continue-on-error: true
+        env:
+          ACPX_RECORD_ID: ${{ needs.plan.outputs.acpx_record_id }}
+          ACPX_SESSION_ID: ${{ needs.plan.outputs.acpx_session_id }}
+          AGENT_EXIT_CODE: ${{ needs.plan.outputs.agent_exit_code }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          INPUT_GITHUB_TOKEN: ${{ steps.auth.outputs.token }}
+          LANE: planner
+          LAST_RESUME_ERROR: ${{ needs.plan.outputs.last_resume_error }}
+          RESUMED_FROM_SESSION_ID: ${{ needs.plan.outputs.resumed_from_session_id }}
+          RESUME_STATUS: ${{ needs.plan.outputs.resume_status }}
+          ROUTE: orchestrator
+          SESSION_BUNDLE_RESTORE_ERROR: ${{ needs.plan.outputs.session_bundle_restore_error }}
+          SESSION_BUNDLE_RESTORE_STATUS: ${{ needs.plan.outputs.session_bundle_restore_status }}
+          SESSION_POLICY: resume-best-effort
+          TARGET_KIND: ${{ inputs.target_kind || (inputs.source_action == 'implement' && 'issue' || 'pull_request') }}
+          TARGET_NUMBER: ${{ inputs.target_number }}
+          THREAD_KEY: ${{ needs.plan.outputs.thread_key }}
+        run: node .agent/dist/cli/session-persist.js
+
+      - name: Report planner thread-state persistence failure
+        if: ${{ !cancelled() && steps.persist_session_state.outcome == 'failure' }}
+        run: echo "::warning title=Planner session state not persisted::The planner completed, but its durable thread state could not be written."
+
+      - name: Register planner session bundle
+        id: register_session_bundle
+        if: ${{ !cancelled() && steps.persist_session_state.outcome == 'success' && needs.plan.outputs.agent_exit_code == '0' && needs.plan.outputs.session_bundle_artifact_id != '' }}
+        continue-on-error: true
+        env:
+          INPUT_GITHUB_TOKEN: ${{ steps.auth.outputs.token }}
+          LANE: planner
+          ROUTE: orchestrator
+          SESSION_BUNDLE_ARTIFACT_ID: ${{ needs.plan.outputs.session_bundle_artifact_id }}
+          SESSION_BUNDLE_ARTIFACT_NAME: ${{ needs.plan.outputs.session_bundle_artifact_name }}
+          SESSION_BUNDLE_MODE: ${{ inputs.session_bundle_mode || vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
+          SESSION_ID: ${{ needs.plan.outputs.acpx_session_id }}
+          SESSION_POLICY: resume-best-effort
+          SESSION_RECORD_ID: ${{ needs.plan.outputs.acpx_record_id }}
+          TARGET_KIND: ${{ inputs.target_kind || (inputs.source_action == 'implement' && 'issue' || 'pull_request') }}
+          TARGET_NUMBER: ${{ inputs.target_number }}
+        run: node .agent/dist/cli/session-register.js
+
+      - name: Report planner session-bundle registration failure
+        if: ${{ !cancelled() && steps.register_session_bundle.outcome == 'failure' }}
+        run: echo "::warning title=Planner session bundle not registered::The planner bundle was uploaded, but its durable metadata could not be written."
+
       - name: Download planner response
-        if: needs.plan.outputs.planner_response_artifact_id != ''
+        id: download_planner_response
+        if: ${{ !cancelled() && needs.plan.outputs.planner_response_artifact_id != '' }}
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           name: agent-orchestrator-plan-${{ github.run_id }}-${{ github.run_attempt }}
@@ -298,7 +364,8 @@ jobs:
 
       - name: Locate planner response
         id: planner_response
-        if: needs.plan.outputs.planner_response_artifact_id != ''
+        if: ${{ !cancelled() && needs.plan.outputs.planner_response_artifact_id != '' && steps.download_planner_response.outcome == 'success' }}
+        continue-on-error: true
         shell: bash
         env:
           PLANNER_RESPONSE_DIR: ${{ runner.temp }}/agent-orchestrator-plan
@@ -314,6 +381,7 @@ jobs:
           echo "session_log_file=${session_log_file}" >> "$GITHUB_OUTPUT"
 
       - name: Decide and dispatch next action
+        if: ${{ !cancelled() && steps.resolver_checkout.outcome == 'success' && steps.auth.outcome == 'success' && steps.resolver_runtime.outcome == 'success' }}
         env:
           AUTOMATION_CURRENT_ROUND: ${{ inputs.automation_current_round }}
           AUTOMATION_MAX_ROUNDS: ${{ inputs.automation_max_rounds }}

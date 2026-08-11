@@ -110,18 +110,21 @@ function tryRestoreDestination(args: {
   runnerTemp: string;
   homeDir: string;
   threadStateOpts: PushOptions;
+  persistThreadState: boolean;
 }): DestinationRestoreStatus {
   const artifactName = args.state?.session_bundle_artifact_name || "";
   const artifactRunId = args.state?.session_bundle_run_id || "";
   const artifactBackend = args.state?.session_bundle_backend || "";
 
   if (!artifactName || !artifactRunId || !isRestorableSessionBundleBackend(artifactBackend)) {
-    markThreadBundleRestore(
-      args.threadKey,
-      args.repoRoot,
-      { bundle_restore_status: "not_available", last_bundle_restore_error: "" },
-      args.threadStateOpts,
-    );
+    if (args.persistThreadState) {
+      markThreadBundleRestore(
+        args.threadKey,
+        args.repoRoot,
+        { bundle_restore_status: "not_available", last_bundle_restore_error: "" },
+        args.threadStateOpts,
+      );
+    }
     setOutput("restore_status", "not_available");
     return "not_available";
   }
@@ -135,24 +138,28 @@ function tryRestoreDestination(args: {
       artifactName,
       artifactRunId,
     });
-    markThreadBundleRestore(
-      args.threadKey,
-      args.repoRoot,
-      { bundle_restore_status: "restored", last_bundle_restore_error: "" },
-      args.threadStateOpts,
-    );
+    if (args.persistThreadState) {
+      markThreadBundleRestore(
+        args.threadKey,
+        args.repoRoot,
+        { bundle_restore_status: "restored", last_bundle_restore_error: "" },
+        args.threadStateOpts,
+      );
+    }
     setOutput("restore_status", "restored");
     setOutput("artifact_name", artifactName);
     setOutput("artifact_run_id", artifactRunId);
     return "restored";
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    markThreadBundleRestore(
-      args.threadKey,
-      args.repoRoot,
-      { bundle_restore_status: "failed", last_bundle_restore_error: msg },
-      args.threadStateOpts,
-    );
+    if (args.persistThreadState) {
+      markThreadBundleRestore(
+        args.threadKey,
+        args.repoRoot,
+        { bundle_restore_status: "failed", last_bundle_restore_error: msg },
+        args.threadStateOpts,
+      );
+    }
     setOutput("restore_status", "failed");
     setOutput("restore_error", msg);
     setOutput("artifact_name", artifactName);
@@ -256,6 +263,8 @@ const runnerTemp = process.env.RUNNER_TEMP || tmpdir();
 const policy = parseSessionPolicy(process.env.SESSION_POLICY);
 const bundleMode = parseSessionBundleMode(process.env.SESSION_BUNDLE_MODE);
 const forkFromThreadKey = String(process.env.SESSION_FORK_FROM_THREAD_KEY || "").trim();
+const persistThreadState =
+  String(process.env.DEFER_SESSION_STATE_PERSISTENCE || "").trim().toLowerCase() !== "true";
 
 setDefaultOutputs();
 
@@ -294,6 +303,7 @@ if (!policy) {
       runnerTemp,
       homeDir,
       threadStateOpts,
+      persistThreadState,
     });
 
     if (destinationRestoreStatus !== "restored" && !state?.acpxSessionId) {

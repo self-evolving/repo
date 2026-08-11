@@ -73,8 +73,9 @@ initial steering when the planner dispatches a PR-fix pass. The planner mounts
 memory and rubrics read-only so automated control-flow planning can use steering
 context without mutating those state branches, and it receives a read-only
 GitHub token. A separately permissioned deterministic job validates and applies
-the uploaded planner response. Orchestration stops when target
-state indicates no safe next action, a route fails, a duplicate handoff marker
+the uploaded planner response, persists planner thread state, and registers any
+uploaded session bundle before dispatching the next round. Orchestration stops
+when target state indicates no safe next action, a route fails, a duplicate handoff marker
 is found, the planner stops or blocks, or the max-round budget is exhausted.
 Terminal PR runs publish one marker-upserted finalized note that summarizes the
 outcome and mentions the original requester only for human GitHub logins. When

@@ -987,6 +987,13 @@ test("orchestrator planner stays read-only until deterministic resolution", () =
     issues: "read",
     "pull-requests": "read",
   });
+  assert.ok(isRecord(planJob.outputs), "plan job should expose deferred session metadata");
+  assert.equal(planJob.outputs.agent_exit_code, "${{ steps.planner.outputs.agent_exit_code }}");
+  assert.equal(planJob.outputs.thread_key, "${{ steps.planner.outputs.thread_key }}");
+  assert.equal(
+    planJob.outputs.session_bundle_artifact_id,
+    "${{ steps.planner.outputs.session_bundle_artifact_id }}",
+  );
   assert.ok(Array.isArray(planJob.steps), "plan job should define steps");
   const plannerStep = planJob.steps.find(
     (step): step is Record<string, unknown> =>
@@ -996,6 +1003,7 @@ test("orchestrator planner stays read-only until deterministic resolution", () =
   assert.ok(isRecord(plannerStep.with), "planner step should define inputs");
   assert.equal(plannerStep.with.permission_mode, "approve-all");
   assert.equal(plannerStep.with.github_token, "${{ github.token }}");
+  assert.equal(plannerStep.with.defer_session_state_persistence, "true");
   assert.equal(plannerStep.with.progress_policy, '{"orchestration_mode":"disabled"}');
   assert.equal(
     planJob.steps.some((step) => isRecord(step) && step.name === "Resolve GitHub auth"),
@@ -1049,21 +1057,69 @@ test("orchestrator planner stays read-only until deterministic resolution", () =
   assert.ok(isRecord(resolverJob.permissions), "resolver job should define permissions");
   assert.deepEqual(resolverJob.permissions, {
     actions: "write",
-    contents: "read",
+    contents: "write",
     issues: "write",
     "pull-requests": "write",
     "id-token": "write",
   });
   assert.ok(Array.isArray(resolverJob.steps), "resolver job should define steps");
-  assert.equal(
-    resolverJob.steps.some((step) => isRecord(step) && step.uses === "actions/download-artifact@v4"),
-    true,
+  const persistSessionStateStep = resolverJob.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Persist planner thread state",
   );
+  assert.ok(persistSessionStateStep, "resolver should persist planner state deterministically");
+  assert.equal(persistSessionStateStep["continue-on-error"], true);
+  assert.ok(isRecord(persistSessionStateStep.env), "state persistence should define environment inputs");
+  assert.equal(persistSessionStateStep.env.INPUT_GITHUB_TOKEN, "${{ steps.auth.outputs.token }}");
+  assert.equal(persistSessionStateStep.env.THREAD_KEY, "${{ needs.plan.outputs.thread_key }}");
+  assert.equal(persistSessionStateStep.run, "node .agent/dist/cli/session-persist.js");
+
+  const registerSessionBundleStep = resolverJob.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Register planner session bundle",
+  );
+  assert.ok(registerSessionBundleStep, "resolver should register planner bundles deterministically");
+  assert.equal(registerSessionBundleStep["continue-on-error"], true);
+  assert.ok(isRecord(registerSessionBundleStep.env), "bundle registration should define inputs");
+  assert.equal(registerSessionBundleStep.env.INPUT_GITHUB_TOKEN, "${{ steps.auth.outputs.token }}");
+  assert.equal(
+    registerSessionBundleStep.env.SESSION_BUNDLE_ARTIFACT_ID,
+    "${{ needs.plan.outputs.session_bundle_artifact_id }}",
+  );
+  assert.equal(registerSessionBundleStep.run, "node .agent/dist/cli/session-register.js");
+
+  const downloadStep = resolverJob.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Download planner response",
+  );
+  assert.ok(downloadStep, "resolver should download the planner response");
+  assert.equal(downloadStep.id, "download_planner_response");
+  assert.equal(downloadStep["continue-on-error"], true);
+  assert.equal(
+    downloadStep.if,
+    "${{ !cancelled() && needs.plan.outputs.planner_response_artifact_id != '' }}",
+  );
+
+  const locateStep = resolverJob.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Locate planner response",
+  );
+  assert.ok(locateStep, "resolver should locate the planner response");
+  assert.equal(locateStep["continue-on-error"], true);
+  assert.equal(
+    locateStep.if,
+    "${{ !cancelled() && needs.plan.outputs.planner_response_artifact_id != '' && steps.download_planner_response.outcome == 'success' }}",
+  );
+
   const resolverStep = resolverJob.steps.find(
     (step): step is Record<string, unknown> =>
       isRecord(step) && step.name === "Decide and dispatch next action",
   );
   assert.ok(resolverStep, "resolver job should apply the planner decision deterministically");
+  assert.equal(
+    resolverStep.if,
+    "${{ !cancelled() && steps.resolver_checkout.outcome == 'success' && steps.auth.outcome == 'success' && steps.resolver_runtime.outcome == 'success' }}",
+  );
   assert.ok(isRecord(resolverStep.env), "resolver step should define environment inputs");
   assert.equal(
     resolverStep.env.PLANNER_RESPONSE_FILE,
@@ -1926,6 +1982,7 @@ test("shared run-agent-task action wires session bundle restore and upload aroun
 
   assert.match(action, /session_bundle_mode:/);
   assert.match(action, /session_bundle_retention_days:/);
+  assert.match(action, /defer_session_state_persistence:/);
   assert.match(action, /session_fork_from_thread_key:/);
   assert.match(action, /Restore session bundle/);
   assert.match(action, /Restore session bundle[\s\S]*continue-on-error:\s*true/);
@@ -1953,7 +2010,28 @@ test("shared run-agent-task action wires session bundle restore and upload aroun
   assert.ok(runStep, "run-agent-task action should include the Run agent task step");
   assert.ok(isRecord(runStep.env), "Run agent task step should define env");
   assert.equal(runStep.env.SESSION_BUNDLE_MODE, "${{ inputs.session_bundle_mode }}");
+  assert.equal(
+    runStep.env.DEFER_SESSION_STATE_PERSISTENCE,
+    "${{ inputs.defer_session_state_persistence }}",
+  );
+  const restoreStep = parsedAction.runs.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Restore session bundle",
+  );
+  assert.ok(restoreStep, "run-agent-task should restore prior session bundles");
+  assert.ok(isRecord(restoreStep.env), "session restore step should define env");
+  assert.equal(
+    restoreStep.env.DEFER_SESSION_STATE_PERSISTENCE,
+    "${{ inputs.defer_session_state_persistence }}",
+  );
+  const registerStep = parsedAction.runs.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Register session bundle artifact",
+  );
+  assert.ok(registerStep, "run-agent-task should register inline bundles by default");
+  assert.match(String(registerStep.if), /inputs\.defer_session_state_persistence != 'true'/);
   assert.match(runSource, /parseSessionBundleMode\(process\.env\.SESSION_BUNDLE_MODE\)/);
+  assert.match(runSource, /deferSessionStatePersistence/);
   assert.match(
     runSource,
     /preserveExecSession:\s*sessionPolicy === "track-only" &&\s*shouldBackupSessionBundles\(sessionBundleMode, sessionPolicy\)/,
