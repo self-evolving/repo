@@ -129,3 +129,4 @@
 - Claude CLI cache: hosted-only; channels rotate weekly; exact pins; self-hosted uncached. [[github/self-evolving/repo/pull-479.json]]
 - Only release preparation updates `.agent/CHANGELOG.md`; normal PRs leave release notes unchanged.
 - Use `$$` display-math blocks for LaTeX in GitHub-facing Markdown. [[github/self-evolving/repo/pull-491.json]]
+- Stop review/fix loops when changes outgrow agreed scope; defer extra hardening to follow-up issues. [[github/self-evolving/repo/pull-497.json]]
