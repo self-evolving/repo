@@ -467,6 +467,43 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/497#issuecomment-5253350486",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOYriCg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /answer i am dead. why this happened again 🥲 why it got become another giant pr (which should originally be small) ",
+      "createdAt": "2026-08-12T00:13:13Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/497#issuecomment-5260370442",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOYsLSQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "You’re right—Sepo repeated the same scope-control failure.\n\nThis was **not** a bad branch base: #497 targets `main`. The [initial lean commit](https://github.com/self-evolving/repo/commit/2f8a5863fbfd779805fe56d88d28bfec01b1bd40) was 7 files, `+436/−24`. After `/orchestrate`, five review→fix cycles ran through round 11, growing it to [21 files, `+1,960/−68`](https://github.com/self-evolving/repo/pull/497/files). Tests account for 1,078 additions, but the production scope still expanded substantially.\n\nWhy it snowballed:\n\n- Each review found another concurrency or provenance edge case and returned `NEEDS_REWORK`; orchestration automatically converted that into another `FIX_PR`.\n- “Best-effort cleanup” was mistakenly hardened into “provably safe cleanup across review, self-approval, self-merge, reruns, and overlapping workflows.”\n- Each provenance fix created another surface to review, pulling in self-approval, self-merge, GitHub helpers, and three workflows.\n- The 40-round limit bounded runtime, not scope. There was no circuit breaker like “stop when this exceeds the original seven-file boundary.”\n- The correct lean response to uncertain cleanup was simply **skip cleanup and preserve the comments**. Sepo instead kept expanding the PR to make every cleanup path exact.\n\nSo this is the same process failure as #495 through a different route: #495 expanded into job/session architecture; #497 expanded into provenance/concurrency architecture. Many findings were real, but they should have become separate hardening issues—not more commits in this PR.\n\nThe chain has now stopped: the [latest review](https://github.com/self-evolving/repo/pull/497#issuecomment-5253350486) finally requested `HUMAN_DECISION`. It should have stopped much earlier. This is Sepo’s scope-control failure, not yours.\n\nTo trim it without another open-ended orchestration loop, send:\n\n`@sepo-agent /fix-pr trim #497 back to the original seven-file lean boundary: keep terminal-note publication, requester tagging, progress/marker reuse, and fail-closed best-effort cleanup; remove cross-workflow provenance and self-approve/self-merge changes; record further hardening as follow-up work instead of expanding this PR.`\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — answer · 3m10s · 24 steps**\n\nLast message\n> You’re right—Sepo repeated the same scope-control failure. This was **not** a bad branch base: #497 targets `main`. The [initial lean commit](https://github.com/self-evolving/repo/commit/2f8a5863fbfd779805fe56d88d28bfec01b1bd40) was 7 file…\n\nActivity\n\n- 🔧 Used tool `gh api repos/self-evolving/repo/issues/comments/5252658387 --jq .body` (completed)\n- 🔧 Used tool `gh api repos/self-evolving/repo/issues/comments/5253350486 --jq .body` (completed)\n- 🔧 Used tool `gh api repos/self-evolving/repo/issues/comments/5251170876 --jq .body` (completed)\n- 🔧 Used tool `gh api repos/self-evolving/repo/issues/comments/5252138784 --jq .body` (completed)\n- 🔧 Used tool `gh api repos/self-evolving/repo/issues/comments/5248776508 --jq .body` (completed)\n- 💬 Message \"You’re right—Sepo repeated the same scope-control failure. This was **not** a bad branch base: #497 targets `main`. The [initial lean commit](https://github.com/self-evolving/repo/commit/2f8a5863fbfd779805fe56d88d28bfec01b1bd40) was 7 file…\"\n</details>\n\n<!-- sepo-progress:run-31549422664 -->\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-4`",
+      "createdAt": "2026-08-12T00:14:50Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/497#issuecomment-5260381001",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-08-11T03:01:30Z",
@@ -884,6 +921,6 @@
   ],
   "state": "OPEN",
   "title": "Refocus orchestration finalization on the single-job flow",
-  "updatedAt": "2026-08-11T12:45:40Z",
+  "updatedAt": "2026-08-12T00:18:10Z",
   "url": "https://github.com/self-evolving/repo/pull/497"
 }
