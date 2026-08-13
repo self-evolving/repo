@@ -1,0 +1,53 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "body": "@sepo-agent /implement\n\n## Goal\n\nStop Sepo's live progress-comment updates from spawning a new Agent Entrypoint workflow run on every edit.\n\n## Observed impact\n\nA ten-minute observation in `co-evolving/hub` on 2026-08-13 found **48 secondary Agent Entrypoint runs** caused by two successful `/answer` progress comments:\n\n- [Hub #428](https://github.com/co-evolving/hub/issues/428): 15 secondary runs — 14 cancelled and 1 skipped — while the primary [answer run 31674450364](https://github.com/co-evolving/hub/actions/runs/31674450364) was updating its progress comment.\n- [Hub #432](https://github.com/co-evolving/hub/issues/432): 33 secondary runs — 31 cancelled and 2 skipped — while the primary [answer run 31674724279](https://github.com/co-evolving/hub/actions/runs/31674724279) was updating its progress comment.\n- Representative recursive runs: [31674848359](https://github.com/co-evolving/hub/actions/runs/31674848359) and [31675339673](https://github.com/co-evolving/hub/actions/runs/31675339673). Their event actor and triggering actor are both `sepo-agent-app[bot]`, event `issue_comment`.\n\nThe answer runs completed, and the job-level bot guard prevented substantive routing, but it cannot prevent the workflow-run objects from being created. The churn pollutes Actions history and repeatedly enters cancellation/skip handling every approximately 10 seconds.\n\n## Root cause\n\n`.github/workflows/agent-entrypoint.yml` subscribes to `issue_comment`, `pull_request_review_comment`, and `discussion_comment` with `types: [created, edited]`. The progress reporter repeatedly PATCHes one comment using the App credential. GitHub creates the workflow run before the entrypoint job's `github.event.sender.type != 'Bot'` condition can skip it.\n\n## Compatibility constraint\n\nDo not blindly remove edited-comment support. Issue #455 and open PR #456 deliberately model newly added explicit commands on human-edited comments. Preserve that behavior if practical, or make any decision to remove it explicit and reconcile #456.\n\nA likely direction worth testing is to perform self-authored progress comment creation/updates/finalization with the workflow's `GITHUB_TOKEN`, whose events do not recursively start workflows, while retaining the App token for operations that require the Sepo App identity or permissions. Verify whether token identity and cross-author comment updates permit this before settling the design.\n\n## Acceptance criteria\n\n- A live progress run that updates its issue/PR comment repeatedly creates **zero secondary Agent Entrypoint runs** from those self-updates.\n- Normal newly created human commands still route.\n- Human edited-comment command behavior remains consistent with the settled #455/#456 policy, unless the PR explicitly revises and reconciles that policy.\n- Progress rendering, final response replacement, and authorized cancellation continue to work.\n- Token scopes remain least-privilege; no App/PAT credential is exposed to the agent process.\n- Add focused tests for workflow/token wiring and the preserved trigger behavior, plus a regression note explaining why job-level bot filtering alone is insufficient.\n\nEvidence originated in: https://github.com/co-evolving/hub/issues/428 and https://github.com/co-evolving/hub/issues/432\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOpEq4Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "### 🤖 Sepo is working — implement · 1m41s · 16 steps\n\nRecent activity\n- 📖 Read `gh pr view 440 --repo self-evolving/repo --json title,body,author,comments,reviews,reviewDecision,state,url,files && gh…` (completed)\n- 📖 Read `Read file '/Users/shannon/projects/2604_sepo/repo/.agent/tools/local-runner/runner-6/_work/repo/repo/.github/actions/ru…` (completed)\n- 🔧 Used tool `\"sed -n '1,430p' .agent/src/__tests__/progress-report.test.ts; sed -n '1,380p' .agent/src/__tests__/progress-final-comm…` (completed)\n- 🔧 Used tool `\"sed -n '1,260p' .agent/src/progress-report.ts; sed -n '1,300p' .agent/src/progress-final-comment.ts; sed -n '1,320p' .…` (completed)\n- 🔧 Used tool `\"sed -n '1,240p' .github/workflows/agent-entrypoint.yml; sed -n '100,380p' .github/workflows/agent-implement.yml; sed -…` (failed)\n- 🔍 Searched `Search for 'progress_comment_id|PROGRESS_COMMENT|progress-report|progress-final|progress-cancel|final_comment' in actio…` (completed)\n\nLast message\n> The linked policy is clear: edited comments must stay subscribed and are actionable only when a human edit newly adds an allowed command. I’m now tracing where the App credential reaches progress creation, PATCH finalization, and cancellat…\n\n<!-- sepo-progress:run-31679296821 -->",
+      "createdAt": "2026-08-13T07:49:21Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/issues/499#issuecomment-5277559521",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-08-13T07:46:00Z",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDIDhw",
+      "name": "bug",
+      "description": "Something isn't working",
+      "color": "d73a4a"
+    },
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    },
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChVB3-w",
+      "name": "priority/p0",
+      "description": "Project management: highest priority",
+      "color": "b60205"
+    }
+  ],
+  "number": 499,
+  "state": "OPEN",
+  "title": "Stop progress comment edits from spawning recursive entrypoint runs",
+  "updatedAt": "2026-08-13T07:51:03Z",
+  "url": "https://github.com/self-evolving/repo/issues/499"
+}
