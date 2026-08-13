@@ -4,7 +4,12 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
 
-import { createIssueComment, dispatchWorkflow } from "../github.js";
+import {
+  createIssueComment,
+  dispatchWorkflow,
+  fetchIssueCommentBody,
+  updateIssueComment,
+} from "../github.js";
 
 function writeExecutable(path: string, content: string): void {
   writeFileSync(path, content, { encoding: "utf8", mode: 0o755 });
@@ -51,6 +56,57 @@ test("createIssueComment posts to issue comments and returns the comment id", ()
     ]);
   } finally {
     process.env.PATH = originalPath;
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("progress comment helpers use an explicit token without replacing ambient auth", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-progress-comment-token-"));
+  const originalPath = process.env.PATH;
+  const originalGhToken = process.env.GH_TOKEN;
+
+  try {
+    const binDir = join(tempDir, "bin");
+    const logPath = join(tempDir, "gh.log");
+    mkdirSync(binDir, { recursive: true });
+
+    writeExecutable(join(binDir, "gh"), [
+      "#!/usr/bin/env bash",
+      "set -euo pipefail",
+      `log_path=${JSON.stringify(logPath)}`,
+      "printf '%s\\t%s\\n' \"$GH_TOKEN\" \"$*\" >> \"$log_path\"",
+      "if [[ \"$1\" == \"api\" && \"$2\" == \"repos/self-evolving/repo/issues/comments/123\" ]]; then",
+      "  printf 'progress body\\n'",
+      "  exit 0",
+      "fi",
+      "if [[ \"$1\" == \"api\" && \"$2\" == \"--method\" && \"$3\" == \"PATCH\" ]]; then",
+      "  exit 0",
+      "fi",
+      "printf 'unexpected gh args: %s\\n' \"$*\" >&2",
+      "exit 1",
+      "",
+    ].join("\n"));
+
+    process.env.PATH = `${binDir}:${originalPath || ""}`;
+    process.env.GH_TOKEN = "resolved-app-token";
+
+    assert.equal(
+      fetchIssueCommentBody("self-evolving/repo", 123, "workflow-token"),
+      "progress body\n",
+    );
+    updateIssueComment("self-evolving/repo", 123, "final body", "workflow-token");
+
+    const log = readFileSync(logPath, "utf8").trim().split(/\r?\n/);
+    assert.equal(log.length, 2);
+    assert.ok(log.every((line) => line.startsWith("workflow-token\t")));
+    assert.equal(process.env.GH_TOKEN, "resolved-app-token");
+  } finally {
+    process.env.PATH = originalPath;
+    if (originalGhToken === undefined) {
+      delete process.env.GH_TOKEN;
+    } else {
+      process.env.GH_TOKEN = originalGhToken;
+    }
     rmSync(tempDir, { recursive: true, force: true });
   }
 });

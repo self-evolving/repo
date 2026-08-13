@@ -313,6 +313,7 @@ test("post-comment CLI merges final status into a progress comment when configur
 
   try {
     const logPath = join(tempDir, "gh.log");
+    const tokenLogPath = join(tempDir, "gh-token.log");
     const outputPath = join(tempDir, "github-output.txt");
     const responsePath = join(tempDir, "response.json");
     writeFileSync(responsePath, '{"summary":"Updated tests."}\n', "utf8");
@@ -321,6 +322,7 @@ test("post-comment CLI merges final status into a progress comment when configur
       tempDir,
       `#!/usr/bin/env bash
 printf '%s\\n' "$*" >> "$FAKE_GH_LOG"
+printf '%s\\n' "$GH_TOKEN" >> "$FAKE_GH_TOKEN_LOG"
 if [ "$1" = "api" ] && [ "$2" = "repos/self-evolving/repo/issues/comments/999" ]; then
   printf '### Sepo finished — fix-pr · 5s · 2 steps\\n\\n<details>\\n<summary>Activity</summary>\\n\\n- 📖 Read \`file.ts\`\\n</details>\\n\\n<!-- sepo-progress:run-123 -->\\n'
   exit 0
@@ -345,6 +347,7 @@ exit 1
         AGENT_COLLAPSE_OLD_REVIEWS: "false",
         AGENT_PROGRESS_COMMENT_ID: "999",
         AGENT_PROGRESS_FINAL_COMMENT_MODE: "merge",
+        AGENT_PROGRESS_GITHUB_TOKEN: "workflow-token",
         BRANCH: "agent/fix",
         COMMENT_TARGET: "pr",
         TARGET_NUMBER: "321",
@@ -355,6 +358,8 @@ exit 1
         GITHUB_REPOSITORY: "self-evolving/repo",
         GITHUB_OUTPUT: outputPath,
         FAKE_GH_LOG: logPath,
+        FAKE_GH_TOKEN_LOG: tokenLogPath,
+        GH_TOKEN: "resolved-app-token",
       },
       encoding: "utf8",
     });
@@ -368,6 +373,10 @@ exit 1
     assert.match(log, /<!-- sepo-agent-fix-pr-status -->/);
     assert.match(log, /<!-- sepo-progress:run-123 -->/);
     assert.doesNotMatch(log, /^pr comment /m);
+    assert.deepEqual(
+      readFileSync(tokenLogPath, "utf8").trim().split(/\r?\n/),
+      ["workflow-token", "workflow-token"],
+    );
 
     const output = readFileSync(outputPath, "utf8");
     assert.match(output, /^comment_posted<</m);

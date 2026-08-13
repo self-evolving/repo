@@ -7,9 +7,12 @@ import { execFileSync } from "node:child_process";
 
 export const MAX_BUFFER = 10 * 1024 * 1024;
 
-export function gh(args: string[], cwd?: string): string {
+export function gh(args: string[], cwd?: string, token?: string): string {
   return execFileSync("gh", args, {
     cwd,
+    env: token
+      ? { ...process.env, GH_TOKEN: token, GITHUB_TOKEN: token }
+      : process.env,
     stdio: "pipe",
     maxBuffer: MAX_BUFFER,
   }).toString("utf8");
@@ -56,7 +59,12 @@ export function postPrComment(prNumber: number, body: string, repo?: string): vo
   gh(args);
 }
 
-export function updateIssueComment(repo: string, commentId: string | number, body: string): void {
+export function updateIssueComment(
+  repo: string,
+  commentId: string | number,
+  body: string,
+  token?: string,
+): void {
   gh([
     "api",
     "--method",
@@ -64,16 +72,20 @@ export function updateIssueComment(repo: string, commentId: string | number, bod
     `repos/${repo}/issues/comments/${commentId}`,
     "-f",
     `body=${body}`,
-  ]);
+  ], undefined, token);
 }
 
-export function fetchIssueCommentBody(repo: string, commentId: string | number): string {
+export function fetchIssueCommentBody(
+  repo: string,
+  commentId: string | number,
+  token?: string,
+): string {
   return gh([
     "api",
     `repos/${repo}/issues/comments/${commentId}`,
     "--jq",
     ".body",
-  ]);
+  ], undefined, token);
 }
 
 export function createIssueComment(repo: string, issueNumber: number, body: string): string {

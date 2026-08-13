@@ -10,6 +10,7 @@ export interface ProgressFinalCommentOptions {
   mode: string;
   finalBody: string;
   footer?: string;
+  githubToken?: string;
   log?: (message: string) => void;
 }
 
@@ -51,9 +52,14 @@ export function tryMergeProgressFinalComment(options: ProgressFinalCommentOption
   }
 
   try {
-    const progressBody = fetchIssueCommentBody(repo, commentId);
+    const progressBody = fetchIssueCommentBody(repo, commentId, options.githubToken);
     const mergedBody = mergeFinalBodyWithProgress(options.finalBody, progressBody);
-    updateIssueComment(repo, commentId, appendRunDisplayFooter(mergedBody, options.footer));
+    updateIssueComment(
+      repo,
+      commentId,
+      appendRunDisplayFooter(mergedBody, options.footer),
+      options.githubToken,
+    );
     return true;
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);

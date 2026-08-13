@@ -2,7 +2,8 @@
 // Usage: node .agent/dist/cli/post-comment.js
 // Env: COMMENT_TARGET (issue or pr), TARGET_NUMBER, ROUTE, STATUS,
 //      RESPONSE_FILE (optional), BRANCH, PR_URL, REQUESTED_BY,
-//      APPROVAL_COMMENT_URL, CANCELLED_BY, AGENT_COLLAPSE_OLD_REVIEWS
+//      APPROVAL_COMMENT_URL, CANCELLED_BY, AGENT_COLLAPSE_OLD_REVIEWS,
+//      AGENT_PROGRESS_GITHUB_TOKEN (workflow token for final progress PATCH)
 // Outputs: status
 
 import { readFileSync } from "node:fs";
@@ -41,6 +42,7 @@ const modelDisplay = process.env.MODEL_DISPLAY || process.env.AGENT_RUN_DISPLAY 
 const repo = process.env.GITHUB_REPOSITORY || "";
 const progressFinalCommentMode = process.env.AGENT_PROGRESS_FINAL_COMMENT_MODE || "";
 const progressCommentId = process.env.AGENT_PROGRESS_COMMENT_ID || process.env.PROGRESS_COMMENT_ID || "";
+const progressGithubToken = process.env.AGENT_PROGRESS_GITHUB_TOKEN || "";
 const collapseOldReviews = !["false", "0", "no", "off"].includes(
   (process.env.AGENT_COLLAPSE_OLD_REVIEWS || "").trim().toLowerCase(),
 );
@@ -150,6 +152,7 @@ if (target === "pr") {
     mode: progressFinalCommentMode,
     finalBody: body,
     footer: modelDisplay,
+    githubToken: progressGithubToken,
   });
   if (!merged) {
     postPrComment(targetNumber, bodyWithFooter);
@@ -161,6 +164,7 @@ if (target === "pr") {
     mode: progressFinalCommentMode,
     finalBody: body,
     footer: modelDisplay,
+    githubToken: progressGithubToken,
   });
   if (!merged) {
     postIssueComment(targetNumber, bodyWithFooter);

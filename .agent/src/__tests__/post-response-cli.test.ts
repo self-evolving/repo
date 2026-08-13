@@ -116,12 +116,14 @@ test("post-response CLI merges issue answers into a progress comment when config
 
   try {
     const logPath = join(tempDir, "gh.log");
+    const tokenLogPath = join(tempDir, "gh-token.log");
     const bodyPath = join(tempDir, "body.md");
     writeFileSync(bodyPath, "Answer body.\n", "utf8");
     writeFakeGh(
       tempDir,
       `#!/usr/bin/env bash
 printf '%s\\n' "$*" >> "$FAKE_GH_LOG"
+printf '%s\\n' "$GH_TOKEN" >> "$FAKE_GH_TOKEN_LOG"
 if [ "$1" = "api" ] && [ "$2" = "repos/self-evolving/repo/issues/comments/999" ]; then
   printf '### Sepo finished — answer · 3s · 1 step\\n\\n<details>\\n<summary>Activity</summary>\\n\\n- 💬 Message "Checking."\\n</details>\\n\\n<!-- sepo-progress:run-456 -->\\n'
   exit 0
@@ -145,11 +147,14 @@ exit 1
         PATH: `${tempDir}:${process.env.PATH || ""}`,
         AGENT_PROGRESS_COMMENT_ID: "999",
         AGENT_PROGRESS_FINAL_COMMENT_MODE: "merge",
+        AGENT_PROGRESS_GITHUB_TOKEN: "workflow-token",
         BODY_FILE: bodyPath,
         RESPONSE_KIND: "issue_comment",
         TARGET_NUMBER: "321",
         GITHUB_REPOSITORY: "self-evolving/repo",
         FAKE_GH_LOG: logPath,
+        FAKE_GH_TOKEN_LOG: tokenLogPath,
+        GH_TOKEN: "resolved-app-token",
       },
       encoding: "utf8",
     });
@@ -162,6 +167,10 @@ exit 1
     assert.match(log, /<summary>Sepo activity<\/summary>/);
     assert.match(log, /<!-- sepo-progress:run-456 -->/);
     assert.doesNotMatch(log, /^issue comment /m);
+    assert.deepEqual(
+      readFileSync(tokenLogPath, "utf8").trim().split(/\r?\n/),
+      ["workflow-token", "workflow-token"],
+    );
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
