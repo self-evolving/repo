@@ -1,0 +1,251 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n\n- classify review findings separately by severity and scope disposition: `FIX_IN_PR`, `FOLLOW_UP`, or `HUMAN_DECISION`\n- restrict synthesis action items and `FIX_PR` recommendations to bounded `FIX_IN_PR` work\n- stop orchestration after one automatic fix pass or before scope-expanding work\n- require fix-pr runs to preserve the original acceptance criteria and leave broader hardening for follow-up\n\n## Scope\n\nIntentionally limited to the four prompts that control review, synthesis, orchestration, and PR fixes. This PR does not add runtime machinery, workflow changes, documentation, or release notes.\n\n## Verification\n\n- `npm --prefix .agent run build`\n- `npm --prefix .agent run check:docs`\n- `git diff --check`\n",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOmPRRw",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate Review this minimal prompt-only PR. Keep all automated fixes strictly within the four changed prompt files and the stated scope-disposition contract. Do not add runtime, workflow, test, documentation, or broader hardening changes; classify those as follow-up and stop for human review rather than expanding this PR.",
+      "createdAt": "2026-08-13T00:50:54Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/498#issuecomment-5274587463",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOmQulw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | review | PR #498 | 2 / 40 | Dispatched |\n\nReason: agent planner selected review: The open PR explicitly requests an analysis-first review and has no prior review result; its scope is limited to four prompt files.\n\n<!-- sepo-agent-handoff state:dispatched created:1786582500435 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MzE2NTU3OTgwODM6b3JjaGVzdHJhdGU6NDk4OnJldmlldzo0OTg6Mg -->",
+      "createdAt": "2026-08-13T00:55:00Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/498#issuecomment-5274611351",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOmYSNg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 91 | PARTIAL | 6 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Separate decision gates from action authorization | partial | 4/8 | The one-pass guard applies to review→`fix-pr`, but self-approval `REQUEST_CHANGES` still unconditionally triggers `fix-pr` without the same budget or disposition check. [One-pass guard](https://github.com/self-evolving/repo/blob/aa0a22091ae0c7bd6491697f571ae488dbb03afa/.github/prompts/agent-orchestrator.md#L88-L97), [self-approval handoff](https://github.com/self-evolving/repo/blob/aa0a22091ae0c7bd6491697f571ae488dbb03afa/.github/prompts/agent-orchestrator.md#L140-L147). |\n| review_quality / generic | Ground review synthesis in current artifacts | pass | 8/8 | Synthesis must verify blocking work against current review artifacts or PR state, then reassess every finding against the current scope contract. [Synthesis contract](https://github.com/self-evolving/repo/blob/aa0a22091ae0c7bd6491697f571ae488dbb03afa/.github/prompts/review-synthesize.md#L9-L29). |\n| review_quality / generic | Use investigative approval review | pass | 8/8 | Review still requires live PR context and independent investigation of goals, design, implementation, tests, documentation, and safe mitigations. [Review prompt](https://github.com/self-evolving/repo/blob/aa0a22091ae0c7bd6491697f571ae488dbb03afa/.github/prompts/review.md#L5-L12), [review dimensions](https://github.com/self-evolving/repo/blob/aa0a22091ae0c7bd6491697f571ae488dbb03afa/.github/prompts/review.md#L70-L87). |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | Scope disposition, bounded fixes, and stop decisions are encoded in the existing planner prompt without adding configuration or workflow machinery. [Planner rules](https://github.com/self-evolving/repo/blob/aa0a22091ae0c7bd6491697f571ae488dbb03afa/.github/prompts/agent-orchestrator.md#L87-L145). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The PR changes exactly the four intended prompt files and no runtime, workflow, test, or documentation files. [PR files](https://github.com/self-evolving/repo/pull/498/files). |\n| coding_workflow / generic | Leave release notes to release preparation | pass | 8/8 | No changelog or release-note file is changed. [PR files](https://github.com/self-evolving/repo/pull/498/files). |\n\n## Notes\n\n- The severity/disposition separation is consistently established across review, synthesis, orchestration, and fix-pr prompts.\n- The only in-scope blocker is the self-approval handoff loophole. Its smallest correction is confined to `agent-orchestrator.md`.\n- `Keep docs in sync` was not scored: explicit maintainer direction makes runtime, workflow, test, and documentation changes follow-up-only for this PR.\n\n## Findings\n\n- **BLOCKING — FIX_IN_PR — Separate decision gates from action authorization:** After one completed automatic fix pass, a later review can route through `HUMAN_DECISION` to self-approval, whose `REQUEST_CHANGES` result still mandates another `fix-pr` handoff. That context also is not required to carry the new `FIX_IN_PR` classification. Qualify the self-approval branch with the same current-chain fix budget and require bounded `FIX_IN_PR` context; otherwise stop for human review.\n- **INFO — FOLLOW_UP:** Deterministic runtime enforcement, regression tests, workflow changes, and documentation could strengthen this policy, but must remain outside this four-prompt PR.\n\n## Final Rubric Verdict\n\nPARTIAL\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-3`",
+      "createdAt": "2026-08-13T01:15:39Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/498#issuecomment-5274735158",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOmcQlg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: aa0a22091ae0c7bd6491697f571ae488dbb03afa -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #498 introduces separate severity and scope-disposition classifications across the four prompts governing review, synthesis, orchestration, and PR fixes. Its goal is to prevent automated review loops from expanding a PR beyond its acceptance criteria. Runtime, workflow, test, documentation, and release-note changes are intentionally excluded. The current diff is surgical and CI passes, but several prompt clauses still contradict the new contract.\n\n## Review\n\nThe current head should not merge yet. Although one reviewer recommended shipping, the Codex and rubric reviews identified contract-breaking paths that remain present at `aa0a2209`, including a second automatic fix pass through self-approval.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Self-approval bypasses the one-pass circuit breaker | BLOCKING | The budget check covers review-to-fix handoffs, but an unconditional self-approval `REQUEST_CHANGES` handoff can start a second automatic fix pass. This directly violates the PR’s stated one-pass contract. |\n| Selected fix task is not exclusive | BLOCKING | The fix prompt calls orchestrator context the selected task, then reauthorizes work from the latest synthesis. This can revive `FIX_IN_PR` items deliberately omitted from the bounded handoff. |\n| Severity overrides disposition downstream | BLOCKING | The fixer and orchestrator categorically exclude `INFO` findings, so an `INFO` / `FIX_IN_PR` correction is discarded despite severity and disposition being declared independent. |\n| Action-item disposition is lost during handoff | WARNING | Synthesis permits unlabeled checkboxes while downstream prompts require explicit `FIX_IN_PR` classification; the existing extractor forwards only the checkbox text. |\n| `HUMAN_DECISION` routing is ambiguous | WARNING | Synthesis defines it as needing a maintainer, while orchestration sends it to agent self-approval, and no precedence is defined when both `HUMAN_DECISION` and `FIX_IN_PR` work remain. |\n| Recommendation parser shares disposition vocabulary | INFO | The `NO_AUTOMATED_ACTION` description embeds `HUMAN_DECISION`, while the parser selects the first recognized token. The prescribed output order keeps this bounded and fail-safe, so hardening can remain follow-up work. |\n\n## Progress\n\n- The current head remains `aa0a22091ae0c7bd6491697f571ae488dbb03afa`; the hosted `check` job passes.\n- The diff remains limited to the four intended prompt files, with no release-note changes.\n- The existing rubric review already documents the self-approval loophole, so no duplicate inline comment was posted for it.\n- Posted three missing inline comments covering [selected-task exclusivity](https://github.com/self-evolving/repo/pull/498#discussion_r3771642157), [severity overriding disposition](https://github.com/self-evolving/repo/pull/498#discussion_r3771642161), and [lost action-item classification](https://github.com/self-evolving/repo/pull/498#discussion_r3771642158).\n- No pre-existing inline comments or review threads required replies, resolution, or minimization.\n- Deterministic runtime enforcement, heuristics-mode behavior, tests, documentation, and the sibling finalize prompt remain intentionally outside this PR.\n\n## Issue Details\n\n<details>\n<summary>Self-approval bypasses the one-pass circuit breaker</summary>\n\n**Cause:** The new history check applies only before review-to-`fix-pr`, while the later self-approval rule unconditionally maps `REQUEST_CHANGES` to `fix-pr`.\n\n**Candidate solutions:** Apply the same completed-pass and disposition checks before every automated `fix-pr` handoff. After one completed pass, self-approval should stop for human review.\n\n**Comments:** The Codex and rubric reviewers independently identified this path. The shipping reviewer treated the budget as advisory but did not account for this concrete bypass.\n</details>\n\n<details>\n<summary>Selected fix task is not exclusive</summary>\n\n**Cause:** The priority list makes non-empty orchestrator context the selected fix task, but the authorization rule allows work from that context “or latest synthesis.”\n\n**Candidate solutions:** When orchestrator context is present, make it the exclusive authorization source. Consult synthesis action items only when no selected context exists.\n</details>\n\n<details>\n<summary>Severity overrides disposition downstream</summary>\n\n**Cause:** Blanket `INFO` exclusions in the fixer and orchestrator override the independently assigned `FIX_IN_PR` disposition.\n\n**Candidate solutions:** Let disposition determine automation eligibility. Exclude optional or `FOLLOW_UP` INFO findings, not every INFO finding.\n\n**Comments:** This is a direct counterexample to the otherwise well-established severity/disposition separation noted by the other reviewers.\n</details>\n\n<details>\n<summary>Action-item disposition is lost during handoff</summary>\n\n**Cause:** The synthesis format requires only plain checkboxes, and `extractReviewActionItems` forwards their text without recovering the table disposition.\n\n**Candidate solutions:** Require a literal format such as `- [ ] FIX_IN_PR: …`. The existing extractor will preserve that label without runtime changes.\n</details>\n\n<details>\n<summary><code>HUMAN_DECISION</code> routing is ambiguous</summary>\n\n**Cause:** Its definition says a maintainer is required, but existing orchestration intentionally uses agent self-approval as the judgment gate. The next-step predicates also overlap when decision work and branch fixes coexist.\n\n**Candidate solutions:** Define `HUMAN_DECISION` as an explicit judgment gate consistent with self-approval, and give it precedence whenever that decision must occur before branch changes.\n</details>\n\n<details>\n<summary>Recommendation parser shares disposition vocabulary</summary>\n\n**Cause:** `extractReviewRecommendedNextStep` returns the first recognized token in the section, while explanatory text may mention sibling next-step tokens.\n\n**Candidate solutions:** As follow-up hardening, require the selected token on its own first line or avoid sibling next-step tokens in its explanation.\n\n**Comments:** The prescribed format already places the selected token first, and the plausible misroute stops at a judgment gate rather than triggering unsafe automation.\n</details>\n\n## Recommended Next Step\n\n`FIX_PR`: the unresolved contract contradictions require a bounded prompt-only correction and are safe for one automated fix pass within the four changed files.\n\n## Final Verdict\n\n`NEEDS_REWORK`\n\n## Action Items\n\n- [ ] FIX_IN_PR: Apply the one-pass budget and bounded-disposition checks to every automated `fix-pr` handoff, including self-approval.\n- [ ] FIX_IN_PR: Make non-empty orchestrator context the exclusive fix authorization source.\n- [ ] FIX_IN_PR: Make disposition—not severity—the downstream actionability gate.\n- [ ] FIX_IN_PR: Require explicit `FIX_IN_PR` labels in synthesis action-item checkboxes.\n- [ ] FIX_IN_PR: Align `HUMAN_DECISION` terminology with the configured judgment gate and define precedence for mixed dispositions.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-5`",
+      "createdAt": "2026-08-13T01:26:03Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/498#issuecomment-5274800278",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOmeZdA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | fix-pr | PR #498 | 3 / 40 | Dispatched |\n\nReason: agent planner selected fix-pr: The latest review found concrete, unresolved prompt-contract defects that are safe to fix within the PR’s four already-changed prompt files; round 2 remains within budget.\n\nTask for fix-pr:\nAddress only the latest review synthesis action items in one bounded pass, modifying strictly the four prompt files already changed by PR #498: (1) apply the one-pass budget and bounded-disposition checks to every automated fix-pr handoff, including self-approval; (2) make non-empty orchestrator context the exclusive fix authorization source; (3) make disposition—not severity—the downstream actionability gate; (4) require explicit FIX_IN_PR labels in synthesis action-item checkboxes; and (5) align HUMAN_DECISION terminology with the configured judgment gate and define precedence for mixed dispositions. Preserve the stated scope-disposition contract. Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by those five items. Do not add or modify runtime, workflow, test, documentation, or broader hardening changes; if any required resolution would need such expansion, stop for human review.\n\n<!-- sepo-agent-handoff state:dispatched created:1786584615108 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MzE2NTYwMTQ3Nzc6cmV2aWV3OjQ5ODpmaXhfcHI6NDk4OjM -->",
+      "createdAt": "2026-08-13T01:30:15Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/498#issuecomment-5274835316",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOmhf9w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `improve/scope-aware-review-loop`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\n- Applied one-pass and bounded `FIX_IN_PR` checks to every automated fix handoff, including self-approval, and made orchestrator context exclusive.\n- Made disposition the actionability gate, required labeled synthesis checkboxes, and aligned `HUMAN_DECISION` judgment-gate precedence.\n- Kept changes to the four prompt files. Passed build, docs validation, and `git diff --check`.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-4`",
+      "createdAt": "2026-08-13T01:37:34Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/498#issuecomment-5274886135",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOmix8w",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #498 | 4 / 40 | Dispatched |\n\nReason: agent planner selected review: The bounded prompt-only fix pass succeeded and updated the PR head while remaining within the four allowed files; one analysis-only review is warranted to verify the fixes.\n\n<!-- sepo-agent-handoff state:dispatched created:1786585254555 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL3JlcG86MzE2NTc5MDc1ODc6Zml4X3ByOjQ5ODpyZXZpZXc6NDk4OjQ -->",
+      "createdAt": "2026-08-13T01:40:54Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/498#issuecomment-5274907123",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOmnfWg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | `HUMAN_DECISION` reaches the configured judgment gate before branch changes, while every subsequent fix handoff must independently satisfy disposition, scope, and one-pass checks. [Planner rules](https://github.com/self-evolving/repo/blob/d343e562546bd1e827c2fc6c12f2f8448e41ba65/.github/prompts/agent-orchestrator.md#L88-L105), [self-approval handling](https://github.com/self-evolving/repo/blob/d343e562546bd1e827c2fc6c12f2f8448e41ba65/.github/prompts/agent-orchestrator.md#L149-L160), [current-head provenance](https://github.com/self-evolving/repo/blob/d343e562546bd1e827c2fc6c12f2f8448e41ba65/.agent/src/self-approval.ts#L140-L220). |\n| review_quality / generic | Use investigative approval review | pass | 8/8 | Review and self-approval still require independent investigation of scope, implementation, tests, edge cases, and maintenance risk rather than trusting an earlier verdict. [Review dimensions](https://github.com/self-evolving/repo/blob/d343e562546bd1e827c2fc6c12f2f8448e41ba65/.github/prompts/review.md#L72-L99), [approval investigation](https://github.com/self-evolving/repo/blob/d343e562546bd1e827c2fc6c12f2f8448e41ba65/.github/prompts/agent-self-approve.md#L27-L58). |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | Reviewer and fixer prompts require live PR context, linked issues, acceptance criteria, explicit maintainer direction, and repository patterns before deciding scope or editing. [Review context](https://github.com/self-evolving/repo/blob/d343e562546bd1e827c2fc6c12f2f8448e41ba65/.github/prompts/review.md#L5-L32), [fix context](https://github.com/self-evolving/repo/blob/d343e562546bd1e827c2fc6c12f2f8448e41ba65/.github/prompts/agent-fix-pr.md#L14-L36). |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | The prompt preserves the existing allowed transitions and states that runtime policy cannot be overridden; current capability validation remains ahead of planner dispatch. [Runtime-policy boundary](https://github.com/self-evolving/repo/blob/d343e562546bd1e827c2fc6c12f2f8448e41ba65/.github/prompts/agent-orchestrator.md#L20-L40), [capability validation](https://github.com/self-evolving/repo/blob/d343e562546bd1e827c2fc6c12f2f8448e41ba65/.agent/src/cli/orchestrate-handoff.ts#L1323-L1357). |\n| coding_workflow / specific | Default follow-up orchestration to one-shot | pass | 8/8 | Every automated `fix-pr` path, including self-approval, is limited to one completed fix pass in the current chain and otherwise stops for human review. [One-pass guard](https://github.com/self-evolving/repo/blob/d343e562546bd1e827c2fc6c12f2f8448e41ba65/.github/prompts/agent-orchestrator.md#L98-L105), [stop and handoff rules](https://github.com/self-evolving/repo/blob/d343e562546bd1e827c2fc6c12f2f8448e41ba65/.github/prompts/agent-orchestrator.md#L124-L158). |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | Scope disposition, mixed-decision precedence, and stop/fix selection are encoded in the existing planner contract without adding configuration or workflow machinery. [Planner contract](https://github.com/self-evolving/repo/blob/d343e562546bd1e827c2fc6c12f2f8448e41ba65/.github/prompts/agent-orchestrator.md#L87-L158). |\n| review_quality / generic | Ground review synthesis in current artifacts | pass | 8/8 | Synthesis must ground blocking findings and automation recommendations in current reviewer artifacts or current PR state and reject stale findings unless reconfirmed. [Current-artifact guard](https://github.com/self-evolving/repo/blob/d343e562546bd1e827c2fc6c12f2f8448e41ba65/.github/prompts/review-synthesize.md#L5-L13). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The PR changes exactly the four authorized prompt files; the bounded fix commit introduced no runtime, workflow, test, documentation, or release-note files. [Changed files](https://github.com/self-evolving/repo/pull/498/files). |\n| coding_workflow / generic | Leave release notes to release preparation | pass | 8/8 | No changelog or release-note file is changed. [Changed files](https://github.com/self-evolving/repo/pull/498/files). |\n\n## Notes\n\n- Current head `d343e562` resolves the old-head defects: handoff context is exclusive, action items retain `FIX_IN_PR`, disposition controls actionability, mixed `HUMAN_DECISION` work has precedence, and self-approval cannot bypass the one-pass limit.\n- The current head is mergeable and its hosted [`check` job passed](https://github.com/self-evolving/repo/actions/runs/31658297036/job/94317500793).\n- Runtime enforcement, heuristics-mode parity, terminal-stop status hardening, tests, and documentation remain `FOLLOW_UP` by explicit maintainer scope; they must not trigger another fix pass in this PR.\n\n## Findings\n\n- **INFO — FOLLOW_UP:** Any deterministic runtime, workflow, test, documentation, or broader hardening work belongs in a separate change. No current-head `FIX_IN_PR` or `HUMAN_DECISION` rubric finding remains.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-2`",
+      "createdAt": "2026-08-13T01:51:37Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/498#issuecomment-5274984282",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABOmqMMg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: d343e562546bd1e827c2fc6c12f2f8448e41ba65 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #498 updates four prompts governing review, synthesis, orchestration, and PR fixes. It separates finding severity from scope disposition so valid concerns do not automatically expand a pull request. It also limits automation to one bounded fix pass and preserves the original acceptance criteria. The current head includes the requested prompt-only corrections without runtime, workflow, test, documentation, or release-note changes.\n\n## Review\n\nAll three current-head reviews converge on SHIP/PASS with no unresolved `FIX_IN_PR` or `HUMAN_DECISION` work. Remaining runtime enforcement and heuristics-mode concerns are explicitly out-of-scope follow-ups.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues | INFO | The prior contract defects are fixed at `d343e562`; only optional follow-up hardening outside this PR remains. |\n\n## Progress\n\n- The current head is mergeable, the hosted `check` job passed, and `git diff --check` is clean.\n- The bounded fix pass addressed all five earlier findings: authorization exclusivity, action-item labeling, disposition-based routing, the self-approval bypass, and `HUMAN_DECISION` precedence.\n- Claude described several runtime follow-ups individually, while Codex and the rubric review summarized them together; all agree they are non-blocking and outside this prompt-only scope.\n- Marked three superseded same-agent inline comments as outdated after re-verifying authorship, PR ownership, and the corrected current-head text.\n- No new inline comments, replies, or thread resolutions were needed.\n\n## Recommended Next Step\n\n`NO_AUTOMATED_ACTION`: no required branch changes remain, and another fix pass would violate the one-pass scope contract.\n\n## Final Verdict\n\n`SHIP`\n\n## Action Items\n\n- [ ] No required branch changes remain.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-2`",
+      "createdAt": "2026-08-13T01:58:45Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/498#issuecomment-5275028530",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-08-13T00:50:40Z",
+  "files": [
+    {
+      "path": ".github/prompts/agent-fix-pr.md",
+      "additions": 33,
+      "deletions": 17,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-orchestrator.md",
+      "additions": 41,
+      "deletions": 16,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/review-synthesize.md",
+      "additions": 65,
+      "deletions": 24,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/review.md",
+      "additions": 37,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "improve/scope-aware-review-loop",
+  "labels": [
+    {
+      "id": "LA_kwDOSOhEMM8AAAAChDjaPw",
+      "name": "agent",
+      "description": "Handled by the agent",
+      "color": "0e8a16"
+    }
+  ],
+  "mergedAt": null,
+  "number": 498,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABJWi9FQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-08-13T01:24:39Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "aa0a22091ae0c7bd6491697f571ae488dbb03afa"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABJWi9Fg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-08-13T01:24:39Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "aa0a22091ae0c7bd6491697f571ae488dbb03afa"
+      }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABJWi9Gg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-08-13T01:24:39Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "aa0a22091ae0c7bd6491697f571ae488dbb03afa"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Keep automated review fixes within PR scope",
+  "updatedAt": "2026-08-13T01:58:45Z",
+  "url": "https://github.com/self-evolving/repo/pull/498"
+}
