@@ -194,8 +194,8 @@
       "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 94 | PARTIAL | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Separate decision gates from action authorization | partial | 4/8 | Synthesis correctly makes disposition independent of severity, but orchestration still stops for all `INFO-level notes`, including a valid `INFO` / `FIX_IN_PR` finding. [Disposition contract](https://github.com/self-evolving/repo/blob/e7aee2e4d859f4e0163f7271c7501187b5a00005/.github/prompts/review-synthesize.md#L15-L18), [conflicting stop rule](https://github.com/self-evolving/repo/blob/e7aee2e4d859f4e0163f7271c7501187b5a00005/.github/prompts/agent-orchestrator.md#L117-L120). |\n| review_quality / generic | Use investigative approval review | pass | 8/8 | Review requires goal-first investigation of design, implementation, tests, documentation, and current scope rather than relying on earlier verdicts. [Review dimensions](https://github.com/self-evolving/repo/blob/e7aee2e4d859f4e0163f7271c7501187b5a00005/.github/prompts/review.md#L57-L72). |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | Reviewer and fixer prompts require the live PR, linked acceptance criteria, maintainer direction, comments, and repository patterns. [Review context](https://github.com/self-evolving/repo/blob/e7aee2e4d859f4e0163f7271c7501187b5a00005/.github/prompts/review.md#L5-L17), [fix context](https://github.com/self-evolving/repo/blob/e7aee2e4d859f4e0163f7271c7501187b5a00005/.github/prompts/agent-fix-pr.md#L14-L29). |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | The prompt preserves fixed runtime transition rules, while requester capability validation remains ahead of planner dispatch. [Runtime boundary](https://github.com/self-evolving/repo/blob/e7aee2e4d859f4e0163f7271c7501187b5a00005/.github/prompts/agent-orchestrator.md#L20-L40), [capability check](https://github.com/self-evolving/repo/blob/e7aee2e4d859f4e0163f7271c7501187b5a00005/.agent/src/cli/orchestrate-handoff.ts#L1323-L1357). |\n| coding_workflow / specific | Default follow-up orchestration to one-shot | pass | 8/8 | Every automated fix handoff, including self-approval, must stop after one completed fix pass. [One-pass rule](https://github.com/self-evolving/repo/blob/e7aee2e4d859f4e0163f7271c7501187b5a00005/.github/prompts/agent-orchestrator.md#L88-L94), [self-approval path](https://github.com/self-evolving/repo/blob/e7aee2e4d859f4e0163f7271c7501187b5a00005/.github/prompts/agent-orchestrator.md#L130-L134). |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | Scope disposition and the one-pass stop are encoded in the existing planner contract without adding another repository setting. [Planner rules](https://github.com/self-evolving/repo/blob/e7aee2e4d859f4e0163f7271c7501187b5a00005/.github/prompts/agent-orchestrator.md#L87-L94). |\n| review_quality / generic | Ground review synthesis in current artifacts | pass | 8/8 | Blocking findings and automation recommendations must be supported by current reviewer artifacts or current PR state, with stale findings excluded unless reverified. [Current-artifact guard](https://github.com/self-evolving/repo/blob/e7aee2e4d859f4e0163f7271c7501187b5a00005/.github/prompts/review-synthesize.md#L5-L18). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The current head changes only the four prompt files named in the PR scope. [Changed files](https://github.com/self-evolving/repo/pull/498/files). |\n| coding_workflow / generic | Leave release notes to release preparation | pass | 8/8 | No changelog or release-note file is changed. [Changed files](https://github.com/self-evolving/repo/pull/498/files). |\n\n## Notes\n\n- Current head `e7aee2e4` is mergeable and its [hosted check passed](https://github.com/self-evolving/repo/actions/runs/31672079227/job/94358653695), but it differs from the previously approved `d343e562` head.\n- The remaining defect is prompt-local and central to the PR’s severity/disposition separation.\n- Runtime enforcement, tests, documentation, and broader hardening were not scored because explicit maintainer direction places them outside this prompt-only PR.\n\n## Findings\n\n- **BLOCKING — FIX_IN_PR — Separate decision gates from action authorization:** The synthesis contract permits `INFO` / `FIX_IN_PR`, but the orchestrator categorically stops on `INFO-level notes`. Make disposition authoritative by changing that stop condition to optional INFO notes or INFO findings classified `FOLLOW_UP`.\n\n## Final Rubric Verdict\n\nPARTIAL\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-1`",
       "createdAt": "2026-08-13T06:29:57Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/498#issuecomment-5276806572",
       "viewerDidAuthor": true
@@ -209,10 +209,68 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: e7aee2e4d859f4e0163f7271c7501187b5a00005 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #498 updates four prompts governing review, synthesis, orchestration, and PR fixes. It separates finding severity from scope disposition so valid concerns do not automatically expand a pull request. It also limits automation to one bounded fix pass while preserving the original acceptance criteria. The current head remains prompt-only, but one routing rule still contradicts that central separation.\n\n## Review\n\nBoth current-head reviewers independently identified the same remaining blocker. The PR is otherwise surgical, mergeable, and passing checks, but the contradiction can suppress an authorized in-scope fix.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Severity still overrides disposition | BLOCKING | Synthesis permits `INFO` / `FIX_IN_PR`, while the [orchestrator stops for every INFO-level note](https://github.com/self-evolving/repo/blob/e7aee2e4d859f4e0163f7271c7501187b5a00005/.github/prompts/agent-orchestrator.md#L117-L120). Automation eligibility therefore still depends on severity instead of disposition. |\n\n## Progress\n\n- Current head `e7aee2e4` is mergeable and its hosted `check` job passes.\n- Earlier fixes preserved exclusive handoff context, labeled action items, one-pass handling, and `HUMAN_DECISION` precedence.\n- Both current reviewers agree on the remaining blocker; no meaningful reviewer disagreement remains.\n- The current-head rubric review already covers this issue, so no duplicate inline comment was posted.\n- Existing same-agent inline comments remain minimized and outdated; no replies, resolutions, or additional minimization were warranted.\n- Runtime enforcement, regression tests, documentation, and broader hardening remain intentionally out of scope.\n\n## Issue Details\n\n<details>\n<summary>Severity still overrides disposition</summary>\n\n**Cause:** The orchestrator first authorizes labeled `FIX_IN_PR` work, but later categorically stops for `INFO-level notes`. A valid `INFO` / `FIX_IN_PR` finding therefore receives contradictory routing instructions.\n\n**Candidate solutions:** Limit the stop condition to optional INFO notes or INFO findings classified `FOLLOW_UP`, leaving disposition authoritative for automation.\n\n**Comments:** This is a prompt-local correction supported independently by both current-head reviews. Existing checks do not exercise this semantic contradiction.\n</details>\n\n## Recommended Next Step\n\n`HUMAN_DECISION`: one bounded branch change remains, but this PR has already completed an automatic fix pass and the later `/review` did not explicitly authorize continued automation.\n\n## Final Verdict\n\n`NEEDS_REWORK`\n\n## Action Items\n\n- [ ] `FIX_IN_PR`: Restrict the orchestrator’s INFO stop rule to optional or `FOLLOW_UP` INFO findings so `INFO` / `FIX_IN_PR` work remains eligible.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-5`",
       "createdAt": "2026-08-13T06:37:01Z",
       "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/498#issuecomment-5276882820",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABO8FDWQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review ",
+      "createdAt": "2026-08-14T19:47:04Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/498#issuecomment-5297488729",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABO8KOBQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | Only labeled `FIX_IN_PR` work authorizes branch changes, while `HUMAN_DECISION` retains the self-approval or human-stop gate. [Synthesis contract](https://github.com/self-evolving/repo/blob/85be851f6f5a8f9ed93cdcaf59ab109087b7385f/.github/prompts/review-synthesize.md#L15-L18), [orchestration rules](https://github.com/self-evolving/repo/blob/85be851f6f5a8f9ed93cdcaf59ab109087b7385f/.github/prompts/agent-orchestrator.md#L87-L93). |\n| review_quality / generic | Use investigative approval review | pass | 8/8 | Review requires independent investigation of goals, design, implementation, tests, documentation, and scope before deciding the verdict. [Review dimensions](https://github.com/self-evolving/repo/blob/85be851f6f5a8f9ed93cdcaf59ab109087b7385f/.github/prompts/review.md#L57-L74). |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | Review and fix prompts require live PR context, linked issues, acceptance criteria, explicit direction, and repository patterns before judgment or edits. [Review context](https://github.com/self-evolving/repo/blob/85be851f6f5a8f9ed93cdcaf59ab109087b7385f/.github/prompts/review.md#L5-L17), [fix context](https://github.com/self-evolving/repo/blob/85be851f6f5a8f9ed93cdcaf59ab109087b7385f/.github/prompts/agent-fix-pr.md#L14-L34). |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Existing runtime validation checks every enabled downstream route before initial orchestration proceeds; the prompt explicitly preserves those runtime constraints. [Capability guard](https://github.com/self-evolving/repo/blob/85be851f6f5a8f9ed93cdcaf59ab109087b7385f/.agent/src/orchestrator-capabilities.ts#L38-L68), [runtime policy](https://github.com/self-evolving/repo/blob/85be851f6f5a8f9ed93cdcaf59ab109087b7385f/.github/prompts/agent-orchestrator.md#L20-L40). |\n| coding_workflow / specific | Default follow-up orchestration to one-shot | pass | 8/8 | Every automated fix route, including self-approval, stops after one completed fix pass in the current chain. [One-pass guard](https://github.com/self-evolving/repo/blob/85be851f6f5a8f9ed93cdcaf59ab109087b7385f/.github/prompts/agent-orchestrator.md#L88-L94), [self-approval path](https://github.com/self-evolving/repo/blob/85be851f6f5a8f9ed93cdcaf59ab109087b7385f/.github/prompts/agent-orchestrator.md#L130-L136). |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | Scope classification and stop/handoff decisions remain in the existing planner contract without adding another configuration knob. [Planner rules](https://github.com/self-evolving/repo/blob/85be851f6f5a8f9ed93cdcaf59ab109087b7385f/.github/prompts/agent-orchestrator.md#L87-L136). |\n| review_quality / generic | Ground review synthesis in current artifacts | pass | 8/8 | Synthesis must revalidate blocking findings against current reviewer artifacts or the current PR state and reject stale findings unless reconfirmed. [Current-artifact guard](https://github.com/self-evolving/repo/blob/85be851f6f5a8f9ed93cdcaf59ab109087b7385f/.github/prompts/review-synthesize.md#L5-L18). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The PR changes only the four prompt files named in its scope. [Changed files](https://github.com/self-evolving/repo/pull/498/files). |\n| coding_workflow / generic | Leave release notes to release preparation | pass | 8/8 | No changelog or release-note file is changed. [Changed files](https://github.com/self-evolving/repo/pull/498/files). |\n\n## Notes\n\n- Current head `85be851f` resolves the prior severity-routing contradiction: review and synthesis now share one explicit pair contract, and orchestration stops specifically for `INFO` / `FOLLOW_UP`.\n- The current hosted [`check` job passed](https://github.com/self-evolving/repo/actions/runs/31679632009/job/94381897322), and `git diff --check` is clean.\n- Runtime, workflow, test, and documentation expansion was not scored because explicit requester direction keeps this PR prompt-only.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings remain on the current head.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-4`",
+      "createdAt": "2026-08-14T19:57:26Z",
+      "includesCreatedEdit": false,
       "isMinimized": false,
       "minimizedReason": "",
       "reactionGroups": [],
-      "url": "https://github.com/self-evolving/repo/pull/498#issuecomment-5276882820",
+      "url": "https://github.com/self-evolving/repo/pull/498#issuecomment-5297573381",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABO8Qqpw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 85be851f6f5a8f9ed93cdcaf59ab109087b7385f -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #498 updates four prompts governing review, synthesis, orchestration, and PR fixes. It adds scope dispositions, limits automated fixes to `FIX_IN_PR` work, and stops automation after one fix pass. Runtime, workflow, test, documentation, and release-note changes are intentionally excluded. The current head fixes earlier routing contradictions but introduces a compatibility regression for supported non-synthesis handoffs.\n\n## Review\n\nTwo reviewers recommended shipping, while Codex identified a shared-prompt regression. Current runtime code and the focused route test confirm Codex’s finding: manual PR orchestration forwards an unlabelled context that the new prompt cannot act on.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Shared fix prompt rejects supported unlabelled handoffs | BLOCKING | [The new instruction](https://github.com/self-evolving/repo/blob/85be851f6f5a8f9ed93cdcaf59ab109087b7385f/.github/prompts/agent-fix-pr.md#L22-L25) requires labels in every non-empty orchestrator context, but supported manual `CHANGES_REQUESTED` orchestration supplies prose without a `FIX_IN_PR` label, leaving no authorized task. |\n\n## Progress\n\n- Current head `85be851f` is open, mergeable, and its hosted `check` job passes.\n- Earlier exclusivity, action-item labeling, severity routing, and one-pass defects are fixed.\n- The local build and focused orchestration test passed; the test confirms the unlabelled handoff is forwarded to `fix-pr`.\n- Posted [one inline comment](https://github.com/self-evolving/repo/pull/498#discussion_r3786838212) for the regression.\n- Three older threads are already outdated and not viewer-resolvable; no replies, minimization, or resolution were attempted.\n- Broader runtime, workflow, test, and documentation hardening remains intentionally out of scope.\n\n## Issue Details\n\n<details>\n<summary>Shared fix prompt rejects supported unlabelled handoffs</summary>\n\n**Cause:** `manualPrChangesRequestedFixPrHandoffContext()` supplies an exclusive prose task for manual PR `/orchestrate` when review state is `CHANGES_REQUESTED`. Because the updated prompt permits only labeled `FIX_IN_PR` items, that supported context becomes a no-op.\n\n**Candidate solutions:** Keep the context exclusive, but require literal labels only for synthesis-derived contexts. Alternatively, treat an unlabelled trusted handoff as the already-selected task while filtering labeled contexts to `FIX_IN_PR`.\n\n**Comments:** The shipping reviews verified synthesis-generated handoffs but missed other producers of the shared context. The correction can remain surgical and prompt-only.\n\n</details>\n\n## Recommended Next Step\n\n`HUMAN_DECISION`: One small branch correction remains, but this later `/review` follows an already completed automatic fix pass, so another automated pass requires explicit maintainer authorization.\n\n## Final Verdict\n\n`NEEDS_REWORK`\n\n## Action Items\n\n- [ ] Update `.github/prompts/agent-fix-pr.md` so supported unlabelled orchestrator handoffs remain actionable while synthesis-derived contexts still require `FIX_IN_PR` labels.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-1`",
+      "createdAt": "2026-08-14T20:07:19Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/498#issuecomment-5297679015",
       "viewerDidAuthor": true
     }
   ],
@@ -300,10 +358,25 @@
       "commit": {
         "oid": "aa0a22091ae0c7bd6491697f571ae488dbb03afa"
       }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABJn7RBg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-08-14T20:06:27Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "85be851f6f5a8f9ed93cdcaf59ab109087b7385f"
+      }
     }
   ],
   "state": "OPEN",
   "title": "Keep automated review fixes within PR scope",
-  "updatedAt": "2026-08-13T07:53:01Z",
+  "updatedAt": "2026-08-14T20:07:19Z",
   "url": "https://github.com/self-evolving/repo/pull/498"
 }
