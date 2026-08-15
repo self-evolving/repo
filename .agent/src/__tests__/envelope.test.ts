@@ -1556,6 +1556,7 @@ test("workflows use granular CLI helpers for post-processing", () => {
   );
   assert.match(unsupportedFixPrStatusStep, /run: node \.agent\/dist\/cli\/post-comment\.js/);
   assert.match(unsupportedFixPrStatusStep, /AGENT_COLLAPSE_OLD_REVIEWS:\s*\$\{\{ vars\.AGENT_COLLAPSE_OLD_REVIEWS \}\}/);
+  assert.match(unsupportedFixPrStatusStep, /AGENT_PROGRESS_GITHUB_TOKEN:\s*\$\{\{ github\.token \}\}/);
   assert.match(unsupportedFixPrStatusStep, /COMMENT_TARGET:\s*pr/);
   assert.match(unsupportedFixPrStatusStep, /ROUTE:\s*fix-pr/);
   assert.match(unsupportedFixPrStatusStep, /STATUS:\s*unsupported/);

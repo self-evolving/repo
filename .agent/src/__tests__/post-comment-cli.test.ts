@@ -234,12 +234,13 @@ exit 1
   }
 });
 
-test("post-comment CLI collapses previous fix-pr status comments", () => {
+test("post-comment CLI collapses App and workflow-authored fix-pr statuses only", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-post-comment-"));
 
   try {
     const countPath = join(tempDir, "graphql-count.txt");
     const logPath = join(tempDir, "gh.log");
+    const tokenLogPath = join(tempDir, "gh-token.log");
     const outputPath = join(tempDir, "github-output.txt");
     const responsePath = join(tempDir, "response.json");
     writeFileSync(responsePath, '{"summary":"Updated tests."}\n', "utf8");
@@ -248,20 +249,39 @@ test("post-comment CLI collapses previous fix-pr status comments", () => {
       tempDir,
       `#!/usr/bin/env bash
 printf '%s\\n' "$*" >> "$FAKE_GH_LOG"
+printf '%s\\n' "$GH_TOKEN" >> "$FAKE_GH_TOKEN_LOG"
 if [ "$1" = "api" ] && [ "$2" = "graphql" ]; then
   count="$(cat "$FAKE_GH_COUNT" 2>/dev/null || printf '0')"
   count="$((count + 1))"
   printf '%s' "$count" > "$FAKE_GH_COUNT"
   case "$count" in
+    1|2|3)
+      if [ "$GH_TOKEN" != "resolved-app-token" ]; then
+        printf 'expected resolved App token for GraphQL call %s\\n' "$count" >&2
+        exit 1
+      fi
+      ;;
+    4|5|6)
+      if [ "$GH_TOKEN" != "workflow-token" ]; then
+        printf 'expected workflow token for GraphQL call %s\\n' "$count" >&2
+        exit 1
+      fi
+      ;;
+  esac
+  case "$count" in
     1)
-      printf '{"data":{"viewer":{"login":"sepo-agent"}}}\\n'
+      printf '{"data":{"viewer":{"login":"sepo-agent-app[bot]"}}}\\n'
       exit 0
       ;;
-    2)
-      printf '{"data":{"repository":{"pullRequest":{"comments":{"nodes":[{"id":"old-fix","body":"**Sepo pushed fixes for this PR.** Branch: \`agent/fix\`.\\\\n\\\\n<!-- sepo-agent-fix-pr-status -->","isMinimized":false,"author":{"login":"sepo-agent"}}],"pageInfo":{"hasNextPage":false,"endCursor":null}}}}}}\\n'
+    4)
+      printf '{"data":{"viewer":{"login":"github-actions[bot]"}}}\\n'
       exit 0
       ;;
-    3)
+    2|5)
+      printf '{"data":{"repository":{"pullRequest":{"comments":{"nodes":[{"id":"old-app-fix","body":"**Sepo pushed fixes for this PR.** Branch: \`agent/fix\`.\\\\n\\\\n<!-- sepo-agent-fix-pr-status -->","isMinimized":false,"author":{"login":"app/sepo-agent-app"}},{"id":"old-workflow-fix","body":"**Sepo pushed fixes for this PR.** Branch: \`agent/fix\`.\\\\n\\\\n<!-- sepo-agent-fix-pr-status -->","isMinimized":false,"author":{"login":"github-actions[bot]"}},{"id":"human-fix","body":"<!-- sepo-agent-fix-pr-status -->","isMinimized":false,"author":{"login":"alice"}},{"id":"other-bot-fix","body":"<!-- sepo-agent-fix-pr-status -->","isMinimized":false,"author":{"login":"dependabot[bot]"}},{"id":"current-progress","body":"### Sepo is working — fix-pr\\\\n\\\\n<!-- sepo-progress:run-current -->","isMinimized":false,"author":{"login":"github-actions[bot]"}}],"pageInfo":{"hasNextPage":false,"endCursor":null}}}}}}\\n'
+      exit 0
+      ;;
+    3|6)
       printf '{"data":{"minimizeComment":{"minimizedComment":{"isMinimized":true}}}}\\n'
       exit 0
       ;;
@@ -280,6 +300,7 @@ exit 1
       env: {
         ...process.env,
         PATH: `${tempDir}:${process.env.PATH || ""}`,
+        AGENT_PROGRESS_GITHUB_TOKEN: "workflow-token",
         BRANCH: "agent/fix",
         COMMENT_TARGET: "pr",
         TARGET_NUMBER: "321",
@@ -291,18 +312,34 @@ exit 1
         GITHUB_OUTPUT: outputPath,
         FAKE_GH_COUNT: countPath,
         FAKE_GH_LOG: logPath,
+        FAKE_GH_TOKEN_LOG: tokenLogPath,
+        GH_TOKEN: "resolved-app-token",
       },
       encoding: "utf8",
     });
 
-    assert.equal(result.status, 0);
-    assert.match(result.stdout, /Collapsed 1 previous fix-pr status comment/);
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /Collapsed 2 previous fix-pr status comment/);
 
     const log = readFileSync(logPath, "utf8");
     assert.match(log, /^api graphql /m);
-    assert.match(log, /id=old-fix/);
+    assert.match(log, /id=old-app-fix/);
+    assert.match(log, /id=old-workflow-fix/);
+    assert.doesNotMatch(log, /id=(?:human-fix|other-bot-fix|current-progress)/);
     assert.match(log, /^pr comment 321 --body \*\*Sepo pushed fixes for this PR\.\*\*/m);
     assert.match(log, /<!-- sepo-agent-fix-pr-status -->/);
+    assert.deepEqual(
+      readFileSync(tokenLogPath, "utf8").trim().split(/\r?\n/),
+      [
+        "resolved-app-token",
+        "resolved-app-token",
+        "resolved-app-token",
+        "workflow-token",
+        "workflow-token",
+        "workflow-token",
+        "resolved-app-token",
+      ],
+    );
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }

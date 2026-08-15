@@ -3,11 +3,12 @@
 // Env: COMMENT_TARGET (issue or pr), TARGET_NUMBER, ROUTE, STATUS,
 //      RESPONSE_FILE (optional), BRANCH, PR_URL, REQUESTED_BY,
 //      APPROVAL_COMMENT_URL, CANCELLED_BY, AGENT_COLLAPSE_OLD_REVIEWS,
-//      AGENT_PROGRESS_GITHUB_TOKEN (workflow token for final progress PATCH)
+//      AGENT_PROGRESS_GITHUB_TOKEN (workflow token for progress PATCH and fix-pr cleanup)
 // Outputs: status
 
 import { readFileSync } from "node:fs";
 import { fetchPrMeta, postIssueComment, postPrComment } from "../github.js";
+import { createGhGraphqlClient } from "../github-graphql.js";
 import { tryMergeProgressFinalComment } from "../progress-final-comment.js";
 import {
   collapsePreviousFixPrComments,
@@ -134,16 +135,32 @@ if (target === "pr") {
     }
   }
   if (route === "fix-pr" && collapseOldReviews) {
+    let collapsed = 0;
     try {
-      const collapsed = collapsePreviousFixPrComments({ repo, prNumber: targetNumber });
-      if (collapsed > 0) {
-        console.log(`Collapsed ${collapsed} previous fix-pr status comment(s).`);
-      }
+      collapsed += collapsePreviousFixPrComments({ repo, prNumber: targetNumber });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       console.warn(
         `Failed to collapse previous fix-pr status comments for ${repo}#${targetNumber}: ${message}`,
       );
+    }
+    const ambientGithubToken = process.env.GH_TOKEN || process.env.GITHUB_TOKEN || "";
+    if (progressGithubToken && progressGithubToken !== ambientGithubToken) {
+      try {
+        collapsed += collapsePreviousFixPrComments({
+          repo,
+          prNumber: targetNumber,
+          client: createGhGraphqlClient({ token: progressGithubToken }),
+        });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.warn(
+          `Failed to collapse workflow-authored previous fix-pr status comments for ${repo}#${targetNumber}: ${message}`,
+        );
+      }
+    }
+    if (collapsed > 0) {
+      console.log(`Collapsed ${collapsed} previous fix-pr status comment(s).`);
     }
   }
   const merged = tryMergeProgressFinalComment({
