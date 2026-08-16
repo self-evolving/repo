@@ -13,6 +13,7 @@ type PageInfo = {
 
 type ReviewSummaryNode = {
   id?: string | null;
+  databaseId?: number | null;
   body?: string | null;
   isMinimized?: boolean | null;
   author?: {
@@ -61,6 +62,11 @@ type CollapsePreviousReviewSummariesOptions = {
   client?: GraphQLClient;
 };
 
+type CollapsePreviousPrConversationArtifactsOptions = CollapsePreviousReviewSummariesOptions & {
+  finalBodyMarker?: string;
+  currentCommentDatabaseId?: string | number;
+};
+
 type CollapsePreviousHandoffCommentsOptions = {
   repo: string;
   targetNumber: number;
@@ -92,6 +98,7 @@ const COMMENTS_QUERY = `
         comments(first: 100, after: $after) {
           nodes {
             id
+            databaseId
             body
             isMinimized
             author {
@@ -300,6 +307,7 @@ function collapsePreviousMatchingReviewComments(
 function collapsePreviousMatchingPrComments(
   options: CollapsePreviousReviewSummariesOptions,
   bodyMatcher: ReviewBodyMatcher,
+  beforeDatabaseId?: number,
 ): number {
   const client = options.client || createGhGraphqlClient();
   const repo = parseRepo(options.repo);
@@ -313,7 +321,14 @@ function collapsePreviousMatchingPrComments(
     viewerLogin,
     bodyMatcher,
   );
-  const uniqueNodeIds = Array.from(new Set(nodes.map((node) => node.id).filter(Boolean))) as string[];
+  const uniqueNodeIds = Array.from(new Set(
+    nodes
+      .filter((node) => !beforeDatabaseId || (
+        Number.isFinite(Number(node.databaseId)) && Number(node.databaseId) < beforeDatabaseId
+      ))
+      .map((node) => node.id)
+      .filter(Boolean),
+  )) as string[];
 
   for (const id of uniqueNodeIds) {
     client.graphql(MINIMIZE_COMMENT_MUTATION, {
@@ -323,6 +338,16 @@ function collapsePreviousMatchingPrComments(
   }
 
   return uniqueNodeIds.length;
+}
+
+function isTerminalPrConversationArtifact(body: string): boolean {
+  const handoffMarker = parseAnyHandoffMarker(body);
+  return (
+    isReviewSynthesisBody(body) ||
+    isRubricsReviewBody(body) ||
+    isFixPrStatusBody(body) ||
+    Boolean(handoffMarker && handoffMarker.state !== "pending")
+  );
 }
 
 function collapsePreviousMatchingHandoffComments(
@@ -443,6 +468,24 @@ export function collapsePreviousFixPrComments(
   options: CollapsePreviousReviewSummariesOptions,
 ): number {
   return collapsePreviousMatchingPrComments(options, isFixPrStatusBody);
+}
+
+/**
+ * Collapses trusted generated PR conversation comments after terminal success.
+ * Formal review objects are intentionally left to the review workflow.
+ */
+export function collapsePreviousPrConversationArtifacts(
+  options: CollapsePreviousPrConversationArtifactsOptions,
+): number {
+  const finalBodyMarker = String(options.finalBodyMarker || "");
+  const currentCommentDatabaseId = Number(options.currentCommentDatabaseId);
+  if (!Number.isSafeInteger(currentCommentDatabaseId) || currentCommentDatabaseId <= 0) {
+    return 0;
+  }
+  return collapsePreviousMatchingPrComments(options, (body) => (
+    isTerminalPrConversationArtifact(body) ||
+    Boolean(finalBodyMarker && body.includes(finalBodyMarker))
+  ), currentCommentDatabaseId);
 }
 
 /**
