@@ -78,6 +78,8 @@ const PLANNER_DECISION_KINDS: Partial<Record<string, PlannerDecisionKind>> = {
   blocked: "blocked",
 };
 const HANDOFF_MARKER_PREFIX = "sepo-agent-handoff";
+export const ORCHESTRATE_FINAL_MARKER = "<!-- sepo-agent-orchestrate-final -->";
+export const LEGACY_ORCHESTRATE_STOP_MARKER = "<!-- sepo-agent-orchestrate-stop -->";
 const DEFAULT_FIX_PR_HANDOFF_CONTEXT = [
   "Address only the latest unresolved review synthesis action items.",
   "Ignore optional INFO notes, metadata-only polish, already-fixed findings, and human-judgment nits unless required by the selected fix.",
@@ -97,6 +99,11 @@ function normalizeToken(value: string): string {
 
 function escapeRegex(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+export function hasAnyOrchestrateFinalMarker(body: string): boolean {
+  const text = String(body || "");
+  return text.includes(ORCHESTRATE_FINAL_MARKER) || text.includes(LEGACY_ORCHESTRATE_STOP_MARKER);
 }
 
 export function normalizeAutomationMode(value: string): AutomationMode {

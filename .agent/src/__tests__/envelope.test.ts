@@ -973,6 +973,169 @@ test("self-approval workflow stays opt-in and read-only until deterministic reso
   assert.match(workflowText, /node \.agent\/dist\/cli\/dispatch-agent-orchestrator\.js/);
 });
 
+test("orchestrator planner stays read-only until deterministic resolution", () => {
+  const workflow = parseYaml(readRepoFile(".github/workflows/agent-orchestrator.yml")) as unknown;
+  assert.ok(isRecord(workflow), "orchestrator workflow should parse as a YAML object");
+  assert.ok(isRecord(workflow.jobs), "orchestrator workflow should define jobs");
+
+  const planJob = workflow.jobs.plan;
+  assert.ok(isRecord(planJob), "orchestrator workflow should define a plan job");
+  assert.ok(isRecord(planJob.permissions), "plan job should define permissions");
+  assert.deepEqual(planJob.permissions, {
+    actions: "read",
+    contents: "read",
+    issues: "read",
+    "pull-requests": "read",
+  });
+  assert.ok(isRecord(planJob.outputs), "plan job should expose deferred session metadata");
+  assert.equal(planJob.outputs.agent_exit_code, "${{ steps.planner.outputs.agent_exit_code }}");
+  assert.equal(planJob.outputs.thread_key, "${{ steps.planner.outputs.thread_key }}");
+  assert.equal(
+    planJob.outputs.session_bundle_artifact_id,
+    "${{ steps.planner.outputs.session_bundle_artifact_id }}",
+  );
+  assert.ok(Array.isArray(planJob.steps), "plan job should define steps");
+  const plannerStep = planJob.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Plan next action with agent",
+  );
+  assert.ok(plannerStep, "plan job should run the orchestrator planner");
+  assert.ok(isRecord(plannerStep.with), "planner step should define inputs");
+  assert.equal(plannerStep.with.permission_mode, "approve-all");
+  assert.equal(plannerStep.with.github_token, "${{ github.token }}");
+  assert.equal(plannerStep.with.defer_session_state_persistence, "true");
+  assert.equal(plannerStep.with.progress_policy, '{"orchestration_mode":"disabled"}');
+  assert.equal(
+    planJob.steps.some((step) => isRecord(step) && step.name === "Resolve GitHub auth"),
+    false,
+  );
+
+  const progressJob = workflow.jobs.progress;
+  assert.ok(isRecord(progressJob), "orchestrator workflow should define a trusted progress job");
+  assert.equal(
+    progressJob.if,
+    "${{ vars.AGENT_ENABLED != 'false' && vars.AGENT_PROGRESS_POLICY != '' && !cancelled() }}",
+  );
+  assert.ok(isRecord(progressJob.permissions), "progress job should define permissions");
+  assert.deepEqual(progressJob.permissions, {
+    contents: "read",
+    issues: "write",
+    "pull-requests": "write",
+    "id-token": "write",
+  });
+  assert.ok(Array.isArray(progressJob.steps), "progress job should define steps");
+  assert.equal(
+    progressJob.steps.some((step) =>
+      isRecord(step) && step.uses === "./.github/actions/run-agent-task"
+    ),
+    false,
+  );
+  const progressPolicyStep = progressJob.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Resolve orchestration progress policy",
+  );
+  assert.ok(progressPolicyStep, "trusted progress job should resolve orchestration policy");
+  assert.ok(isRecord(progressPolicyStep.env), "progress policy step should define environment inputs");
+  assert.equal(progressPolicyStep.env.ORCHESTRATION_ENABLED, "true");
+  assert.equal(progressPolicyStep.env.AGENT_PROGRESS_POLICY, "${{ vars.AGENT_PROGRESS_POLICY || '' }}");
+  const progressPublishStep = progressJob.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Publish orchestration progress",
+  );
+  assert.ok(progressPublishStep, "trusted progress job should publish configured progress");
+  assert.ok(isRecord(progressPublishStep.env), "progress publisher should define environment inputs");
+  assert.equal(progressPublishStep.env.GH_TOKEN, "${{ steps.auth.outputs.token }}");
+  assert.match(String(progressPublishStep.run), /publish-orchestration-progress\.js/);
+
+  const resolverJob = workflow.jobs["decide-and-dispatch"];
+  assert.ok(isRecord(resolverJob), "orchestrator workflow should define a deterministic resolver job");
+  assert.deepEqual(resolverJob.needs, ["plan", "progress"]);
+  assert.equal(
+    resolverJob.if,
+    "${{ vars.AGENT_ENABLED != 'false' && !cancelled() }}",
+  );
+  assert.ok(isRecord(resolverJob.permissions), "resolver job should define permissions");
+  assert.deepEqual(resolverJob.permissions, {
+    actions: "write",
+    contents: "write",
+    issues: "write",
+    "pull-requests": "write",
+    "id-token": "write",
+  });
+  assert.ok(Array.isArray(resolverJob.steps), "resolver job should define steps");
+  const persistSessionStateStep = resolverJob.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Persist planner thread state",
+  );
+  assert.ok(persistSessionStateStep, "resolver should persist planner state deterministically");
+  assert.equal(persistSessionStateStep["continue-on-error"], true);
+  assert.ok(isRecord(persistSessionStateStep.env), "state persistence should define environment inputs");
+  assert.equal(persistSessionStateStep.env.INPUT_GITHUB_TOKEN, "${{ steps.auth.outputs.token }}");
+  assert.equal(persistSessionStateStep.env.THREAD_KEY, "${{ needs.plan.outputs.thread_key }}");
+  assert.equal(persistSessionStateStep.run, "node .agent/dist/cli/session-persist.js");
+
+  const registerSessionBundleStep = resolverJob.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Register planner session bundle",
+  );
+  assert.ok(registerSessionBundleStep, "resolver should register planner bundles deterministically");
+  assert.equal(registerSessionBundleStep["continue-on-error"], true);
+  assert.ok(isRecord(registerSessionBundleStep.env), "bundle registration should define inputs");
+  assert.equal(registerSessionBundleStep.env.INPUT_GITHUB_TOKEN, "${{ steps.auth.outputs.token }}");
+  assert.equal(
+    registerSessionBundleStep.env.SESSION_BUNDLE_ARTIFACT_ID,
+    "${{ needs.plan.outputs.session_bundle_artifact_id }}",
+  );
+  assert.equal(registerSessionBundleStep.run, "node .agent/dist/cli/session-register.js");
+
+  const downloadStep = resolverJob.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Download planner response",
+  );
+  assert.ok(downloadStep, "resolver should download the planner response");
+  assert.equal(downloadStep.id, "download_planner_response");
+  assert.equal(downloadStep["continue-on-error"], true);
+  assert.equal(
+    downloadStep.if,
+    "${{ !cancelled() && needs.plan.outputs.planner_response_artifact_id != '' }}",
+  );
+
+  const locateStep = resolverJob.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Locate planner response",
+  );
+  assert.ok(locateStep, "resolver should locate the planner response");
+  assert.equal(locateStep["continue-on-error"], true);
+  assert.equal(
+    locateStep.if,
+    "${{ !cancelled() && needs.plan.outputs.planner_response_artifact_id != '' && steps.download_planner_response.outcome == 'success' }}",
+  );
+
+  const resolverStep = resolverJob.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Decide and dispatch next action",
+  );
+  assert.ok(resolverStep, "resolver job should apply the planner decision deterministically");
+  assert.equal(
+    resolverStep.if,
+    "${{ !cancelled() && steps.resolver_checkout.outcome == 'success' && steps.auth.outcome == 'success' && steps.resolver_runtime.outcome == 'success' }}",
+  );
+  assert.ok(isRecord(resolverStep.env), "resolver step should define environment inputs");
+  assert.equal(
+    resolverStep.env.PLANNER_RESPONSE_FILE,
+    "${{ steps.planner_response.outputs.response_file }}",
+  );
+  assert.equal(
+    resolverStep.env.AGENT_PROGRESS_COMMENT_ID,
+    "${{ needs.progress.outputs.progress_comment_id }}",
+  );
+  assert.equal(
+    resolverStep.env.AGENT_PROGRESS_STREAM_FILE,
+    "${{ steps.planner_response.outputs.session_log_file }}",
+  );
+  assert.equal(resolverStep.env.GH_TOKEN, "${{ steps.auth.outputs.token }}");
+});
+
 test("self-merge workflow stays opt-in and deterministic", () => {
   const workflowText = readRepoFile(".github/workflows/agent-self-merge.yml");
   const workflow = parseYaml(workflowText) as unknown;
@@ -1919,6 +2082,7 @@ test("shared run-agent-task action wires session bundle restore and upload aroun
 
   assert.match(action, /session_bundle_mode:/);
   assert.match(action, /session_bundle_retention_days:/);
+  assert.match(action, /defer_session_state_persistence:/);
   assert.match(action, /session_fork_from_thread_key:/);
   assert.match(action, /Restore session bundle/);
   assert.match(action, /Restore session bundle[\s\S]*continue-on-error:\s*true/);
@@ -1946,7 +2110,28 @@ test("shared run-agent-task action wires session bundle restore and upload aroun
   assert.ok(runStep, "run-agent-task action should include the Run agent task step");
   assert.ok(isRecord(runStep.env), "Run agent task step should define env");
   assert.equal(runStep.env.SESSION_BUNDLE_MODE, "${{ inputs.session_bundle_mode }}");
+  assert.equal(
+    runStep.env.DEFER_SESSION_STATE_PERSISTENCE,
+    "${{ inputs.defer_session_state_persistence }}",
+  );
+  const restoreStep = parsedAction.runs.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Restore session bundle",
+  );
+  assert.ok(restoreStep, "run-agent-task should restore prior session bundles");
+  assert.ok(isRecord(restoreStep.env), "session restore step should define env");
+  assert.equal(
+    restoreStep.env.DEFER_SESSION_STATE_PERSISTENCE,
+    "${{ inputs.defer_session_state_persistence }}",
+  );
+  const registerStep = parsedAction.runs.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Register session bundle artifact",
+  );
+  assert.ok(registerStep, "run-agent-task should register inline bundles by default");
+  assert.match(String(registerStep.if), /inputs\.defer_session_state_persistence != 'true'/);
   assert.match(runSource, /parseSessionBundleMode\(process\.env\.SESSION_BUNDLE_MODE\)/);
+  assert.match(runSource, /deferSessionStatePersistence/);
   assert.match(
     runSource,
     /preserveExecSession:\s*sessionPolicy === "track-only" &&\s*shouldBackupSessionBundles\(sessionBundleMode, sessionPolicy\)/,
@@ -2265,11 +2450,16 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(reviewWorkflow, /id: post_comment/);
   assert.match(reviewWorkflow, /RESPONSE_FILE:\s*\$\{\{ steps\.synthesis\.outputs\.response_file \}\}/);
   assert.match(reviewWorkflow, /steps\.post_comment\.outcome == 'success'/);
-  assert.match(orchestratorWorkflow, /PLANNER_RESPONSE_FILE:\s*\$\{\{ steps\.planner\.outputs\.response_file \}\}/);
+  assert.match(orchestratorWorkflow, /PLANNER_RESPONSE_FILE:\s*\$\{\{ steps\.planner_response\.outputs\.response_file \}\}/);
+  assert.match(orchestratorWorkflow, /pull-requests:\s*write/);
   assert.match(orchestratorWorkflow, /base_branch:/);
   assert.match(orchestratorWorkflow, /base_pr:/);
   assert.match(orchestratorWorkflow, /source_handoff_context:/);
   assert.match(orchestratorWorkflow, /AGENT_COLLAPSE_OLD_REVIEWS:\s*\$\{\{ vars\.AGENT_COLLAPSE_OLD_REVIEWS \}\}/);
+  assert.match(orchestratorWorkflow, /AGENT_HANDLE:\s*\$\{\{ vars\.AGENT_HANDLE \|\| '@sepo-agent' \}\}/);
+  assert.match(orchestratorWorkflow, /AGENT_PROGRESS_COMMENT_ID:\s*\$\{\{ needs\.progress\.outputs\.progress_comment_id \}\}/);
+  assert.match(orchestratorWorkflow, /AGENT_PROGRESS_FINAL_COMMENT_MODE:\s*merge/);
+  assert.match(orchestratorWorkflow, /MODEL_DISPLAY:\s*\$\{\{ needs\.plan\.outputs\.model_display \}\}/);
   assert.match(orchestratorWorkflow, /BASE_BRANCH:\s*\$\{\{ inputs\.base_branch \}\}/);
   assert.match(orchestratorWorkflow, /SOURCE_HANDOFF_CONTEXT:\s*\$\{\{ inputs\.source_handoff_context \}\}/);
   assert.match(orchestratorWorkflow, /ORCHESTRATOR_SOURCE_HANDOFF_CONTEXT:\s*\$\{\{ inputs\.source_handoff_context \}\}/);
@@ -2289,6 +2479,10 @@ test("execution workflows expose automation handoff inputs", () => {
   assert.match(orchestrateHandoffCli, /agent-self-merge\.yml/);
   assert.match(handoffSource, /Task for fix-pr/);
   assert.match(orchestrateHandoffCli, /collapsePreviousHandoffComments/);
+  assert.match(orchestrateHandoffCli, /upsertPrCommentByMarker/);
+  assert.match(orchestrateHandoffCli, /tryMergeProgressFinalComment/);
+  assert.match(handoffSource, /sepo-agent-orchestrate-final/);
+  assert.match(handoffSource, /sepo-agent-orchestrate-stop/);
   assert.match(orchestrateHandoffCli, /manual orchestrate start on issue; dispatching implement/);
   assert.match(fixPrWorkflow, /orchestrator_context:/);
   assert.match(fixPrWorkflow, /ORCHESTRATOR_CONTEXT:\s*\$\{\{ inputs\.orchestrator_context \}\}/);

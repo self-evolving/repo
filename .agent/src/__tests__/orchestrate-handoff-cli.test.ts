@@ -33,11 +33,18 @@ function runOrchestrateHandoff(env: Record<string, string | undefined>): {
     const dispatchPayloadPath = join(tempDir, "dispatch.json");
     const plannerResponse = env.FAKE_PLANNER_RESPONSE || "";
     const plannerResponseFile = join(tempDir, "planner-response.md");
+    const progressStream = env.FAKE_PROGRESS_STREAM || "";
+    const progressStreamFile = join(tempDir, "planner-progress.jsonl");
     const runEnv = { ...env };
     if (plannerResponse) {
       writeFileSync(plannerResponseFile, plannerResponse, "utf8");
       runEnv.PLANNER_RESPONSE_FILE = plannerResponseFile;
       delete runEnv.FAKE_PLANNER_RESPONSE;
+    }
+    if (progressStream) {
+      writeFileSync(progressStreamFile, progressStream, "utf8");
+      runEnv.AGENT_PROGRESS_STREAM_FILE = progressStreamFile;
+      delete runEnv.FAKE_PROGRESS_STREAM;
     }
 
     writeFileSync(outputPath, "", "utf8");
@@ -114,6 +121,9 @@ if [ "\${1-}" = "api" ] && [ "\${2-}" = "graphql" ]; then
     *PullRequestReviewSummaryComments*)
       printf '{"data":{"repository":{"pullRequest":{"comments":{"nodes":%s,"pageInfo":{"hasNextPage":false,"endCursor":null}}}}}}\\n' "\${FAKE_GRAPHQL_PR_COMMENTS-[]}"
       ;;
+    *PullRequestReviewSummaries*)
+      printf '{"data":{"repository":{"pullRequest":{"reviews":{"nodes":%s,"pageInfo":{"hasNextPage":false,"endCursor":null}}}}}}\\n' "\${FAKE_GRAPHQL_PR_REVIEWS-[]}"
+      ;;
     *MinimizeReviewSummary*)
       printf '{"data":{"minimizeComment":{"minimizedComment":{"isMinimized":true}}}}\\n'
       ;;
@@ -122,6 +132,15 @@ if [ "\${1-}" = "api" ] && [ "\${2-}" = "graphql" ]; then
       exit 1
       ;;
   esac
+  exit 0
+fi
+
+if [ "\${1-}" = "api" ] && [[ "\${2-}" == repos/*/issues/comments/* ]] && [ "\${3-}" = "--jq" ] && [ "\${4-}" = ".body" ]; then
+  if [ "\${FAKE_PROGRESS_BODY_MODE-}" = "error" ]; then
+    printf 'progress comment unavailable\\n' >&2
+    exit 1
+  fi
+  printf '%s\\n' "\${FAKE_PROGRESS_BODY-}"
   exit 0
 fi
 
@@ -148,6 +167,14 @@ if [ "\${1-}" = "api" ] && [ "\${2-}" = "--method" ] && [ "\${3-}" = "POST" ] &&
 fi
 
 if [ "\${1-}" = "api" ] && [ "\${2-}" = "--method" ] && [ "\${3-}" = "PATCH" ] && [[ "\${4-}" == repos/*/issues/comments/* ]]; then
+  if [ "\${FAKE_PROGRESS_PATCH_MODE-}" = "error" ] && [[ "\${4-}" == */"\${AGENT_PROGRESS_COMMENT_ID-}" ]]; then
+    printf 'progress update denied\\n' >&2
+    exit 1
+  fi
+  exit 0
+fi
+
+if [ "\${1-}" = "pr" ] && [ "\${2-}" = "comment" ]; then
   exit 0
 fi
 
@@ -966,7 +993,7 @@ test("agent orchestrate dispatches planner-selected review for PR targets", () =
   assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-fix-pr\.yml\/dispatches/);
 });
 
-test("agent orchestrate stops before planner handoff for closed PR targets", () => {
+test("agent orchestrate overrides planner handoff for closed PR targets", () => {
   const run = runOrchestrateHandoff({
     AUTOMATION_MODE: "agent",
     TARGET_KIND: "pull_request",
@@ -1351,6 +1378,7 @@ test("agent parent orchestrate stop posts final comment without follow-up", () =
     FAKE_PLANNER_RESPONSE: JSON.stringify({
       decision: "stop",
       reason: "All child work is complete.",
+      user_message: "Implementation and review are complete.",
     }),
   });
 
@@ -1358,16 +1386,77 @@ test("agent parent orchestrate stop posts final comment without follow-up", () =
   assert.equal(run.outputs.get("decision"), "stop");
   assert.equal(run.outputs.get("reason"), "agent planner stop: All child work is complete.");
   assert.match(run.ghLog, /api --method POST repos\/self-evolving\/repo\/issues\/76\/comments/);
-  assert.match(run.ghLog, /Sepo orchestration stopped after `orchestrate` concluded `done`\./);
+  assert.match(run.ghLog, /Sepo orchestration finished after `orchestrate` concluded `done`\./);
+  assert.match(run.ghLog, /> Requested by @lolipopshock\./);
+  assert.match(run.ghLog, /Implementation and review are complete\./);
   assert.match(run.ghLog, /Source conclusion: `done`/);
   assert.match(run.ghLog, /Target: `issue #76`/);
   assert.match(run.ghLog, /Round: `2\/10`/);
   assert.match(run.ghLog, /Reason: agent planner stop: All child work is complete\./);
   assert.match(run.ghLog, /Source run ID: `parent-run-123`/);
   assert.match(run.ghLog, /No follow-up workflow was dispatched/);
-  assert.match(run.ghLog, /<!-- sepo-agent-orchestrate-stop -->/);
+  assert.match(run.ghLog, /<!-- sepo-agent-orchestrate-final -->/);
   assert.doesNotMatch(run.ghLog, /actions\/workflows\//);
   assert.equal(run.dispatchPayload, null);
+});
+
+test("agent PR orchestration preserves its terminal summary when the PR closes during planning", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "orchestrate",
+    SOURCE_CONCLUSION: "requested",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "88",
+    AUTOMATION_MODE: "agent",
+    AUTOMATION_CURRENT_ROUND: "1",
+    FAKE_PR_STATE: "CLOSED",
+    FAKE_PR_BODY: "",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "stop",
+      reason: "The requested work is complete.",
+      user_message: "Implementation and review completed before the pull request closed.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.equal(run.outputs.get("reason"), "pull request is closed");
+  assert.match(run.ghLog, /Implementation and review completed before the pull request closed\./);
+  assert.match(run.ghLog, /<!-- sepo-agent-orchestrate-final -->/);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\//);
+});
+
+test("merged PR resolution preserves successful terminal cleanup classification", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "agent-self-merge",
+    SOURCE_CONCLUSION: "merged",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "88",
+    AUTOMATION_MODE: "agent",
+    AUTOMATION_CURRENT_ROUND: "4",
+    FAKE_PR_STATE: "MERGED",
+    FAKE_PR_BODY: "",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "stop",
+      reason: "The pull request merged successfully.",
+      user_message: "The full orchestration completed and the pull request merged.",
+    }),
+    FAKE_GRAPHQL_PR_COMMENTS: JSON.stringify([
+      {
+        id: "review-comment",
+        body: "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->",
+        isMinimized: false,
+        author: { login: "sepo-agent-app[bot]" },
+      },
+    ]),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "stop");
+  assert.equal(run.outputs.get("reason"), "pull request is merged");
+  assert.match(run.ghLog, /The full orchestration completed and the pull request merged\./);
+  assert.match(run.ghLog, /Sepo orchestration finished successfully/);
+  assert.match(run.ghLog, /mutation MinimizeReviewSummary/);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\//);
 });
 
 test("agent parent orchestrate blocked posts planner clarification", () => {
@@ -1400,8 +1489,8 @@ test("agent parent orchestrate blocked posts planner clarification", () => {
   assert.match(run.ghLog, /Clarification request: Should the next child stack on PR #112 or wait for it to merge\?/);
   assert.match(run.ghLog, /Reason: agent planner blocked: Need maintainer input before choosing the next child\./);
   assert.match(run.ghLog, /No follow-up workflow was dispatched/);
-  assert.match(run.ghLog, /<!-- sepo-agent-orchestrate-stop -->/);
-  assert.doesNotMatch(run.ghLog, /Sepo orchestration stopped after/);
+  assert.match(run.ghLog, /<!-- sepo-agent-orchestrate-final -->/);
+  assert.doesNotMatch(run.ghLog, /Sepo orchestration finished after/);
   assert.doesNotMatch(run.ghLog, /actions\/workflows\//);
   assert.equal(run.dispatchPayload, null);
 });
@@ -1426,19 +1515,23 @@ test("agent parent orchestrate blocked without message posts generic stop", () =
   assert.equal(run.outputs.get("decision"), "stop");
   assert.equal(run.outputs.get("reason"), "agent planner blocked: Context missing.");
   assert.match(run.ghLog, /api --method POST repos\/self-evolving\/repo\/issues\/76\/comments/);
-  assert.match(run.ghLog, /Sepo orchestration stopped after `orchestrate` concluded `done`\./);
+  assert.match(run.ghLog, /Sepo orchestration finished after `orchestrate` concluded `done`\./);
   assert.match(run.ghLog, /Reason: agent planner blocked: Context missing\./);
   assert.match(run.ghLog, /No follow-up workflow was dispatched/);
-  assert.match(run.ghLog, /<!-- sepo-agent-orchestrate-stop -->/);
+  assert.match(run.ghLog, /<!-- sepo-agent-orchestrate-final -->/);
   assert.doesNotMatch(run.ghLog, /Sepo orchestration needs clarification before it can continue\./);
   assert.doesNotMatch(run.ghLog, /Clarification request:/);
   assert.doesNotMatch(run.ghLog, /actions\/workflows\//);
   assert.equal(run.dispatchPayload, null);
 });
 
-test("agent parent orchestrate stop skips matching trusted final comment", () => {
+test("agent parent orchestrate stop updates the trusted final issue comment", () => {
   const existingStopBody = [
-    "Sepo orchestration stopped after `orchestrate` concluded `done`.",
+    "Sepo orchestration finished after `orchestrate` concluded `done`.",
+    "",
+    "> Requested by @lolipopshock.",
+    "",
+    "Implementation and review are complete.",
     "",
     "- Source action: `orchestrate`",
     "- Source conclusion: `done`",
@@ -1449,7 +1542,7 @@ test("agent parent orchestrate stop skips matching trusted final comment", () =>
     "",
     "No follow-up workflow was dispatched. Inspect the source action status comment and workflow logs before retrying or continuing manually.",
     "",
-    "<!-- sepo-agent-orchestrate-stop -->",
+    "<!-- sepo-agent-orchestrate-final -->",
   ].join("\n");
   const run = runOrchestrateHandoff({
     SOURCE_ACTION: "orchestrate",
@@ -1470,11 +1563,13 @@ test("agent parent orchestrate stop skips matching trusted final comment", () =>
     FAKE_PLANNER_RESPONSE: JSON.stringify({
       decision: "stop",
       reason: "All child work is complete.",
+      user_message: "Implementation and review are complete.",
     }),
   });
 
   assert.equal(run.status, 0, run.stderr || run.stdout);
   assert.equal(run.outputs.get("decision"), "stop");
+  assert.match(run.ghLog, /api --method PATCH repos\/self-evolving\/repo\/issues\/comments\/existing-stop/);
   assert.doesNotMatch(run.ghLog, /api --method POST repos\/self-evolving\/repo\/issues\/76\/comments/);
   assert.doesNotMatch(run.ghLog, /actions\/workflows\//);
   assert.equal(run.dispatchPayload, null);
@@ -1496,12 +1591,12 @@ test("heuristics parent orchestrate stops do not post final comments", () => {
   assert.equal(run.outputs.get("decision"), "stop");
   assert.equal(run.outputs.get("reason"), "automation round budget exhausted");
   assert.doesNotMatch(run.ghLog, /api --method POST repos\/self-evolving\/repo\/issues\/76\/comments/);
-  assert.doesNotMatch(run.ghLog, /<!-- sepo-agent-orchestrate-stop -->/);
+  assert.doesNotMatch(run.ghLog, /<!-- sepo-agent-orchestrate-final -->/);
   assert.doesNotMatch(run.ghLog, /actions\/workflows\//);
   assert.equal(run.dispatchPayload, null);
 });
 
-test("agent parent orchestrate stops for pull requests do not post final comments", () => {
+test("agent parent orchestrate stops for pull requests post a finalized note", () => {
   const run = runOrchestrateHandoff({
     SOURCE_ACTION: "orchestrate",
     SOURCE_CONCLUSION: "done",
@@ -1517,10 +1612,389 @@ test("agent parent orchestrate stops for pull requests do not post final comment
   assert.equal(run.status, 0, run.stderr || run.stdout);
   assert.equal(run.outputs.get("decision"), "stop");
   assert.equal(run.outputs.get("reason"), "pull request is closed");
-  assert.doesNotMatch(run.ghLog, /api --method POST repos\/self-evolving\/repo\/issues\/76\/comments/);
-  assert.doesNotMatch(run.ghLog, /<!-- sepo-agent-orchestrate-stop -->/);
+  assert.match(run.ghLog, /pr comment 76 --body/);
+  assert.match(run.ghLog, /Sepo orchestration finished after `orchestrate` concluded `done`\./);
+  assert.match(run.ghLog, /> Requested by @lolipopshock\./);
+  assert.match(run.ghLog, /<!-- sepo-agent-orchestrate-final -->/);
+  assert.doesNotMatch(run.ghLog, /mutation MinimizeReviewSummary/);
   assert.doesNotMatch(run.ghLog, /actions\/workflows\//);
   assert.equal(run.dispatchPayload, null);
+});
+
+test("orchestrator finalized notes suppress bot and configured agent mentions", () => {
+  for (const env of [
+    { REQUESTED_BY: "sepo-agent-app[bot]" },
+    { REQUESTED_BY: "@custom-agent", AGENT_HANDLE: "@custom-agent" },
+  ]) {
+    const run = runOrchestrateHandoff({
+      ...env,
+      SOURCE_ACTION: "orchestrate",
+      SOURCE_CONCLUSION: "done",
+      TARGET_KIND: "pull_request",
+      TARGET_NUMBER: "76",
+      AUTOMATION_MODE: "agent",
+      AUTOMATION_CURRENT_ROUND: "2",
+      FAKE_PR_STATE: "CLOSED",
+    });
+
+    assert.equal(run.status, 0, run.stderr || run.stdout);
+    assert.match(run.ghLog, /<!-- sepo-agent-orchestrate-final -->/);
+    assert.doesNotMatch(run.ghLog, /Requested by @/);
+  }
+});
+
+test("orchestrator finalized PR notes update the trusted marker comment", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "orchestrate",
+    SOURCE_CONCLUSION: "done",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "76",
+    AUTOMATION_MODE: "agent",
+    AUTOMATION_CURRENT_ROUND: "2",
+    FAKE_PR_STATE: "CLOSED",
+    FAKE_ISSUE_COMMENTS_JSON: JSON.stringify([
+      {
+        id: "existing-final",
+        body: "Old final note.\n\n<!-- sepo-agent-orchestrate-final -->",
+        created_at: "2026-07-01T00:00:00Z",
+        user: { login: "sepo-agent-app[bot]" },
+      },
+    ]),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.match(run.ghLog, /api --method PATCH repos\/self-evolving\/repo\/issues\/comments\/existing-final/);
+  assert.match(run.ghLog, /Sepo orchestration finished after/);
+  assert.doesNotMatch(run.ghLog, /pr comment 76 --body/);
+});
+
+test("orchestrator finalized PR notes migrate a trusted legacy stop marker", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "orchestrate",
+    SOURCE_CONCLUSION: "done",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "76",
+    AUTOMATION_MODE: "agent",
+    AUTOMATION_CURRENT_ROUND: "2",
+    FAKE_PR_STATE: "CLOSED",
+    FAKE_ISSUE_COMMENTS_JSON: JSON.stringify([
+      {
+        id: "legacy-final",
+        body: "Old stop note.\n\n<!-- sepo-agent-orchestrate-stop -->",
+        created_at: "2026-07-01T00:00:00Z",
+        user: { login: "sepo-agent-app[bot]" },
+      },
+    ]),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.match(run.ghLog, /api --method PATCH repos\/self-evolving\/repo\/issues\/comments\/legacy-final/);
+  assert.match(run.ghLog, /<!-- sepo-agent-orchestrate-final -->/);
+  assert.doesNotMatch(run.ghLog, /pr comment 76 --body/);
+});
+
+test("orchestrator finalized PR notes reuse a live planner progress comment", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "orchestrate",
+    SOURCE_CONCLUSION: "done",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "76",
+    AUTOMATION_MODE: "agent",
+    AUTOMATION_CURRENT_ROUND: "2",
+    FAKE_PR_STATE: "CLOSED",
+    AGENT_PROGRESS_COMMENT_ID: "progress-comment",
+    AGENT_PROGRESS_FINAL_COMMENT_MODE: "merge",
+    MODEL_DISPLAY: "`codex` | `test-model`",
+    FAKE_PROGRESS_BODY: [
+      "### Sepo is working…",
+      "",
+      "Latest activity",
+      "",
+      "<!-- sepo-progress:run-12345 -->",
+    ].join("\n"),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.match(run.ghLog, /api repos\/self-evolving\/repo\/issues\/comments\/progress-comment --jq \.body/);
+  assert.match(run.ghLog, /api --method PATCH repos\/self-evolving\/repo\/issues\/comments\/progress-comment/);
+  assert.match(run.ghLog, /<summary>Sepo activity<\/summary>/);
+  assert.match(run.ghLog, /<!-- sepo-agent-orchestrate-final -->/);
+  assert.match(run.ghLog, /`codex` \| `test-model`/);
+  assert.doesNotMatch(run.ghLog, /pr comment 76 --body/);
+});
+
+test("planner progress is finalized when orchestration dispatches", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "orchestrate",
+    SOURCE_CONCLUSION: "requested",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "76",
+    AUTOMATION_MODE: "agent",
+    AUTOMATION_CURRENT_ROUND: "1",
+    FAKE_PR_STATE: "OPEN",
+    AGENT_PROGRESS_COMMENT_ID: "planner-progress",
+    AGENT_PROGRESS_FINAL_COMMENT_MODE: "merge",
+    GITHUB_RUN_ID: "12345",
+    FAKE_PROGRESS_STREAM: [
+      JSON.stringify({
+        params: {
+          update: {
+            sessionUpdate: "agent_message_chunk",
+            content: { type: "text", text: "Selecting the next route." },
+          },
+        },
+      }),
+    ].join("\n"),
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "handoff",
+      next_action: "review",
+      reason: "Review the open pull request.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal(run.outputs.get("decision"), "dispatch");
+  assert.match(run.ghLog, /api --method PATCH repos\/self-evolving\/repo\/issues\/comments\/planner-progress/);
+  assert.match(run.ghLog, /### Sepo finished — orchestrator · 1 step\n/);
+  assert.doesNotMatch(run.ghLog, /orchestrator · 0s/);
+  assert.match(run.ghLog, /Selecting the next route\./);
+  assert.match(run.ghLog, /<!-- sepo-progress:run-12345 -->/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-review\.yml\/dispatches/);
+});
+
+test("planner progress finalization failures are visible without blocking dispatch", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "orchestrate",
+    SOURCE_CONCLUSION: "requested",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "76",
+    AUTOMATION_MODE: "agent",
+    AUTOMATION_CURRENT_ROUND: "1",
+    FAKE_PR_STATE: "OPEN",
+    AGENT_PROGRESS_COMMENT_ID: "planner-progress",
+    AGENT_PROGRESS_FINAL_COMMENT_MODE: "merge",
+    FAKE_PROGRESS_PATCH_MODE: "error",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "handoff",
+      next_action: "review",
+      reason: "Review the open pull request.",
+    }),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.match(run.stderr, /Failed to finalize progress comment planner-progress/);
+  assert.match(run.stderr, /progress update denied/);
+  assert.match(run.ghLog, /actions\/workflows\/agent-review\.yml\/dispatches/);
+});
+
+test("a current planner progress note supersedes an older finalized marker", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "orchestrate",
+    SOURCE_CONCLUSION: "done",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "76",
+    AUTOMATION_MODE: "agent",
+    AUTOMATION_CURRENT_ROUND: "3",
+    FAKE_PR_STATE: "CLOSED",
+    AGENT_PROGRESS_COMMENT_ID: "current-progress",
+    AGENT_PROGRESS_FINAL_COMMENT_MODE: "merge",
+    FAKE_PROGRESS_BODY: "### Sepo is working…\n\n<!-- sepo-progress:run-current -->",
+    FAKE_ISSUE_COMMENTS_JSON: JSON.stringify([
+      {
+        id: "previous-final",
+        body: "Old final note.\n\n<!-- sepo-agent-orchestrate-final -->",
+        created_at: "2026-07-01T00:00:00Z",
+        user: { login: "sepo-agent-app[bot]" },
+      },
+    ]),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.match(run.ghLog, /api --method PATCH repos\/self-evolving\/repo\/issues\/comments\/current-progress/);
+  assert.match(run.ghLog, /api --method PATCH repos\/self-evolving\/repo\/issues\/comments\/previous-final/);
+  assert.match(run.ghLog, /The latest finalized orchestration note is in the current run's progress comment\./);
+  assert.doesNotMatch(run.ghLog, /pr comment 76 --body/);
+});
+
+test("planner progress merge failure falls back to the finalized marker upsert", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "orchestrate",
+    SOURCE_CONCLUSION: "done",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "76",
+    AUTOMATION_MODE: "agent",
+    AUTOMATION_CURRENT_ROUND: "2",
+    FAKE_PR_STATE: "CLOSED",
+    AGENT_PROGRESS_COMMENT_ID: "missing-progress",
+    AGENT_PROGRESS_FINAL_COMMENT_MODE: "merge",
+    FAKE_PROGRESS_BODY_MODE: "error",
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.match(run.stderr, /Failed to merge final response into progress comment missing-progress/);
+  assert.match(run.ghLog, /pr comment 76 --body/);
+  assert.match(run.ghLog, /<!-- sepo-agent-orchestrate-final -->/);
+});
+
+test("successful terminal PR orchestration collapses prior trusted review artifacts", () => {
+  const generated = (id: string, body: string) => ({
+    id,
+    body,
+    isMinimized: false,
+    author: { login: "sepo-agent-app[bot]" },
+  });
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "88",
+    AUTOMATION_MODE: "heuristics",
+    AUTOMATION_CURRENT_ROUND: "4",
+    FAKE_PR_BODY: "",
+    FAKE_GRAPHQL_PR_COMMENTS: JSON.stringify([
+      generated("review-comment", "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->"),
+      generated("rubrics-comment", "## Rubrics Review\n\nPASS"),
+      generated("fix-comment", "<!-- sepo-agent-fix-pr-status -->"),
+      generated("handoff-comment", "<!-- sepo-agent-handoff state:dispatched created:1 base64:YWJj -->"),
+    ]),
+    FAKE_GRAPHQL_PR_REVIEWS: JSON.stringify([
+      generated("review-node", "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->"),
+    ]),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.match(run.ghLog, /Sepo orchestration finished successfully after `review` concluded `SHIP`\./);
+  assert.match(run.ghLog, /No further workflow was needed\./);
+  assert.equal((run.ghLog.match(/mutation MinimizeReviewSummary/g) || []).length, 5);
+  assert.doesNotMatch(run.ghLog, /actions\/workflows\//);
+});
+
+test("blocked planner decisions retain successful-source review artifacts", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "88",
+    AUTOMATION_MODE: "agent",
+    AUTOMATION_CURRENT_ROUND: "4",
+    FAKE_PR_BODY: "",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "blocked",
+      reason: "A maintainer must choose the release target.",
+      clarification_request: "Which release target should this use?",
+    }),
+    FAKE_GRAPHQL_PR_COMMENTS: JSON.stringify([
+      {
+        id: "review-comment",
+        body: "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->",
+        isMinimized: false,
+        author: { login: "sepo-agent-app[bot]" },
+      },
+    ]),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.match(run.ghLog, /Sepo orchestration needs clarification before it can continue\./);
+  assert.doesNotMatch(run.ghLog, /mutation MinimizeReviewSummary/);
+});
+
+for (const [label, plannerResponse] of [
+  ["missing", undefined],
+  ["malformed", "not valid planner json"],
+] as const) {
+  test(`${label} planner responses cannot produce successful terminal cleanup`, () => {
+    const run = runOrchestrateHandoff({
+      SOURCE_ACTION: "review",
+      SOURCE_CONCLUSION: "SHIP",
+      TARGET_KIND: "pull_request",
+      TARGET_NUMBER: "88",
+      AUTOMATION_MODE: "agent",
+      AUTOMATION_CURRENT_ROUND: "4",
+      FAKE_PR_BODY: "",
+      FAKE_PLANNER_RESPONSE: plannerResponse,
+      FAKE_GRAPHQL_PR_COMMENTS: JSON.stringify([
+        {
+          id: "review-comment",
+          body: "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->",
+          isMinimized: false,
+          author: { login: "sepo-agent-app[bot]" },
+        },
+      ]),
+    });
+
+    assert.equal(run.status, 0, run.stderr || run.stdout);
+    assert.match(run.outputs.get("reason") || "", /agent planner decision missing or invalid/);
+    assert.match(run.ghLog, /Sepo orchestration finished after `review` concluded `SHIP`\./);
+    assert.match(run.ghLog, /No follow-up workflow was dispatched\./);
+    assert.doesNotMatch(run.ghLog, /finished successfully/);
+    assert.doesNotMatch(run.ghLog, /No further workflow was needed\./);
+    assert.doesNotMatch(run.ghLog, /mutation MinimizeReviewSummary/);
+  });
+}
+
+test("successful cleanup never minimizes the newly finalized note", () => {
+  const generated = (id: string, body: string) => ({
+    id,
+    body,
+    isMinimized: false,
+    author: { login: "sepo-agent-app[bot]" },
+  });
+  const finalNoteWithArtifactSignatures = [
+    "## AI Review Synthesis",
+    "## Rubrics Review",
+    "<!-- sepo-agent-fix-pr-status -->",
+    "<!-- sepo-agent-handoff state:dispatched created:1 base64:YWJj -->",
+    "<!-- sepo-agent-orchestrate-final -->",
+  ].join("\n\n");
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "88",
+    AUTOMATION_MODE: "agent",
+    AUTOMATION_CURRENT_ROUND: "4",
+    FAKE_PR_BODY: "",
+    FAKE_PLANNER_RESPONSE: JSON.stringify({
+      decision: "stop",
+      reason: "The pull request is ready.",
+      user_message: "## Rubrics Review\n\nAll requested work is complete.",
+    }),
+    FAKE_GRAPHQL_PR_COMMENTS: JSON.stringify([
+      generated("final-note", finalNoteWithArtifactSignatures),
+      generated("old-rubrics", "## Rubrics Review\n\nOld scorecard"),
+    ]),
+    FAKE_GRAPHQL_PR_REVIEWS: "[]",
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.equal((run.ghLog.match(/mutation MinimizeReviewSummary/g) || []).length, 1);
+  assert.match(run.ghLog, /id=old-rubrics/);
+  assert.doesNotMatch(run.ghLog, /id=final-note/);
+});
+
+test("successful terminal PR orchestration respects disabled review cleanup", () => {
+  const run = runOrchestrateHandoff({
+    SOURCE_ACTION: "review",
+    SOURCE_CONCLUSION: "SHIP",
+    TARGET_KIND: "pull_request",
+    TARGET_NUMBER: "88",
+    AUTOMATION_MODE: "heuristics",
+    AUTOMATION_CURRENT_ROUND: "4",
+    AGENT_COLLAPSE_OLD_REVIEWS: "false",
+    FAKE_PR_BODY: "",
+    FAKE_GRAPHQL_PR_COMMENTS: JSON.stringify([
+      {
+        id: "review-comment",
+        body: "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->",
+        isMinimized: false,
+        author: { login: "sepo-agent-app[bot]" },
+      },
+    ]),
+  });
+
+  assert.equal(run.status, 0, run.stderr || run.stdout);
+  assert.match(run.ghLog, /<!-- sepo-agent-orchestrate-final -->/);
+  assert.doesNotMatch(run.ghLog, /mutation MinimizeReviewSummary/);
 });
 
 test("terminal child result reports to parent and preserves terminal reruns", () => {
@@ -1545,7 +2019,7 @@ test("terminal child result reports to parent and preserves terminal reruns", ()
   assert.match(run.ghLog, /\| #77 \| #88 \| Ready to ship \| 2 \/ 5 \| Resuming parent orchestration \|/);
   assert.match(run.ghLog, /Summary: review verdict is SHIP/);
   assert.match(run.ghLog, /<!-- sepo-sub-orchestrator-report child:77 resume:dispatched -->/);
-  assert.doesNotMatch(run.ghLog, /<!-- sepo-agent-orchestrate-stop -->/);
+  assert.doesNotMatch(run.ghLog, /<!-- sepo-agent-orchestrate-final -->/);
   const inputs = run.dispatchPayload?.inputs as Record<string, string>;
   assert.equal(inputs.source_action, "orchestrate");
   assert.equal(inputs.source_conclusion, "done");
@@ -1665,7 +2139,7 @@ test("terminal child rejected-marker stop comments are deduped on rerun", () => 
   assert.match(run.stderr, /Ignoring untrusted terminal sub-orchestrator marker in issue #77 body from lolipopshock/);
 });
 
-test("ordinary terminal PR stops skip visible sub-orchestration stop without child marker", () => {
+test("ordinary terminal PR stops post a final note without a sub-orchestration marker", () => {
   const run = runOrchestrateHandoff({
     SOURCE_ACTION: "review",
     SOURCE_CONCLUSION: "SHIP",
@@ -1680,7 +2154,8 @@ test("ordinary terminal PR stops skip visible sub-orchestration stop without chi
 
   assert.equal(run.status, 0);
   assert.equal(run.outputs.get("decision"), "stop");
-  assert.doesNotMatch(run.ghLog, /api --method POST repos\/self-evolving\/repo\/issues\/88\/comments/);
+  assert.match(run.ghLog, /pr comment 88 --body/);
+  assert.match(run.ghLog, /<!-- sepo-agent-orchestrate-final -->/);
   assert.doesNotMatch(run.ghLog, /sepo-sub-orchestrator-terminal-stop/);
   assert.doesNotMatch(run.ghLog, /actions\/workflows\/agent-orchestrator\.yml\/dispatches/);
   assert.doesNotMatch(run.stderr, /Ignoring untrusted terminal sub-orchestrator marker/);

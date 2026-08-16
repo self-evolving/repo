@@ -449,6 +449,7 @@ function main(): void {
   setOutput("model_display", "");
   setOutput("resume_status", "not_attempted");
   setOutput("last_resume_error", "");
+  setOutput("resumed_from_session_id", "");
   setOutput(
     "session_bundle_restore_status",
     process.env.SESSION_BUNDLE_RESTORE_STATUS || "not_attempted",
@@ -514,6 +515,9 @@ function runDirectPath(opts: {
     return;
   }
   const trackThreadState = tracksThreadState(sessionPolicy) && Boolean(envelope.thread_key);
+  const deferSessionStatePersistence = parseBooleanFlag(
+    process.env.DEFER_SESSION_STATE_PERSISTENCE,
+  );
   const threadStateOpts = buildThreadStateOptions(envelope);
 
   let threadState: ThreadState | null = null;
@@ -556,28 +560,35 @@ function runDirectPath(opts: {
         });
       }
 
-      threadState = markThreadRunning(
-        envelope.thread_key,
-        repoRoot,
-        {
-          last_run_url: currentRunUrl(),
-          ...buildRunningThreadStateFields(),
-          ...(forkResumeSessionId
-            ? {
-                forked_from_thread_key: forkFromThreadKey,
-                forked_from_acpx_session_id: forkAcpxSessionId,
-                bundle_restore_status: "restored_from_fork" as const,
-                last_bundle_restore_error: "",
-              }
-            : {}),
-        },
-        threadStateOpts,
-      );
-      log("info", "Thread state marked running", {
-        thread_key: envelope.thread_key,
-        attempt: threadState.attempt_count,
-        session_policy: sessionPolicy,
-      });
+      if (deferSessionStatePersistence) {
+        log("info", "Thread state persistence deferred to a trusted workflow step", {
+          thread_key: envelope.thread_key,
+          session_policy: sessionPolicy,
+        });
+      } else {
+        threadState = markThreadRunning(
+          envelope.thread_key,
+          repoRoot,
+          {
+            last_run_url: currentRunUrl(),
+            ...buildRunningThreadStateFields(),
+            ...(forkResumeSessionId
+              ? {
+                  forked_from_thread_key: forkFromThreadKey,
+                  forked_from_acpx_session_id: forkAcpxSessionId,
+                  bundle_restore_status: "restored_from_fork" as const,
+                  last_bundle_restore_error: "",
+                }
+              : {}),
+          },
+          threadStateOpts,
+        );
+        log("info", "Thread state marked running", {
+          thread_key: envelope.thread_key,
+          attempt: threadState.attempt_count,
+          session_policy: sessionPolicy,
+        });
+      }
 
       if (shouldFailBecauseRequiredResumeIdentityMissing(sessionPolicy, existingThreadState, resumeSessionId)) {
         const missingResumeError = "resume-required route has prior thread state but no acpxSessionId to resume";
@@ -587,7 +598,9 @@ function runDirectPath(opts: {
           kind: "failed",
           error: missingResumeError,
         });
-        markThreadFailed(envelope.thread_key, threadState, repoRoot, failedUpdates, threadStateOpts);
+        if (threadState) {
+          markThreadFailed(envelope.thread_key, threadState, repoRoot, failedUpdates, threadStateOpts);
+        }
         log("error", "Session continuity requirement not satisfied: prior thread state exists without resumable session identity", {
           thread_key: envelope.thread_key,
           session_policy: sessionPolicy,
@@ -634,6 +647,7 @@ function runDirectPath(opts: {
   const resumeFields = buildThreadStateFieldsFromEnsureOutcome(result.sessionEnsureOutcome);
   setOutput("resume_status", resumeFields.resume_status);
   setOutput("last_resume_error", resumeFields.last_resume_error);
+  setOutput("resumed_from_session_id", resumeFields.resumed_from_session_id);
 
   log("info", "acpx completed", {
     exit_code: result.exitCode,
@@ -692,7 +706,7 @@ function runDirectPath(opts: {
     }
   }
 
-  if (trackThreadState && threadState) {
+  if (trackThreadState && threadState && !deferSessionStatePersistence) {
     try {
       if (result.exitCode !== 0) {
         const failedUpdates = buildFailedThreadStateUpdates(result.sessionEnsureOutcome);

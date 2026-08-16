@@ -109,6 +109,10 @@ inputs:
   session_policy:
     description: "Session continuity policy (none, track-only, resume-best-effort, resume-required)"
     required: true
+  defer_session_state_persistence:
+    description: "Defer thread-state and bundle registration writes to a separately authorized workflow step"
+    required: false
+    default: "false"
   session_bundle_mode:
     description: "Session bundle persistence mode (auto, always, never)"
     required: false
@@ -202,6 +206,9 @@ outputs:
   last_resume_error:
     description: "Session continuity error when resume failed"
     value: ${{ steps.run.outputs.last_resume_error }}
+  resumed_from_session_id:
+    description: "Prior acpx session ID used for a successful or attempted resume"
+    value: ${{ steps.run.outputs.resumed_from_session_id }}
   session_bundle_restore_status:
     description: "Result of restoring a prior session bundle artifact"
     value: ${{ steps.run.outputs.session_bundle_restore_status }}
@@ -223,6 +230,9 @@ outputs:
   session_bundle_artifact_name:
     description: "Uploaded session bundle artifact name"
     value: ${{ steps.bundle.outputs.artifact_name }}
+  agent_exit_code:
+    description: "Exit code produced by the model-backed runtime step"
+    value: ${{ steps.run.outputs.exit_code }}
   memory_mode:
     description: "Resolved memory mode (enabled, read-only, disabled)"
     value: ${{ steps.memory_mode.outputs.mode }}
@@ -290,6 +300,7 @@ runs:
         LANE: ${{ inputs.lane }}
         SESSION_POLICY: ${{ inputs.session_policy }}
         SESSION_BUNDLE_MODE: ${{ inputs.session_bundle_mode }}
+        DEFER_SESSION_STATE_PERSISTENCE: ${{ inputs.defer_session_state_persistence }}
         SESSION_FORK_FROM_THREAD_KEY: ${{ inputs.session_fork_from_thread_key }}
         TARGET_KIND: ${{ inputs.target_kind }}
         TARGET_NUMBER: ${{ inputs.target_number }}
@@ -477,6 +488,7 @@ runs:
         LANE: ${{ inputs.lane }}
         SESSION_POLICY: ${{ inputs.session_policy }}
         SESSION_BUNDLE_MODE: ${{ inputs.session_bundle_mode }}
+        DEFER_SESSION_STATE_PERSISTENCE: ${{ inputs.defer_session_state_persistence }}
         SESSION_BUNDLE_RESTORE_STATUS: ${{ steps.restore.outputs.restore_status }}
         SESSION_BUNDLE_RESTORE_ERROR: ${{ steps.restore.outputs.restore_error }}
         SESSION_FORK_FROM_THREAD_KEY: ${{ steps.restore.outputs.fork_from_thread_key }}
@@ -658,7 +670,7 @@ runs:
         retention-days: ${{ inputs.session_bundle_retention_days }}
 
     - name: Register session bundle artifact
-      if: always() && steps.run.outputs.exit_code == '0' && steps.upload_session_bundle.outputs.artifact-id != ''
+      if: always() && inputs.defer_session_state_persistence != 'true' && steps.run.outputs.exit_code == '0' && steps.upload_session_bundle.outputs.artifact-id != ''
       id: register_session_bundle
       continue-on-error: true
       shell: bash
