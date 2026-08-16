@@ -22,7 +22,7 @@ export interface GraphQLClient {
 export function ghGraphqlData<T>(
   query: string,
   variables: Record<string, GraphQLVariableValue>,
-  options: { maxBuffer?: number } = {},
+  options: { maxBuffer?: number; token?: string } = {},
 ): T {
   const args = ["api", "graphql", "-f", `query=${query}`];
   for (const [key, value] of Object.entries(variables)) {
@@ -34,6 +34,9 @@ export function ghGraphqlData<T>(
   }
 
   const stdout = execFileSync("gh", args, {
+    env: options.token
+      ? { ...process.env, GH_TOKEN: options.token, GITHUB_TOKEN: options.token }
+      : process.env,
     stdio: ["pipe", "pipe", "pipe"],
     maxBuffer: options.maxBuffer ?? DEFAULT_MAX_BUFFER,
   }).toString("utf8");
@@ -57,7 +60,7 @@ export function ghGraphqlData<T>(
 }
 
 export function createGhGraphqlClient(
-  options: { maxBuffer?: number } = {},
+  options: { maxBuffer?: number; token?: string } = {},
 ): GraphQLClient {
   return {
     graphql<T>(query: string, variables: Record<string, GraphQLVariableValue>): T {

@@ -424,9 +424,11 @@ runs:
         AGENT_PROGRESS_STREAM_FILE: ${{ runner.temp }}/agent-progress-${{ github.run_id }}-${{ inputs.route }}-${{ inputs.target_kind }}-${{ inputs.target_number }}.ndjson
         AGENT_PROGRESS_TARGET_KIND: ${{ inputs.target_kind }}
         AGENT_PROGRESS_TARGET_NUMBER: ${{ inputs.target_number }}
-        GH_TOKEN: ${{ inputs.github_token }}
-        GITHUB_TOKEN: ${{ inputs.github_token }}
-        INPUT_GITHUB_TOKEN: ${{ inputs.github_token }}
+        # Progress comment events must use the job token so GitHub suppresses
+        # recursive workflow runs from their create/edit events.
+        GH_TOKEN: ${{ github.token }}
+        GITHUB_TOKEN: ${{ github.token }}
+        INPUT_GITHUB_TOKEN: ${{ github.token }}
       run: |
         set -euo pipefail
         echo "stream_file=${AGENT_PROGRESS_STREAM_FILE}" >> "$GITHUB_OUTPUT"

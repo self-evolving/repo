@@ -1134,6 +1134,26 @@ test("agent entrypoint routes every supported active mention surface", () => {
   }
 });
 
+test("agent entrypoint preserves created and edited human comment triggers", () => {
+  const workflow = parseYaml(readRepoFile(".github/workflows/agent-entrypoint.yml")) as unknown;
+  assert.ok(isRecord(workflow), "agent-entrypoint workflow should parse");
+  assert.ok(isRecord(workflow.on), "agent-entrypoint workflow should define triggers");
+
+  for (const eventName of [
+    "issue_comment",
+    "pull_request_review_comment",
+    "discussion_comment",
+  ]) {
+    const trigger: unknown = workflow.on[eventName];
+    assert.ok(isRecord(trigger), `agent-entrypoint should define ${eventName}`);
+    assert.deepEqual(
+      trigger.types,
+      ["created", "edited"],
+      `${eventName} should keep the edited-command policy surface`,
+    );
+  }
+});
+
 test("agent entrypoint skips bot-authored mentions before runner allocation", () => {
   for (const mentionCase of ENTRYPOINT_MENTION_CASES) {
     const payload = buildEntrypointPayload(mentionCase, "@sepo-agent please help");
@@ -1536,6 +1556,7 @@ test("workflows use granular CLI helpers for post-processing", () => {
   );
   assert.match(unsupportedFixPrStatusStep, /run: node \.agent\/dist\/cli\/post-comment\.js/);
   assert.match(unsupportedFixPrStatusStep, /AGENT_COLLAPSE_OLD_REVIEWS:\s*\$\{\{ vars\.AGENT_COLLAPSE_OLD_REVIEWS \}\}/);
+  assert.match(unsupportedFixPrStatusStep, /AGENT_PROGRESS_GITHUB_TOKEN:\s*\$\{\{ github\.token \}\}/);
   assert.match(unsupportedFixPrStatusStep, /COMMENT_TARGET:\s*pr/);
   assert.match(unsupportedFixPrStatusStep, /ROUTE:\s*fix-pr/);
   assert.match(unsupportedFixPrStatusStep, /STATUS:\s*unsupported/);
@@ -1575,6 +1596,85 @@ test("shared run-agent-task action exists and requires explicit prompt/skill/lan
   assert.match(action, /LANE/);
   assert.match(action, /SESSION_POLICY/);
   assert.match(action, /\.agent\/dist\/run\.js/);
+});
+
+test("progress lifecycle uses the non-recursive workflow token", () => {
+  const action = parseYaml(readRepoFile(".github/actions/run-agent-task/action.yml")) as unknown;
+  assert.ok(isRecord(action), "run-agent-task action should parse");
+  assert.ok(isRecord(action.runs), "run-agent-task action should define runs");
+  assert.ok(Array.isArray(action.runs.steps), "run-agent-task action should define steps");
+
+  const progressStep = action.runs.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Start progress reporter",
+  );
+  const agentStep = action.runs.steps.find(
+    (step): step is Record<string, unknown> =>
+      isRecord(step) && step.name === "Run agent task",
+  );
+  assert.ok(progressStep, "run-agent-task should start the progress reporter");
+  assert.ok(agentStep, "run-agent-task should run the agent");
+  assert.ok(isRecord(progressStep.env), "progress reporter should define env");
+  assert.ok(isRecord(agentStep.env), "agent step should define env");
+  assert.equal(progressStep.env.GH_TOKEN, "${{ github.token }}");
+  assert.equal(progressStep.env.GITHUB_TOKEN, "${{ github.token }}");
+  assert.equal(progressStep.env.INPUT_GITHUB_TOKEN, "${{ github.token }}");
+  assert.equal(agentStep.env.AGENT_PROGRESS_GITHUB_TOKEN, undefined);
+
+  const finalizers = [
+    {
+      path: ".github/workflows/agent-implement.yml",
+      jobId: "implement",
+      runStepName: "Run agent",
+      stepName: "Post status comment",
+    },
+    {
+      path: ".github/workflows/agent-fix-pr.yml",
+      jobId: "fix-pr",
+      runStepName: "Run agent",
+      stepName: "Post status comment",
+    },
+    {
+      path: ".github/workflows/agent-router.yml",
+      jobId: "answer",
+      runStepName: "Run answer agent",
+      stepName: "Post answer",
+    },
+  ];
+
+  for (const finalizer of finalizers) {
+    const workflow = parseYaml(readRepoFile(finalizer.path)) as unknown;
+    assert.ok(isRecord(workflow), `${finalizer.path} should parse`);
+    assert.ok(isRecord(workflow.permissions), `${finalizer.path} should define permissions`);
+    assert.equal(workflow.permissions.actions, "write");
+    assert.ok(
+      workflow.permissions.issues === "write" ||
+        workflow.permissions["pull-requests"] === "write",
+      `${finalizer.path} should allow issue-comment writes`,
+    );
+    assert.ok(isRecord(workflow.jobs), `${finalizer.path} should define jobs`);
+    const job = workflow.jobs[finalizer.jobId];
+    assert.ok(isRecord(job), `${finalizer.path} should define ${finalizer.jobId}`);
+    assert.ok(Array.isArray(job.steps), `${finalizer.jobId} should define steps`);
+    const runStep = job.steps.find(
+      (candidate): candidate is Record<string, unknown> =>
+        isRecord(candidate) && candidate.name === finalizer.runStepName,
+    );
+    const step = job.steps.find(
+      (candidate): candidate is Record<string, unknown> =>
+        isRecord(candidate) && candidate.name === finalizer.stepName,
+    );
+    assert.ok(runStep, `${finalizer.path} should define ${finalizer.runStepName}`);
+    assert.ok(isRecord(runStep.with), `${finalizer.runStepName} should define inputs`);
+    assert.equal(runStep.with.github_token, "${{ github.token }}");
+    assert.ok(step, `${finalizer.path} should define ${finalizer.stepName}`);
+    assert.ok(isRecord(step.env), `${finalizer.stepName} should define env`);
+    assert.equal(step.env.AGENT_PROGRESS_GITHUB_TOKEN, "${{ github.token }}");
+    assert.equal(step.env.GH_TOKEN, "${{ steps.auth.outputs.token }}");
+  }
+
+  const lifecycleDocs = readRepoFile(".agent/docs/architecture/request-lifecycle.md");
+  assert.match(lifecycleDocs, /cannot prevent Actions-history churn on its own/);
 });
 
 test("shared run-agent-task exposes an optional secondary GitHub token", () => {

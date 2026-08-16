@@ -2,7 +2,7 @@
 // Usage: node .agent/dist/cli/post-response.js
 // Env: BODY_FILE, RESPONSE_KIND, TARGET_NUMBER, REVIEW_COMMENT_ID,
 //      DISCUSSION_ID, REPLY_TO_ID, GITHUB_REPOSITORY,
-//      AGENT_COLLAPSE_OLD_REVIEWS
+//      AGENT_COLLAPSE_OLD_REVIEWS, AGENT_PROGRESS_GITHUB_TOKEN
 
 import { readFileSync } from "node:fs";
 import { upsertPrCommentByMarker } from "../github.js";
@@ -29,6 +29,7 @@ const runStatus = process.env.STATUS || "success";
 const modelDisplay = process.env.MODEL_DISPLAY || process.env.AGENT_RUN_DISPLAY || "";
 const progressFinalCommentMode = process.env.AGENT_PROGRESS_FINAL_COMMENT_MODE || "";
 const progressCommentId = process.env.AGENT_PROGRESS_COMMENT_ID || process.env.PROGRESS_COMMENT_ID || "";
+const progressGithubToken = process.env.AGENT_PROGRESS_GITHUB_TOKEN || "";
 const collapseOldReviews = !["false", "0", "no", "off"].includes(
   (process.env.AGENT_COLLAPSE_OLD_REVIEWS || "").trim().toLowerCase(),
 );
@@ -114,6 +115,7 @@ if (
     mode: progressFinalCommentMode,
     finalBody: body,
     footer: modelDisplay,
+    githubToken: progressGithubToken,
   });
 }
 

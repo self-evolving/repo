@@ -184,7 +184,7 @@ jobs:
         uses: ./.github/actions/run-agent-task
         with:
           agent: ${{ steps.provider.outputs.provider }}
-          github_token: ${{ steps.auth.outputs.token }}
+          github_token: ${{ github.token }}
           secondary_github_token: ${{ secrets.AGENT_SECONDARY_GITHUB_TOKEN }}
           openai_api_key: ${{ secrets.OPENAI_API_KEY }}
           claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -288,6 +288,7 @@ jobs:
           RESPONSE_FILE: ${{ steps.agent.outputs.response_file }}
           AGENT_PROGRESS_COMMENT_ID: ${{ steps.agent.outputs.progress_comment_id }}
           AGENT_PROGRESS_FINAL_COMMENT_MODE: merge
+          AGENT_PROGRESS_GITHUB_TOKEN: ${{ github.token }}
           MODEL_DISPLAY: ${{ steps.agent.outputs.model_display }}
           RESUME_STATUS: ${{ steps.agent.outputs.resume_status }}
           ROUTE: fix-pr
@@ -300,6 +301,7 @@ jobs:
         if: steps.pr.outputs.cross_repo == 'true' || steps.pr.outputs.pr_state != 'OPEN'
         env:
           AGENT_COLLAPSE_OLD_REVIEWS: ${{ vars.AGENT_COLLAPSE_OLD_REVIEWS }}
+          AGENT_PROGRESS_GITHUB_TOKEN: ${{ github.token }}
           APPROVAL_COMMENT_URL: ${{ inputs.approval_comment_url }}
           COMMENT_TARGET: pr
           GH_TOKEN: ${{ steps.auth.outputs.token }}
