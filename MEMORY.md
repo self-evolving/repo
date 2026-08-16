@@ -130,3 +130,4 @@
 - Only release preparation updates `.agent/CHANGELOG.md`; normal PRs leave release notes unchanged.
 - Use `$$` display-math blocks for LaTeX in GitHub-facing Markdown. [[github/self-evolving/repo/pull-491.json]]
 - Stop review/fix loops when changes outgrow agreed scope; defer extra hardening to follow-up issues. [[github/self-evolving/repo/pull-497.json]]
+- Review fixes: only `FIX_IN_PR`; selected handoffs are exclusive; one automatic pass per chain. [[github/self-evolving/repo/pull-498.json]]
