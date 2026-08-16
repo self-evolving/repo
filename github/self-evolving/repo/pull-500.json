@@ -44,8 +44,8 @@
       "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 88 | PARTIAL | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Extends the central [`gh` and comment helpers](https://github.com/self-evolving/repo/blob/006934548618c8bce845283e6fa40725ff783d93/.agent/src/github.ts#L10-L88) and existing final-comment merger rather than adding parallel API logic. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The lifecycle documentation explains the token split, GitHub’s non-recursive event behavior, and fallback path in the [same change](https://github.com/self-evolving/repo/blob/006934548618c8bce845283e6fa40725ff783d93/.agent/docs/architecture/request-lifecycle.md#L29-L31). |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The implementation follows [GitHub’s documented `GITHUB_TOKEN` contract](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow#triggering-a-workflow-from-a-workflow) and preserves the edited-comment policy from [#455](https://github.com/self-evolving/repo/issues/455) and [#456](https://github.com/self-evolving/repo/pull/456) with a [focused trigger regression](https://github.com/self-evolving/repo/blob/006934548618c8bce845283e6fa40725ff783d93/.agent/src/__tests__/envelope.test.ts#L1137-L1155). |\n| coding_workflow / generic | Leave release notes to release preparation | pass | 8/8 | The [current PR files](https://github.com/self-evolving/repo/pull/500/files) do not modify `.agent/CHANGELOG.md` or other release notes. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes are limited to shared token plumbing, the three affected routes, focused tests, and lifecycle documentation. |\n| coding_workflow / generic | Make user-facing automation idempotent | partial | 3/7 | Within-run updates reuse the progress comment, but repeated fix runs can leave old statuses visible because finalization uses the job token while cleanup trusts only the ambient App/PAT actor. |\n| coding_workflow / generic | Surface stateful failures | partial | 5/7 | Merge failures are [logged and returned as failure](https://github.com/self-evolving/repo/blob/006934548618c8bce845283e6fa40725ff783d93/.agent/src/progress-final-comment.ts#L54-L68), allowing callers to fall back, but no focused test covers a failed workflow-token fetch/PATCH and fallback post. |\n\n## Notes\n\n- The core design is sound: progress creation, updates, cancellation, and final replacement use the non-recursive job token, while human `created` and `edited` triggers remain intact.\n- An independent `npm --prefix .agent run test:ci` against head `006934548618c8bce845283e6fa40725ff783d93` passed all build, runtime, workflow, docs, and shell lanes.\n- The smallest follow-up is to align fix-status cleanup with the job-token author and add coverage for both repeated-run cleanup and failed finalization fallback.\n\n## Findings\n\n- **WARNING:** The fix-PR finalizer supplies the resolved App/PAT as ambient `GH_TOKEN` but uses `github.token` to patch the current progress comment ([workflow](https://github.com/self-evolving/repo/blob/006934548618c8bce845283e6fa40725ff783d93/.github/workflows/agent-fix-pr.yml#L278-L298)). Cleanup filters old statuses to comments authored by its authenticated viewer ([filter](https://github.com/self-evolving/repo/blob/006934548618c8bce845283e6fa40725ff783d93/.agent/src/review-summary-minimize.ts#L201-L208)). Consequently, when App/PAT auth is configured, the next run will not collapse the prior `github-actions[bot]` status. The new finalization test disables cleanup, so it misses this interaction ([test](https://github.com/self-evolving/repo/blob/006934548618c8bce845283e6fa40725ff783d93/.agent/src/__tests__/post-comment-cli.test.ts#L311-L379)).\n- **INFO:** Add a failure-path test showing that a workflow-token fetch or PATCH failure is logged and produces the normal App/PAT-authenticated fallback comment.\n\n## Final Rubric Verdict\n\nPARTIAL\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-3`",
       "createdAt": "2026-08-13T09:39:50Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/500#issuecomment-5278631921",
       "viewerDidAuthor": true
@@ -59,8 +59,8 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 006934548618c8bce845283e6fa40725ff783d93 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #500 addresses #499 by moving progress-comment creation, updates, cancellation, and final replacement to the job-scoped `GITHUB_TOKEN`, preventing recursive Agent Entrypoint runs. App/PAT credentials remain limited to deterministic lifecycle and fallback operations and are no longer exposed to implement, fix-PR, or answer agents. The PR preserves human `created` and `edited` triggers required by #455/#456 and adds focused documentation and tests. The current head, `0069345`, has passing checks.\n\n## Review\n\nThe core design is sound and no blocking defect was found. One reviewer considered the PR borderline `SHIP`, while two independent reviews identified the same repeated fix-run cleanup regression.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Repeated fix-PR statuses evade cleanup | WARNING | Finalized progress comments are now authored by `github-actions[bot]`, but cleanup still authenticates as the resolved App/PAT and only minimizes comments authored by that viewer. Repeated App-backed fix runs will therefore accumulate prior workflow-authored statuses. |\n| Primary merged responses change author identity | INFO | Merged responses will display `github-actions[bot]` rather than the Sepo App identity. Reviewers considered this an inherent, acceptable tradeoff of the non-recursive design; fallback comments remain App-authored. |\n\n## Progress\n\n- The live PR head matches the head reviewed by all reviewers, and the current check passes.\n- Reviewers verified the full `.agent` CI suite and confirmed that human edited-comment routing remains preserved.\n- The existing top-level rubrics review already describes the cleanup regression, so no duplicate inline comment was posted; there are no inline comments or review threads.\n- A workflow-token failure-path test was suggested as optional additional coverage; the existing implementation already logs merge failures and falls back to normal posting.\n- Release notes remain untouched, consistent with the repository’s release-preparation policy.\n\n## Issue Details\n\n<details>\n<summary>Repeated fix-PR statuses evade cleanup</summary>\n\n**Cause:** [`collapsePreviousFixPrComments`](https://github.com/self-evolving/repo/blob/006934548618c8bce845283e6fa40725ff783d93/.agent/src/review-summary-minimize.ts#L201-L208) filters comments to the authenticated viewer. The [fix-PR finalizer](https://github.com/self-evolving/repo/blob/006934548618c8bce845283e6fa40725ff783d93/.github/workflows/agent-fix-pr.yml#L278-L298) runs cleanup with App/PAT authentication, then patches the current status with the workflow token.\n\n**Candidate solutions:**\n\n- Preserve the existing App/PAT cleanup for legacy statuses and add a workflow-token cleanup pass for `github-actions[bot]` statuses.\n- Alternatively, add a narrowly scoped trusted-author mode limited to recognized fix-PR status markers, without permitting human or unrelated bot comments to be minimized.\n- Add a repeated-run cross-identity regression test.\n\n**Comments:** This does not undermine the recursion fix, but it regresses the configured old-status cleanup behavior.\n\n</details>\n\n## Recommended Next Step\n\n`FIX_PR`: The cleanup regression has a focused branch-level fix and regression test that are safe for an automated fix pass.\n\n## Final Verdict\n\nMINOR_ISSUES\n\n## Action Items\n\n- [ ] Preserve cleanup for both legacy App/PAT-authored and new workflow-authored fix-PR statuses, while retaining protections for human and unrelated-bot comments, and add cross-identity regression coverage.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-2`",
       "createdAt": "2026-08-13T09:49:21Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/500#issuecomment-5278726570",
       "viewerDidAuthor": true
@@ -144,6 +144,64 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/500#issuecomment-5303581103",
       "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABPCmtww",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review",
+      "createdAt": "2026-08-15T21:32:43Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/500#issuecomment-5304331715",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABPCpUfQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 96 | PARTIAL | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Extends the central [`gh` helpers](https://github.com/self-evolving/repo/blob/9718d975d42be15967af69cf62bc267bf77d2142/.agent/src/github.ts#L10-L89), GraphQL client, and existing final-comment merger instead of adding parallel API implementations. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The [request lifecycle documentation](https://github.com/self-evolving/repo/blob/9718d975d42be15967af69cf62bc267bf77d2142/.agent/docs/architecture/request-lifecycle.md#L29-L31) explains non-recursive authentication, fallback behavior, and cross-identity cleanup. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The design follows [GitHub’s documented `GITHUB_TOKEN` behavior](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow#triggering-a-workflow-from-a-workflow), addresses [#499](https://github.com/self-evolving/repo/issues/499), and preserves the [#455](https://github.com/self-evolving/repo/issues/455)/[#456](https://github.com/self-evolving/repo/pull/456) edited-command policy with [focused trigger coverage](https://github.com/self-evolving/repo/blob/9718d975d42be15967af69cf62bc267bf77d2142/.agent/src/__tests__/envelope.test.ts#L1137-L1155). |\n| coding_workflow / generic | Leave release notes to release preparation | pass | 8/8 | The [current PR files](https://github.com/self-evolving/repo/pull/500/files) do not modify `.agent/CHANGELOG.md` or other release notes. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | Changes remain confined to token plumbing, affected workflows, focused tests, and lifecycle documentation. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Finalization now [cleans with each distinct App/PAT and workflow-token identity](https://github.com/self-evolving/repo/blob/9718d975d42be15967af69cf62bc267bf77d2142/.agent/src/cli/post-comment.ts#L135-L165). The [cross-identity regression test](https://github.com/self-evolving/repo/blob/9718d975d42be15967af69cf62bc267bf77d2142/.agent/src/__tests__/post-comment-cli.test.ts#L237-L334) protects human, unrelated-bot, and current-progress comments. |\n| coding_workflow / generic | Surface stateful failures | partial | 5/7 | Finalization failures are [logged and return control to the normal fallback post](https://github.com/self-evolving/repo/blob/9718d975d42be15967af69cf62bc267bf77d2142/.agent/src/progress-final-comment.ts#L51-L69), but current tests cover successful explicit-token merging rather than a failed workflow-token fetch/PATCH followed by fallback. |\n\n## Notes\n\n- The earlier repeated-run cleanup warning is resolved at current head `9718d97`.\n- The [current GitHub check passes](https://github.com/self-evolving/repo/actions/runs/31900966550/job/95051565273), and an independent `npm --prefix .agent run test:ci` passed all runtime, workflow, docs, and shell lanes.\n- The smallest useful follow-up is one workflow-token finalization failure regression test; no blocking implementation change is needed.\n\n## Findings\n\n- **INFO:** Under “Surface stateful failures,” add a focused test proving that a workflow-token fetch or PATCH failure is logged and produces the normal App/PAT-authenticated fallback comment.\n\n## Final Rubric Verdict\n\nPARTIAL\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-4`",
+      "createdAt": "2026-08-15T21:44:38Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/500#issuecomment-5304374397",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABPCq_eg",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 9718d975d42be15967af69cf62bc267bf77d2142 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #500 addresses #499 by routing progress-comment creation, updates, cancellation, and final replacement through the non-recursive job-scoped `GITHUB_TOKEN`. Human-created and edited-comment triggers remain enabled, while App/PAT credentials remain available for pushes, PR creation, orchestration, and fallback operations. The agent process now receives the least-privilege repository token. A follow-up commit also preserves cleanup across App/PAT and `github-actions[bot]` identities.\n\n## Review\n\nAll three current review artifacts agree there are no blocking or warning-level defects on head `9718d97`. The rubrics review remains partial only because of optional failure-path test coverage; there is no meaningful disagreement about merge readiness.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues remain | INFO | The current head resolves the prior cleanup regression and satisfies the token, trigger, authorization, fallback, and idempotency requirements. Remaining observations are optional hardening or separate-scope follow-ups. |\n\n## Progress\n\n- The previously reported cross-identity cleanup defect is fixed with two identity-scoped cleanup passes and regression coverage protecting human, unrelated-bot, and current-progress comments.\n- The current Test Scripts check succeeds, and reviewer artifacts report independent full `.agent` CI passes.\n- Human `created` and `edited` triggers remain preserved; release notes are untouched.\n- Optional suggestions include testing workflow-token fetch/PATCH failure fallback, documenting internal memory/rubrics commit identity, centralizing token defaults for future routes, and separately considering the unchanged orchestrator-handoff edit.\n- The prior old-head warning is superseded by current-head evidence.\n- There are no inline comments or review threads. This synthesis posted, replied to, minimized, and resolved none.\n\n## Recommended Next Step\n\n`NO_AUTOMATED_ACTION`: No unresolved actionable work remains; optional INFO follow-ups can be tracked separately.\n\n## Final Verdict\n\nSHIP\n\n## Action Items\n\n- [ ] None — no required branch changes remain.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-5`",
+      "createdAt": "2026-08-15T21:52:14Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/500#issuecomment-5304401786",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-08-13T08:04:05Z",
@@ -248,6 +306,6 @@
   "reviews": [],
   "state": "OPEN",
   "title": "Stop progress comments from retriggering agent entrypoint",
-  "updatedAt": "2026-08-15T18:22:53Z",
+  "updatedAt": "2026-08-15T21:52:15Z",
   "url": "https://github.com/self-evolving/repo/pull/500"
 }

@@ -252,8 +252,8 @@
       "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | Only labeled `FIX_IN_PR` work authorizes branch changes, while `HUMAN_DECISION` retains the self-approval or human-stop gate. [Synthesis contract](https://github.com/self-evolving/repo/blob/85be851f6f5a8f9ed93cdcaf59ab109087b7385f/.github/prompts/review-synthesize.md#L15-L18), [orchestration rules](https://github.com/self-evolving/repo/blob/85be851f6f5a8f9ed93cdcaf59ab109087b7385f/.github/prompts/agent-orchestrator.md#L87-L93). |\n| review_quality / generic | Use investigative approval review | pass | 8/8 | Review requires independent investigation of goals, design, implementation, tests, documentation, and scope before deciding the verdict. [Review dimensions](https://github.com/self-evolving/repo/blob/85be851f6f5a8f9ed93cdcaf59ab109087b7385f/.github/prompts/review.md#L57-L74). |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | Review and fix prompts require live PR context, linked issues, acceptance criteria, explicit direction, and repository patterns before judgment or edits. [Review context](https://github.com/self-evolving/repo/blob/85be851f6f5a8f9ed93cdcaf59ab109087b7385f/.github/prompts/review.md#L5-L17), [fix context](https://github.com/self-evolving/repo/blob/85be851f6f5a8f9ed93cdcaf59ab109087b7385f/.github/prompts/agent-fix-pr.md#L14-L34). |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | Existing runtime validation checks every enabled downstream route before initial orchestration proceeds; the prompt explicitly preserves those runtime constraints. [Capability guard](https://github.com/self-evolving/repo/blob/85be851f6f5a8f9ed93cdcaf59ab109087b7385f/.agent/src/orchestrator-capabilities.ts#L38-L68), [runtime policy](https://github.com/self-evolving/repo/blob/85be851f6f5a8f9ed93cdcaf59ab109087b7385f/.github/prompts/agent-orchestrator.md#L20-L40). |\n| coding_workflow / specific | Default follow-up orchestration to one-shot | pass | 8/8 | Every automated fix route, including self-approval, stops after one completed fix pass in the current chain. [One-pass guard](https://github.com/self-evolving/repo/blob/85be851f6f5a8f9ed93cdcaf59ab109087b7385f/.github/prompts/agent-orchestrator.md#L88-L94), [self-approval path](https://github.com/self-evolving/repo/blob/85be851f6f5a8f9ed93cdcaf59ab109087b7385f/.github/prompts/agent-orchestrator.md#L130-L136). |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | Scope classification and stop/handoff decisions remain in the existing planner contract without adding another configuration knob. [Planner rules](https://github.com/self-evolving/repo/blob/85be851f6f5a8f9ed93cdcaf59ab109087b7385f/.github/prompts/agent-orchestrator.md#L87-L136). |\n| review_quality / generic | Ground review synthesis in current artifacts | pass | 8/8 | Synthesis must revalidate blocking findings against current reviewer artifacts or the current PR state and reject stale findings unless reconfirmed. [Current-artifact guard](https://github.com/self-evolving/repo/blob/85be851f6f5a8f9ed93cdcaf59ab109087b7385f/.github/prompts/review-synthesize.md#L5-L18). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The PR changes only the four prompt files named in its scope. [Changed files](https://github.com/self-evolving/repo/pull/498/files). |\n| coding_workflow / generic | Leave release notes to release preparation | pass | 8/8 | No changelog or release-note file is changed. [Changed files](https://github.com/self-evolving/repo/pull/498/files). |\n\n## Notes\n\n- Current head `85be851f` resolves the prior severity-routing contradiction: review and synthesis now share one explicit pair contract, and orchestration stops specifically for `INFO` / `FOLLOW_UP`.\n- The current hosted [`check` job passed](https://github.com/self-evolving/repo/actions/runs/31679632009/job/94381897322), and `git diff --check` is clean.\n- Runtime, workflow, test, and documentation expansion was not scored because explicit requester direction keeps this PR prompt-only.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No rubric-specific findings remain on the current head.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-4`",
       "createdAt": "2026-08-14T19:57:26Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/498#issuecomment-5297573381",
       "viewerDidAuthor": true
@@ -267,10 +267,68 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 85be851f6f5a8f9ed93cdcaf59ab109087b7385f -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #498 updates four prompts governing review, synthesis, orchestration, and PR fixes. It adds scope dispositions, limits automated fixes to `FIX_IN_PR` work, and stops automation after one fix pass. Runtime, workflow, test, documentation, and release-note changes are intentionally excluded. The current head fixes earlier routing contradictions but introduces a compatibility regression for supported non-synthesis handoffs.\n\n## Review\n\nTwo reviewers recommended shipping, while Codex identified a shared-prompt regression. Current runtime code and the focused route test confirm Codex’s finding: manual PR orchestration forwards an unlabelled context that the new prompt cannot act on.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Shared fix prompt rejects supported unlabelled handoffs | BLOCKING | [The new instruction](https://github.com/self-evolving/repo/blob/85be851f6f5a8f9ed93cdcaf59ab109087b7385f/.github/prompts/agent-fix-pr.md#L22-L25) requires labels in every non-empty orchestrator context, but supported manual `CHANGES_REQUESTED` orchestration supplies prose without a `FIX_IN_PR` label, leaving no authorized task. |\n\n## Progress\n\n- Current head `85be851f` is open, mergeable, and its hosted `check` job passes.\n- Earlier exclusivity, action-item labeling, severity routing, and one-pass defects are fixed.\n- The local build and focused orchestration test passed; the test confirms the unlabelled handoff is forwarded to `fix-pr`.\n- Posted [one inline comment](https://github.com/self-evolving/repo/pull/498#discussion_r3786838212) for the regression.\n- Three older threads are already outdated and not viewer-resolvable; no replies, minimization, or resolution were attempted.\n- Broader runtime, workflow, test, and documentation hardening remains intentionally out of scope.\n\n## Issue Details\n\n<details>\n<summary>Shared fix prompt rejects supported unlabelled handoffs</summary>\n\n**Cause:** `manualPrChangesRequestedFixPrHandoffContext()` supplies an exclusive prose task for manual PR `/orchestrate` when review state is `CHANGES_REQUESTED`. Because the updated prompt permits only labeled `FIX_IN_PR` items, that supported context becomes a no-op.\n\n**Candidate solutions:** Keep the context exclusive, but require literal labels only for synthesis-derived contexts. Alternatively, treat an unlabelled trusted handoff as the already-selected task while filtering labeled contexts to `FIX_IN_PR`.\n\n**Comments:** The shipping reviews verified synthesis-generated handoffs but missed other producers of the shared context. The correction can remain surgical and prompt-only.\n\n</details>\n\n## Recommended Next Step\n\n`HUMAN_DECISION`: One small branch correction remains, but this later `/review` follows an already completed automatic fix pass, so another automated pass requires explicit maintainer authorization.\n\n## Final Verdict\n\n`NEEDS_REWORK`\n\n## Action Items\n\n- [ ] Update `.github/prompts/agent-fix-pr.md` so supported unlabelled orchestrator handoffs remain actionable while synthesis-derived contexts still require `FIX_IN_PR` labels.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-1`",
       "createdAt": "2026-08-14T20:07:19Z",
       "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/498#issuecomment-5297679015",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABPCmpfg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review ",
+      "createdAt": "2026-08-15T21:32:23Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/498#issuecomment-5304330622",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABPCoxQQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 91 | PARTIAL | 11 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Separate decision gates from action authorization | pass | 8/8 | Only `FIX_IN_PR` authorizes branch changes, while `HUMAN_DECISION` retains the judgment gate. [Synthesis contract](https://github.com/self-evolving/repo/blob/c9f69f26b2b4bc5edc3e1ce8159d8fd6f039e028/.github/prompts/review-synthesize.md#L15-L18), [orchestration rules](https://github.com/self-evolving/repo/blob/c9f69f26b2b4bc5edc3e1ce8159d8fd6f039e028/.github/prompts/agent-orchestrator.md#L88-L94). |\n| review_quality / generic | Use investigative approval review | pass | 8/8 | Review requires independent goal, design, implementation, test, documentation, and workflow investigation. [Review dimensions](https://github.com/self-evolving/repo/blob/c9f69f26b2b4bc5edc3e1ce8159d8fd6f039e028/.github/prompts/review.md#L57-L74). |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | Review and fix prompts require live PR data, linked acceptance criteria, explicit direction, and repository patterns before judgment or edits. [Review context](https://github.com/self-evolving/repo/blob/c9f69f26b2b4bc5edc3e1ce8159d8fd6f039e028/.github/prompts/review.md#L5-L17), [fix context](https://github.com/self-evolving/repo/blob/c9f69f26b2b4bc5edc3e1ce8159d8fd6f039e028/.github/prompts/agent-fix-pr.md#L14-L30). |\n| coding_workflow / generic | Validate delegated route authorization | pass | 8/8 | The prompt preserves fixed runtime policy, while initial orchestration validates every enabled delegated route against requester access. [Runtime boundary](https://github.com/self-evolving/repo/blob/c9f69f26b2b4bc5edc3e1ce8159d8fd6f039e028/.github/prompts/agent-orchestrator.md#L20-L40), [capability guard](https://github.com/self-evolving/repo/blob/c9f69f26b2b4bc5edc3e1ce8159d8fd6f039e028/.agent/src/orchestrator-capabilities.ts#L38-L68). |\n| coding_workflow / specific | Default follow-up orchestration to one-shot | pass | 8/8 | Agent-mode orchestration must stop before any second automated fix pass, including after self-approval. [One-pass guard](https://github.com/self-evolving/repo/blob/c9f69f26b2b4bc5edc3e1ce8159d8fd6f039e028/.github/prompts/agent-orchestrator.md#L88-L94), [self-approval path](https://github.com/self-evolving/repo/blob/c9f69f26b2b4bc5edc3e1ce8159d8fd6f039e028/.github/prompts/agent-orchestrator.md#L130-L136). |\n| coding_workflow / generic | Prefer agent-derived decisions | pass | 7/7 | Scope disposition, bounded-task selection, and the one-pass policy remain in the existing planner contract without another configuration knob. [Planner rules](https://github.com/self-evolving/repo/blob/c9f69f26b2b4bc5edc3e1ce8159d8fd6f039e028/.github/prompts/agent-orchestrator.md#L87-L136). |\n| review_quality / generic | Ground review synthesis in current artifacts | pass | 8/8 | Blocking findings and automated next steps must be revalidated against current reviewer artifacts or current PR state. [Current-artifact guard](https://github.com/self-evolving/repo/blob/c9f69f26b2b4bc5edc3e1ce8159d8fd6f039e028/.github/prompts/review-synthesize.md#L5-L18). |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff remains limited to the four prompts named in the PR scope. [Changed files](https://github.com/self-evolving/repo/pull/498/files). |\n| coding_workflow / generic | Leave release notes to release preparation | pass | 8/8 | No changelog or release-note file is changed. [Changed files](https://github.com/self-evolving/repo/pull/498/files). |\n| coding_workflow / generic | Comment on accepted workflow stops | partial | 3/6 | The new one-pass rule stops after a review-source handoff, but visible stop comments cover initial requests, clarification/answer paths, selected failed actions, and meta-issues—not an ordinary review-source PR stop. [New stop rule](https://github.com/self-evolving/repo/blob/c9f69f26b2b4bc5edc3e1ce8159d8fd6f039e028/.github/prompts/agent-orchestrator.md#L92-L94), [stop-comment routing](https://github.com/self-evolving/repo/blob/c9f69f26b2b4bc5edc3e1ce8159d8fd6f039e028/.agent/src/cli/orchestrate-handoff.ts#L1186-L1244). |\n| coding_workflow / generic | Keep docs in sync | partial | 3/7 | The architecture docs describe max-round and generic planner stops but not the new agent-mode one-fix cap or disposition contract; no documentation file changed. [Current orchestration docs](https://github.com/self-evolving/repo/blob/c9f69f26b2b4bc5edc3e1ce8159d8fd6f039e028/.agent/docs/architecture/agent-orchestrator.md#L175-L193), [changed files](https://github.com/self-evolving/repo/pull/498/files). |\n\n## Notes\n\n- Current head `c9f69f26` resolves the stale prose-handoff regression: non-empty orchestration context is exclusive but may contain labeled synthesis items or prose from another supported handoff. [Fix prompt](https://github.com/self-evolving/repo/blob/c9f69f26b2b4bc5edc3e1ce8159d8fd6f039e028/.github/prompts/agent-fix-pr.md#L22-L35).\n- The current hosted [check job passes](https://github.com/self-evolving/repo/actions/runs/31906889773/job/95066040229).\n- The smallest follow-up is to surface the one-pass stop reason on the PR and document the agent-mode cap. Those changes can remain separate from this explicitly prompt-only PR.\n\n## Findings\n\n- **WARNING:** The one-pass guard can stop after review without a thread-visible explanation, partially missing the “Comment on accepted workflow stops” rubric.\n- **INFO:** Relevant orchestration documentation does not yet describe the new disposition and one-pass behavior, partially missing “Keep docs in sync.”\n\n## Final Rubric Verdict\n\nPARTIAL\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-5`",
+      "createdAt": "2026-08-15T21:42:15Z",
+      "includesCreatedEdit": false,
       "isMinimized": false,
       "minimizedReason": "",
       "reactionGroups": [],
-      "url": "https://github.com/self-evolving/repo/pull/498#issuecomment-5297679015",
+      "url": "https://github.com/self-evolving/repo/pull/498#issuecomment-5304365377",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABPCqkVQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: c9f69f26b2b4bc5edc3e1ce8159d8fd6f039e028 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #498 updates the four prompts governing review, synthesis, orchestration, and PR fixes. It separates finding severity from scope disposition so automation handles only bounded in-PR work. It also limits each chain to one automatic fix pass and preserves supported prose-based handoffs. Runtime, workflow, test, documentation, and release-note changes are intentionally excluded.\n\n## Review\n\nThe current head is ready to merge: both independent code reviewers returned SHIP, and the exact-head check passes. The rubric reviewer’s PARTIAL verdict concerns stop visibility and documentation parity, which are valid but explicitly out-of-scope follow-ups.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| No actionable issues | INFO | All in-scope prompt-contract defects are resolved. Runtime enforcement, visible stop reporting, tests, and documentation remain optional follow-up work. |\n\n## Progress\n\n- Current head is `c9f69f26`; the hosted [check job passes](https://github.com/self-evolving/repo/actions/runs/31906889773/job/95066040229).\n- Prior one-pass, task-exclusivity, disposition-routing, action-labeling, judgment-gate, and prose-handoff defects are fixed.\n- The diff remains limited to the four authorized prompt files, with no release-note changes.\n- Four previous same-agent inline threads are outdated and not viewer-resolvable. No new comments, replies, minimization, or thread resolution were warranted.\n\n## Recommended Next Step\n\n`NO_AUTOMATED_ACTION`: No unresolved in-scope branch work remains; retain the runtime, stop-visibility, test, and documentation notes as separate follow-ups.\n\n## Final Verdict\n\n`SHIP`\n\n## Action Items\n\n- [ ] No required branch changes remain.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-2`",
+      "createdAt": "2026-08-15T21:50:16Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/498#issuecomment-5304394837",
       "viewerDidAuthor": true
     }
   ],
@@ -278,7 +336,7 @@
   "files": [
     {
       "path": ".github/prompts/agent-fix-pr.md",
-      "additions": 12,
+      "additions": 13,
       "deletions": 14,
       "changeType": "MODIFIED"
     },
@@ -377,6 +435,6 @@
   ],
   "state": "OPEN",
   "title": "Keep automated review fixes within PR scope",
-  "updatedAt": "2026-08-14T20:07:19Z",
+  "updatedAt": "2026-08-15T21:50:16Z",
   "url": "https://github.com/self-evolving/repo/pull/498"
 }
