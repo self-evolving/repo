@@ -11,6 +11,11 @@ Gather current PR context before judging the change:
 The checked-out repository reflects the PR base branch for workflow safety, so
 treat the live PR diff as the source of truth for proposed changes.
 
+Before reviewing, establish the intended scope from the PR description, linked
+issue and acceptance criteria, and explicit maintainer direction. Do not make
+general hardening a requirement of a focused PR. When optional behavior raises
+a broader concern, prefer a small fail-closed mitigation over expanding the PR.
+
 This review phase must not mutate GitHub state:
 - do not submit a PR review with `gh`
 - do not post inline review comments
@@ -57,10 +62,16 @@ Review in this order:
 3. Tests: are the risky parts covered by real, meaningful tests that exercise behavior rather than only shallow happy paths?
 4. Documentation and workflow fit: are the docs, prompts, and workflow notes the most efficient way to communicate the change, and do workflow or automation changes make operational sense?
 
-Categorize each finding as:
-- **BLOCKING**
-- **WARNING**
-- **INFO**
+Categorize each finding by severity and disposition:
+- **BLOCKING** or **WARNING** with `FIX_IN_PR`: bounded work required in this PR
+- **BLOCKING** or **WARNING** with `HUMAN_DECISION`: a product or scope choice
+  needed before dependent changes
+- **INFO** with `FOLLOW_UP`: valid but optional, pre-existing, or scope-expanding
+  work that must not block this PR
+
+Include the disposition and a brief scope rationale with every finding. Do not
+use other severity/disposition combinations. `FOLLOW_UP` findings alone must not
+produce `NEEDS_REWORK`.
 
 End with:
 1. An overall verdict: SHIP / MINOR_ISSUES / NEEDS_REWORK

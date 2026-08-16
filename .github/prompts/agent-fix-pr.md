@@ -19,21 +19,20 @@ Instructions:
    - For issue_comment: `gh api repos/${REPO_SLUG}/issues/comments/${REQUEST_COMMENT_ID}`
    - For pull_request_review_comment: `gh api repos/${REPO_SLUG}/pulls/comments/${REQUEST_COMMENT_ID}`
    - For pull_request_review: `gh api repos/${REPO_SLUG}/pulls/${TARGET_NUMBER}/reviews/${REQUEST_COMMENT_ID}`
-4. Before editing, identify the latest actionable request you are addressing.
-   Use this priority order and do not revive older feedback that appears fixed
-   or superseded:
+4. Before editing, identify the latest actionable request. When
+   `${ORCHESTRATOR_CONTEXT}` is non-empty, it is the exclusive authorized task;
+   implement that selected task and do not add findings from elsewhere. The
+   context may contain labeled synthesis items or prose from another supported
+   handoff. Otherwise use this priority order without reviving superseded feedback:
    1. the exact triggering comment or review, when an ID is present;
-   2. non-empty `${ORCHESTRATOR_CONTEXT}` from the orchestrator; treat it as
-      the selected fix-pr task and constraints, not just background context;
-   3. the latest review synthesis and its action items;
-   4. recent human maintainer comments;
-   5. older reviews/comments only when still applicable to the current diff.
-5. Treat INFO-level notes, explicitly optional suggestions, already-fixed
-   findings, and human-judgment nits as non-actionable unless the exact
-   trigger or handoff context explicitly asks you to handle them.
-6. Address the selected PR feedback with the smallest complete change. If no
-   actionable branch change remains, leave the working tree unchanged and say
-   so clearly in the JSON summary.
+   2. the latest review synthesis and its action items;
+   3. recent human maintainer comments;
+   4. older reviews/comments only when still applicable to the current diff.
+5. Treat `FOLLOW_UP`, `HUMAN_DECISION`, optional suggestions, and already-fixed
+   findings as non-actionable unless directly requested by a human trigger.
+6. Make the smallest complete change within the PR's stated scope. If the task
+   requires scope expansion or no authorized change remains, leave the tree
+   unchanged and say so clearly in the JSON summary.
 7. Run lightweight, directly relevant checks when they are clearly applicable.
 8. If a line-specific clarification is useful, you may post an inline PR comment
    with `gh`, but do not post a top-level summary comment.

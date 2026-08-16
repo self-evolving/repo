@@ -12,6 +12,11 @@ verdict, verify that each unresolved issue is supported by the current
 findings from older agent conversations or prior PR discussion unless they are
 still grounded in the current review artifacts or current diff.
 
+Reassess each finding against the PR's intended scope. Use `FIX_IN_PR` or
+`HUMAN_DECISION` only with `BLOCKING` or `WARNING`; use `FOLLOW_UP` only with
+`INFO`. Only `FIX_IN_PR` authorizes branch changes. Prefer a bounded fail-closed
+fix over scope-expanding hardening.
+
 Use `gh pr view ${PR_NUMBER} --repo ${GITHUB_REPOSITORY} --json title,body,comments,reviews`
 to inspect the current PR conversation before synthesizing.
 Use `gh api --paginate repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/comments`
@@ -72,7 +77,7 @@ inline comments sparingly:
 
 Produce a unified review synthesis:
 1. Deduplicate overlapping findings and note meaningful reviewer disagreements
-2. Prioritize BLOCKING > WARNING > INFO and use those exact severity labels
+2. Prioritize BLOCKING > WARNING > INFO, and preserve each disposition
 3. Make the top of the synthesis easy to scan before readers open details
 4. Add a "Progress" section describing what is already acknowledged or fixed
 5. Add a "Recommended Next Step" section that labels the ideal next step for
@@ -89,9 +94,12 @@ Format as clean GitHub-flavored markdown with this structure:
 - 1-3 sentences with the overall judgment
 - Then a findings table with exactly these columns:
 
-| Issue | Severity | Description |
-| -- | -- | -- |
-| ... | BLOCKING/WARNING/INFO | 1-2 sentences max |
+| Issue | Severity | Disposition | Description |
+| -- | -- | -- | -- |
+| ... | BLOCKING/WARNING/INFO | FIX_IN_PR/HUMAN_DECISION/FOLLOW_UP | 1-2 sentences max |
+
+Use only the allowed pairs: `BLOCKING|WARNING` with `FIX_IN_PR|HUMAN_DECISION`,
+or `INFO` with `FOLLOW_UP`.
 
 ## Progress
 - Brief bullets for anything already acknowledged, fixed, or intentionally left
@@ -109,24 +117,23 @@ Format as clean GitHub-flavored markdown with this structure:
 
 ## Recommended Next Step
 - Exactly one of:
-  - `FIX_PR`: unresolved findings require a concrete branch change and are safe
-    for an automated fix-pr pass.
-  - `HUMAN_DECISION`: remaining concerns are metadata-only, optional, product or
-    style judgment, ambiguous, or need maintainer choice before more automation.
-  - `NO_AUTOMATED_ACTION`: no unresolved actionable work remains.
-- Include one sentence explaining why.
+  - `FIX_PR`: unresolved `FIX_IN_PR` findings require one bounded automated fix.
+  - `HUMAN_DECISION`: a required judgment must precede dependent branch changes.
+  - `NO_AUTOMATED_ACTION`: no unresolved in-PR work remains; follow-ups may exist.
+- Include one sentence explaining why. Never select `FIX_PR` for `FOLLOW_UP`
+  findings alone, and select `HUMAN_DECISION` when that decision must precede a
+  fix.
 
 ## Final Verdict
 - `SHIP`, `MINOR_ISSUES`, or `NEEDS_REWORK`
 
 ## Action Items
-- GitHub checkbox list using `- [ ]`
-- Include only required, concrete branch-change work in checkboxes. Keep optional
-  INFO notes, metadata-only cleanup, and human-judgment nits out of automation
-  action items unless the PR request explicitly makes them required.
+- Include only unresolved `FIX_IN_PR` work, using the literal form
+  `- [ ] FIX_IN_PR: <bounded task>`.
+- Do not include `FOLLOW_UP` or `HUMAN_DECISION` items as checkboxes.
 
-If there are no actionable issues, include a single findings-table row that says
-so, omit "Issue Details", set Recommended Next Step to `NO_AUTOMATED_ACTION`,
-and keep the verdict consistent with that outcome.
+If no `FIX_IN_PR` or `HUMAN_DECISION` findings remain, set Recommended Next Step
+to `NO_AUTOMATED_ACTION`. `FOLLOW_UP` findings alone must not produce
+`NEEDS_REWORK`.
 
 Do not include a preamble.
