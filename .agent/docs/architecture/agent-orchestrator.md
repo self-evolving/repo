@@ -145,7 +145,12 @@ the same compact table style while preserving their hidden durable markers.
 If terminal child metadata is found but rejected by trust checks or cannot be
 safely updated, the dispatcher posts a compact stop comment on the current
 terminal issue or PR with a hidden dedupe marker. Ordinary terminal PR stops
-without sub-orchestrator metadata remain silent.
+without sub-orchestrator metadata finalize one visible note. The dispatcher
+merges the outcome into the current planner progress comment with the
+job-scoped token when available; otherwise it updates or creates a trusted
+comment carrying the existing `sepo-agent-orchestrate-stop` marker. The note
+includes the planner summary, source outcome, target, round, reason, run ID,
+and a requester mention only for human GitHub logins.
 If the resumed parent planner decides there is no next child or action, the
 parent run posts a terminal stop comment on the parent issue with the source
 conclusion, target, round, reason, and hidden `sepo-agent-orchestrate-stop`
@@ -153,6 +158,16 @@ marker. Exact trusted duplicates are skipped on reruns.
 When the planner returns `blocked` with `user_message` or
 `clarification_request`, that same terminal comment surfaces the planner's
 question directly and the chain pauses without dispatching an `answer` route.
+After a validated terminal `review`/`SHIP`, `agent-self-approve`/`approved`, or
+`agent-self-merge`/`merged` or `auto_merge_enabled` outcome with a substantive
+cumulative summary, the dispatcher best-effort minimizes older trusted review
+synthesis, rubrics review, fix-pr, completed handoff, and finalized comments
+from the PR conversation. Cleanup runs independently for the resolved agent
+identity and the job-token identity, while keeping the current final note,
+pending handoffs, formal reviews, and human comments visible. It skips cleanup
+for summary-less, blocked, clarification, failed, malformed-planner, and every
+other non-success outcome, and warns without hiding the final note when cleanup
+fails.
 
 Initial user-launched `/orchestrate` requests validate that the requester has
 access to the delegated route capability set before dispatching work. When
