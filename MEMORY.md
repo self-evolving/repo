@@ -132,3 +132,4 @@
 - Stop review/fix loops when changes outgrow agreed scope; defer extra hardening to follow-up issues. [[github/self-evolving/repo/pull-497.json]]
 - Review fixes: only `FIX_IN_PR`; selected handoffs are exclusive; one automatic pass per chain. [[github/self-evolving/repo/pull-498.json]]
 - Job-token progress comments prevent recursion; cleanup spans job-token and App/PAT authors. [[github/self-evolving/repo/pull-500.json]]
+- Final `/answer` comments omit activity to avoid future-agent context noise; `/implement` and `/fix-pr` retain it.
