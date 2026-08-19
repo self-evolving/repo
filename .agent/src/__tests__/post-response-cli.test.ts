@@ -111,7 +111,7 @@ exit 1
   }
 });
 
-test("post-response CLI merges issue answers into a progress comment when configured", () => {
+test("post-response CLI replaces answer progress without retaining activity", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-post-response-"));
 
   try {
@@ -149,6 +149,7 @@ exit 1
         AGENT_PROGRESS_FINAL_COMMENT_MODE: "merge",
         AGENT_PROGRESS_GITHUB_TOKEN: "workflow-token",
         BODY_FILE: bodyPath,
+        MODEL_DISPLAY: "`codex` | `gpt-5.6-sol[max]`",
         RESPONSE_KIND: "issue_comment",
         TARGET_NUMBER: "321",
         GITHUB_REPOSITORY: "self-evolving/repo",
@@ -164,8 +165,10 @@ exit 1
     assert.match(log, /^api repos\/self-evolving\/repo\/issues\/comments\/999 --jq \.body$/m);
     assert.match(log, /^api --method PATCH repos\/self-evolving\/repo\/issues\/comments\/999 /m);
     assert.match(log, /Answer body\./);
-    assert.match(log, /<summary>Sepo activity<\/summary>/);
+    assert.doesNotMatch(log, /<summary>Sepo activity<\/summary>/);
+    assert.doesNotMatch(log, /Checking\./);
     assert.match(log, /<!-- sepo-progress:run-456 -->/);
+    assert.match(log, /`codex` \| `gpt-5\.6-sol\[max\]`/);
     assert.doesNotMatch(log, /^issue comment /m);
     assert.deepEqual(
       readFileSync(tokenLogPath, "utf8").trim().split(/\r?\n/),

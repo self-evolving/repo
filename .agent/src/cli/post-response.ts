@@ -115,6 +115,7 @@ if (
     mode: progressFinalCommentMode,
     finalBody: body,
     footer: modelDisplay,
+    includeActivity: false,
     githubToken: progressGithubToken,
   });
 }
