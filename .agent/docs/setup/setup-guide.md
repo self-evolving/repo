@@ -114,7 +114,9 @@ and PR-fix workflows already have the comment and Actions permissions needed to
 post one progress comment, update it during the run, merge the final status into
 that comment, and honor an authorized 👎 reaction as a cancellation request.
 Answer runs on issue and pull request surfaces use report-only progress by
-default and merge the final answer into the same comment. Orchestrated chains
+default and replace the progress content with the final answer in the same
+comment. Implementation and PR-fix statuses retain a collapsed activity log;
+answers do not. Orchestrated chains
 use handoff or status comments by default, and can opt into non-cancellable
 progress comments with `AGENT_PROGRESS_POLICY.orchestration_mode`.
 

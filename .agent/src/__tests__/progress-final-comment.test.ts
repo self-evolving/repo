@@ -8,11 +8,11 @@ function countOccurrences(value: string, needle: string): number {
   return value.split(needle).length - 1;
 }
 
-test("mergeFinalBodyWithProgress does not duplicate running progress activity", () => {
+test("mergeFinalBodyWithProgress preserves activity by default without duplicating it", () => {
   const runningBody = renderRunning({
     status: "running",
     runId: "abc",
-    route: "answer",
+    route: "fix-pr",
     elapsedMs: 31_000,
     stepCount: 1,
     recentActivity: [{ kind: "message", label: "Message", detail: "Checking." }],
@@ -27,4 +27,20 @@ test("mergeFinalBodyWithProgress does not duplicate running progress activity", 
   assert.equal(countOccurrences(merged, "Recent activity"), 1);
   assert.equal(countOccurrences(merged, '- Message "Checking."'), 1);
   assert.equal(countOccurrences(merged, "Last message"), 1);
+});
+
+test("mergeFinalBodyWithProgress can omit activity while preserving the progress marker", () => {
+  const runningBody = renderRunning({
+    status: "running",
+    runId: "abc",
+    route: "answer",
+    elapsedMs: 31_000,
+    stepCount: 1,
+    recentActivity: [{ kind: "message", label: "Message", detail: "Checking." }],
+    lastMessage: "Checking.",
+  });
+
+  const merged = mergeFinalBodyWithProgress("Answer body.", runningBody, false);
+
+  assert.equal(merged, "Answer body.\n\n<!-- sepo-progress:run-abc -->");
 });

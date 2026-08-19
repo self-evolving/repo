@@ -10,6 +10,7 @@ export interface ProgressFinalCommentOptions {
   mode: string;
   finalBody: string;
   footer?: string;
+  includeActivity?: boolean;
   githubToken?: string;
   log?: (message: string) => void;
 }
@@ -17,10 +18,14 @@ export interface ProgressFinalCommentOptions {
 const PROGRESS_MARKER_RE = /<!--\s*sepo-progress:run-[^>]+-->/;
 const ACTIVITY_DETAILS_RE = /<details>\s*<summary>Activity<\/summary>\s*([\s\S]*?)<\/details>/m;
 
-export function mergeFinalBodyWithProgress(finalBody: string, progressBody: string): string {
+export function mergeFinalBodyWithProgress(
+  finalBody: string,
+  progressBody: string,
+  includeActivity = true,
+): string {
   const normalizedFinalBody = String(finalBody || "").trim();
   const marker = progressBody.match(PROGRESS_MARKER_RE)?.[0] || "";
-  const activity = extractProgressActivity(progressBody);
+  const activity = includeActivity ? extractProgressActivity(progressBody) : "";
   const lines = [normalizedFinalBody];
 
   if (activity) {
@@ -53,7 +58,11 @@ export function tryMergeProgressFinalComment(options: ProgressFinalCommentOption
 
   try {
     const progressBody = fetchIssueCommentBody(repo, commentId, options.githubToken);
-    const mergedBody = mergeFinalBodyWithProgress(options.finalBody, progressBody);
+    const mergedBody = mergeFinalBodyWithProgress(
+      options.finalBody,
+      progressBody,
+      options.includeActivity,
+    );
     updateIssueComment(
       repo,
       commentId,
