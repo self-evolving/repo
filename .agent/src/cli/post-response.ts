@@ -6,7 +6,10 @@
 
 import { readFileSync } from "node:fs";
 import { upsertPrCommentByMarker } from "../github.js";
-import { tryMergeProgressFinalComment } from "../progress-final-comment.js";
+import {
+  tryDeleteProgressComment,
+  tryMergeProgressFinalComment,
+} from "../progress-final-comment.js";
 import { postResponse } from "../respond.js";
 import {
   collapsePreviousRubricsReviews,
@@ -53,9 +56,18 @@ if (continuityNote) {
 }
 
 const bodyWithFooter = appendRunDisplayFooter(body, modelDisplay);
+const responseTarget = {
+  responseKind,
+  targetNumber,
+  reviewCommentId,
+  discussionNodeId,
+  replyToId,
+  repo,
+};
 
 let posted = false;
 let markerUpsertFailed = false;
+let finalizationFailed = false;
 const markerUpsert = body.includes(SELF_APPROVAL_STATUS_MARKER)
   ? { marker: SELF_APPROVAL_STATUS_MARKER, label: "self-approval" }
   : body.includes(SELF_MERGE_STATUS_MARKER)
@@ -109,20 +121,52 @@ if (
   (responseKind === "issue_comment" || responseKind === "pr_comment") &&
   repo
 ) {
-  posted = tryMergeProgressFinalComment({
-    repo,
-    commentId: progressCommentId,
-    mode: progressFinalCommentMode,
-    finalBody: body,
-    footer: modelDisplay,
-    includeActivity: false,
-    githubToken: progressGithubToken,
-  });
+  const progressMode = progressFinalCommentMode.trim().toLowerCase();
+  if (progressMode === "repost" && progressCommentId) {
+    try {
+      postResponse(responseTarget, bodyWithFooter);
+      posted = true;
+      if (tryDeleteProgressComment({
+        repo,
+        commentId: progressCommentId,
+        githubToken: progressGithubToken,
+        expectedRunId: process.env.GITHUB_RUN_ID,
+      })) {
+        console.log(`Deleted temporary progress comment ${progressCommentId}.`);
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.warn(
+        `Failed to post final response with resolved auth; finalizing temporary progress comment instead: ${message}`,
+      );
+      posted = tryMergeProgressFinalComment({
+        repo,
+        commentId: progressCommentId,
+        mode: "merge",
+        finalBody: body,
+        footer: modelDisplay,
+        includeActivity: false,
+        githubToken: progressGithubToken,
+      });
+      if (!posted) {
+        console.error("Failed to post the final response and to finalize its temporary progress comment.");
+        finalizationFailed = true;
+        process.exitCode = 1;
+      }
+    }
+  } else {
+    posted = tryMergeProgressFinalComment({
+      repo,
+      commentId: progressCommentId,
+      mode: progressFinalCommentMode,
+      finalBody: body,
+      footer: modelDisplay,
+      includeActivity: false,
+      githubToken: progressGithubToken,
+    });
+  }
 }
 
-if (!posted && !markerUpsertFailed) {
-  postResponse(
-    { responseKind, targetNumber, reviewCommentId, discussionNodeId, replyToId, repo },
-    bodyWithFooter,
-  );
+if (!posted && !markerUpsertFailed && !finalizationFailed) {
+  postResponse(responseTarget, bodyWithFooter);
 }

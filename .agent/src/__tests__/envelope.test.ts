@@ -1598,7 +1598,7 @@ test("shared run-agent-task action exists and requires explicit prompt/skill/lan
   assert.match(action, /\.agent\/dist\/run\.js/);
 });
 
-test("progress lifecycle uses the non-recursive workflow token", () => {
+test("progress uses the workflow token while final answers use resolved auth", () => {
   const action = parseYaml(readRepoFile(".github/actions/run-agent-task/action.yml")) as unknown;
   assert.ok(isRecord(action), "run-agent-task action should parse");
   assert.ok(isRecord(action.runs), "run-agent-task action should define runs");
@@ -1627,18 +1627,21 @@ test("progress lifecycle uses the non-recursive workflow token", () => {
       jobId: "implement",
       runStepName: "Run agent",
       stepName: "Post status comment",
+      progressFinalCommentMode: "merge",
     },
     {
       path: ".github/workflows/agent-fix-pr.yml",
       jobId: "fix-pr",
       runStepName: "Run agent",
       stepName: "Post status comment",
+      progressFinalCommentMode: "merge",
     },
     {
       path: ".github/workflows/agent-router.yml",
       jobId: "answer",
       runStepName: "Run answer agent",
       stepName: "Post answer",
+      progressFinalCommentMode: "repost",
     },
   ];
 
@@ -1669,12 +1672,18 @@ test("progress lifecycle uses the non-recursive workflow token", () => {
     assert.equal(runStep.with.github_token, "${{ github.token }}");
     assert.ok(step, `${finalizer.path} should define ${finalizer.stepName}`);
     assert.ok(isRecord(step.env), `${finalizer.stepName} should define env`);
+    assert.equal(
+      step.env.AGENT_PROGRESS_FINAL_COMMENT_MODE,
+      finalizer.progressFinalCommentMode,
+    );
     assert.equal(step.env.AGENT_PROGRESS_GITHUB_TOKEN, "${{ github.token }}");
     assert.equal(step.env.GH_TOKEN, "${{ steps.auth.outputs.token }}");
   }
 
   const lifecycleDocs = readRepoFile(".agent/docs/architecture/request-lifecycle.md");
-  assert.match(lifecycleDocs, /cannot prevent Actions-history churn on its own/);
+  assert.match(lifecycleDocs, /posts a new final response with the resolved GitHub identity/);
+  assert.match(lifecycleDocs, /deletes the verified temporary progress comment with the job token/);
+  assert.match(lifecycleDocs, /cannot produce a progress-trigger loop/);
 });
 
 test("shared run-agent-task exposes an optional secondary GitHub token", () => {

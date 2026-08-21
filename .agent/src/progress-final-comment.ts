@@ -1,4 +1,5 @@
 import {
+  deleteIssueComment,
   fetchIssueCommentBody,
   updateIssueComment,
 } from "./github.js";
@@ -15,7 +16,15 @@ export interface ProgressFinalCommentOptions {
   log?: (message: string) => void;
 }
 
-const PROGRESS_MARKER_RE = /<!--\s*sepo-progress:run-[^>]+-->/;
+export interface ProgressCommentCleanupOptions {
+  repo: string;
+  commentId: string;
+  githubToken?: string;
+  expectedRunId?: string;
+  log?: (message: string) => void;
+}
+
+const PROGRESS_MARKER_RE = /<!--\s*sepo-progress:run-([^>\s]+)\s*-->/;
 const ACTIVITY_DETAILS_RE = /<details>\s*<summary>Activity<\/summary>\s*([\s\S]*?)<\/details>/m;
 
 export function mergeFinalBodyWithProgress(
@@ -74,6 +83,39 @@ export function tryMergeProgressFinalComment(options: ProgressFinalCommentOption
     const message = err instanceof Error ? err.message : String(err);
     const log = options.log ?? console.warn;
     log(`Failed to merge final response into progress comment ${commentId}: ${message}`);
+    return false;
+  }
+}
+
+export function tryDeleteProgressComment(options: ProgressCommentCleanupOptions): boolean {
+  const repo = options.repo.trim();
+  const commentId = options.commentId.trim();
+  const githubToken = String(options.githubToken || "").trim();
+  const expectedRunId = String(options.expectedRunId || "").trim();
+  const log = options.log ?? console.warn;
+  if (!repo || !commentId) {
+    return false;
+  }
+  if (!githubToken) {
+    log(`Failed to delete temporary progress comment ${commentId}: workflow token is unavailable`);
+    return false;
+  }
+
+  try {
+    const progressBody = fetchIssueCommentBody(repo, commentId, githubToken);
+    const markerMatch = progressBody.match(PROGRESS_MARKER_RE);
+    if (!markerMatch) {
+      throw new Error("comment did not contain a Sepo progress marker");
+    }
+    const markerRunId = markerMatch[1] || "";
+    if (expectedRunId && markerRunId !== expectedRunId) {
+      throw new Error(`progress marker did not match run ${expectedRunId}`);
+    }
+    deleteIssueComment(repo, commentId, githubToken);
+    return true;
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    log(`Failed to delete temporary progress comment ${commentId}: ${message}`);
     return false;
   }
 }

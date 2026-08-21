@@ -6,6 +6,7 @@ import { strict as assert } from "node:assert";
 
 import {
   createIssueComment,
+  deleteIssueComment,
   dispatchWorkflow,
   fetchIssueCommentBody,
   updateIssueComment,
@@ -79,7 +80,7 @@ test("progress comment helpers use an explicit token without replacing ambient a
       "  printf 'progress body\\n'",
       "  exit 0",
       "fi",
-      "if [[ \"$1\" == \"api\" && \"$2\" == \"--method\" && \"$3\" == \"PATCH\" ]]; then",
+      "if [[ \"$1\" == \"api\" && \"$2\" == \"--method\" && ( \"$3\" == \"PATCH\" || \"$3\" == \"DELETE\" ) ]]; then",
       "  exit 0",
       "fi",
       "printf 'unexpected gh args: %s\\n' \"$*\" >&2",
@@ -95,10 +96,14 @@ test("progress comment helpers use an explicit token without replacing ambient a
       "progress body\n",
     );
     updateIssueComment("self-evolving/repo", 123, "final body", "workflow-token");
+    deleteIssueComment("self-evolving/repo", 123, "workflow-token");
 
     const log = readFileSync(logPath, "utf8").trim().split(/\r?\n/);
-    assert.equal(log.length, 2);
-    assert.ok(log.every((line) => line.startsWith("workflow-token\t")));
+    assert.deepEqual(log, [
+      "workflow-token\tapi repos/self-evolving/repo/issues/comments/123 --jq .body",
+      "workflow-token\tapi --method PATCH repos/self-evolving/repo/issues/comments/123 -f body=final body",
+      "workflow-token\tapi --method DELETE repos/self-evolving/repo/issues/comments/123",
+    ]);
     assert.equal(process.env.GH_TOKEN, "resolved-app-token");
   } finally {
     process.env.PATH = originalPath;
