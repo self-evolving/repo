@@ -210,6 +210,7 @@ exit 1
         RESPONSE_KIND: "issue_comment",
         TARGET_NUMBER: "321",
         GITHUB_REPOSITORY: "self-evolving/repo",
+        GITHUB_RUN_ID: "456",
         FAKE_GH_LOG: logPath,
         GH_TOKEN: "resolved-app-token",
       },
@@ -219,7 +220,7 @@ exit 1
     assert.equal(result.status, 0, result.stderr);
     const log = readFileSync(logPath, "utf8");
     assert.match(log, /^issue comment 321 --body Direct answer\./m);
-    assert.match(log, /<!-- sepo-final-response:run-unknown -->/);
+    assert.match(log, /<!-- sepo-final-response:run-456 -->/);
     assert.doesNotMatch(log, /^api /m);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
