@@ -130,6 +130,6 @@
 - Only release preparation updates `.agent/CHANGELOG.md`; normal PRs leave release notes unchanged.
 - Use `$$` display-math blocks for LaTeX in GitHub-facing Markdown. [[github/self-evolving/repo/pull-491.json]]
 - Stop review/fix loops when changes outgrow agreed scope; defer extra hardening to follow-up issues. [[github/self-evolving/repo/pull-497.json]]
-- Review fixes: only `FIX_IN_PR`; selected handoffs are exclusive; one automatic pass per chain. [[github/self-evolving/repo/pull-498.json]]
+- Fix handoffs use only `FIX_IN_PR` work; planner decides each bounded pass without a fixed cap. [[github/self-evolving/repo/pull-506.json]]
 - Job-token progress comments prevent recursion; cleanup spans job-token and App/PAT authors. [[github/self-evolving/repo/pull-500.json]]
 - Final `/answer` comments omit activity to avoid future-agent context noise; `/implement` and `/fix-pr` retain it.
