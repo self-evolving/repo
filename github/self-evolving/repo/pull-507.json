@@ -6,7 +6,7 @@
     "name": "Shannon Shen"
   },
   "baseRefName": "main",
-  "body": "## Summary\n\n- Keep live `/answer` progress comments on the non-recursive job-scoped `GITHUB_TOKEN`.\n- Post the completed answer separately with resolved GitHub auth—normally the Sepo App—before deleting the temporary Actions-authored progress comment.\n- Verify the temporary comment belongs to the current workflow run before deleting it.\n- If the resolved-auth final post fails, preserve response availability by merging the answer into the existing progress comment instead.\n- When answer progress is disabled or unavailable, retain the normal direct final post with no cleanup attempt.\n- Leave `/implement` and `/fix-pr` progress finalization unchanged.\n\n## Verification\n\n- `npm --prefix .agent run test:ci`\n- Focused post-response, GitHub helper, workflow-envelope, and docs tests after final edits\n",
+  "body": "## Summary\n\n- Treat live progress as temporary for `/answer`, `/implement`, and `/fix-pr`, using the non-recursive job-scoped `GITHUB_TOKEN`.\n- Preserve the existing `AGENT_PROGRESS_POLICY` modes: `disabled` means no progress, `report-only` means non-cancellable progress, and `enabled` means cancellable progress.\n- For all three routes, post the durable result with resolved GitHub auth first, then verify and delete any temporary progress comment with the workflow token.\n- If durable posting fails, preserve response availability by finalizing the temporary progress comment without retaining progress activity; if both paths fail, fail the finalizer.\n- Mark deterministic final results and reject those markers both in the entrypoint envelope and `extract-context`, preventing PAT-authored results from becoming implicit follow-ups or authorizing command suggestions.\n- Normalize run IDs consistently for progress creation, final-result markers, and cleanup comparison.\n- Leave future `none`/`brief`/`full` final progress-overview presentation as separate policy work.\n\n## Verification\n\n- `npm --prefix .agent run test:ci`\n- Focused coverage for resolved-auth posting, workflow-token deletion, progress-disabled direct posting, fallback and double-failure paths, current-run cleanup verification, PAT-like sender filtering, command-bearing self-authored comments, and normalized markers\n",
   "closedAt": null,
   "comments": [
     {
@@ -114,6 +114,12 @@
       "changeType": "MODIFIED"
     },
     {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
       "path": ".agent/docs/index.md",
       "additions": 1,
       "deletions": 1,
@@ -121,14 +127,26 @@
     },
     {
       "path": ".agent/docs/setup/setup-guide.md",
-      "additions": 9,
-      "deletions": 5,
+      "additions": 11,
+      "deletions": 10,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/context.test.ts",
+      "additions": 22,
+      "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
       "path": ".agent/src/__tests__/envelope.test.ts",
-      "additions": 11,
+      "additions": 39,
       "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/extract-context-cli.test.ts",
+      "additions": 30,
+      "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
@@ -138,15 +156,45 @@
       "changeType": "MODIFIED"
     },
     {
+      "path": ".agent/src/__tests__/post-comment-cli.test.ts",
+      "additions": 69,
+      "deletions": 14,
+      "changeType": "MODIFIED"
+    },
+    {
       "path": ".agent/src/__tests__/post-response-cli.test.ts",
-      "additions": 182,
+      "additions": 246,
       "deletions": 10,
       "changeType": "MODIFIED"
     },
     {
+      "path": ".agent/src/__tests__/self-authored-response.test.ts",
+      "additions": 26,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/extract-context.ts",
+      "additions": 6,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/post-comment.ts",
+      "additions": 33,
+      "deletions": 16,
+      "changeType": "MODIFIED"
+    },
+    {
       "path": ".agent/src/cli/post-response.ts",
-      "additions": 59,
-      "deletions": 15,
+      "additions": 33,
+      "deletions": 7,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/context.ts",
+      "additions": 16,
+      "deletions": 0,
       "changeType": "MODIFIED"
     },
     {
@@ -157,13 +205,49 @@
     },
     {
       "path": ".agent/src/progress-final-comment.ts",
-      "additions": 43,
+      "additions": 89,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/progress-render.ts",
+      "additions": 3,
+      "deletions": 7,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/run-marker.ts",
+      "additions": 7,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/self-authored-response.ts",
+      "additions": 20,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/workflows/agent-entrypoint.yml",
+      "additions": 5,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-fix-pr.yml",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-implement.yml",
+      "additions": 1,
       "deletions": 1,
       "changeType": "MODIFIED"
     },
     {
       "path": ".github/workflows/agent-router.yml",
-      "additions": 1,
+      "additions": 2,
       "deletions": 1,
       "changeType": "MODIFIED"
     }
@@ -195,10 +279,25 @@
       "commit": {
         "oid": "28f930f04c0db4d379444391e89a0385e743f312"
       }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABKgJhBQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "",
+      "submittedAt": "2026-08-22T08:36:25Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "9997d68b29d7f2de17219694701e85c561438b9d"
+      }
     }
   ],
   "state": "OPEN",
-  "title": "Restore Sepo identity for final answers",
-  "updatedAt": "2026-08-22T01:19:25Z",
+  "title": "Unify Sepo progress and durable result identity",
+  "updatedAt": "2026-08-22T08:37:36Z",
   "url": "https://github.com/self-evolving/repo/pull/507"
 }

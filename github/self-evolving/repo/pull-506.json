@@ -6,116 +6,26 @@
     "name": "Shannon Shen"
   },
   "baseRefName": "main",
-  "body": "## Summary\n\n- carry an explicit completed `fix-pr` pass count through the orchestration workflow chain\n- increment the count only after an actual `fix-pr` action returns to the orchestrator\n- enforce the one-pass limit in deterministic handoff code instead of asking the planner to infer history from rounds or comments\n- expose the authoritative count to the planner and document that round number is not fix history\n- add regressions for the observed `implement → review` round-3 path and the real post-fix review limit\n\n## Context\n\nPR #498 added a prompt-only one-pass rule. On PR #501, the round-3 post-review planner incorrectly inferred that a fix pass had already happened and silently stopped, even though the chain was only `orchestrate → implement → review`.\n\n## Verification\n\n- `npm --prefix .agent run test:ci`\n- `git diff --check`\n",
-  "closedAt": null,
+  "body": "## Summary\n\n- remove the hard-coded one-automatic-fix-pass rule from the orchestrator prompt\n- let the orchestrator decide each `FIX_PR` handoff from the current review synthesis, scope disposition, and actionable context\n- retain the existing requirement that self-approval fixes be concrete, in-scope branch work\n\n## Context\n\nPR #498 added a one-pass limit that was neither an existing product requirement nor backed by reliable chain state. On PR #501, the planner incorrectly inferred that round 3 meant a fix pass had already happened and stopped before the first valid fix.\n\nThe review/synthesis guidance remains responsible for classifying work as `FIX_IN_PR`, `FOLLOW_UP`, or `HUMAN_DECISION`; the orchestrator is trusted to decide whether another bounded fix is useful.\n\n## Verification\n\n- `npm --prefix .agent run build`\n- `npm --prefix .agent run check:workflow`\n- `npm --prefix .agent run check:docs`\n- `git diff --check`\n",
+  "closedAt": "2026-08-22T08:12:03Z",
   "comments": [],
   "createdAt": "2026-08-19T19:04:28Z",
   "files": [
     {
-      "path": ".agent/docs/architecture/agent-orchestrator.md",
-      "additions": 1,
-      "deletions": 1,
-      "changeType": "MODIFIED"
-    },
-    {
-      "path": ".agent/docs/usage/supported-workflows.md",
-      "additions": 6,
-      "deletions": 3,
-      "changeType": "MODIFIED"
-    },
-    {
-      "path": ".agent/src/__tests__/dispatch-agent-orchestrator-cli.test.ts",
-      "additions": 41,
-      "deletions": 0,
-      "changeType": "MODIFIED"
-    },
-    {
-      "path": ".agent/src/__tests__/envelope.test.ts",
-      "additions": 3,
-      "deletions": 0,
-      "changeType": "MODIFIED"
-    },
-    {
-      "path": ".agent/src/__tests__/handoff.test.ts",
-      "additions": 38,
-      "deletions": 0,
-      "changeType": "MODIFIED"
-    },
-    {
-      "path": ".agent/src/__tests__/orchestrate-handoff-cli.test.ts",
-      "additions": 20,
-      "deletions": 0,
-      "changeType": "MODIFIED"
-    },
-    {
-      "path": ".agent/src/cli/dispatch-agent-orchestrator.ts",
-      "additions": 11,
-      "deletions": 1,
-      "changeType": "MODIFIED"
-    },
-    {
-      "path": ".agent/src/cli/orchestrate-handoff.ts",
-      "additions": 12,
-      "deletions": 1,
-      "changeType": "MODIFIED"
-    },
-    {
-      "path": ".agent/src/handoff.ts",
-      "additions": 18,
-      "deletions": 0,
-      "changeType": "MODIFIED"
-    },
-    {
       "path": ".github/prompts/agent-orchestrator.md",
       "additions": 3,
-      "deletions": 2,
-      "changeType": "MODIFIED"
-    },
-    {
-      "path": ".github/workflows/agent-fix-pr.yml",
-      "additions": 9,
-      "deletions": 0,
-      "changeType": "MODIFIED"
-    },
-    {
-      "path": ".github/workflows/agent-implement.yml",
-      "additions": 9,
-      "deletions": 0,
-      "changeType": "MODIFIED"
-    },
-    {
-      "path": ".github/workflows/agent-orchestrator.yml",
-      "additions": 6,
-      "deletions": 0,
-      "changeType": "MODIFIED"
-    },
-    {
-      "path": ".github/workflows/agent-review.yml",
-      "additions": 9,
-      "deletions": 0,
-      "changeType": "MODIFIED"
-    },
-    {
-      "path": ".github/workflows/agent-self-approve.yml",
-      "additions": 5,
-      "deletions": 0,
-      "changeType": "MODIFIED"
-    },
-    {
-      "path": ".github/workflows/agent-self-merge.yml",
-      "additions": 5,
-      "deletions": 0,
+      "deletions": 4,
       "changeType": "MODIFIED"
     }
   ],
   "headRefName": "fix/explicit-orchestration-fix-pass-count",
   "labels": [],
-  "mergedAt": null,
+  "mergedAt": "2026-08-22T08:12:03Z",
   "number": 506,
   "reviewDecision": "",
   "reviews": [],
-  "state": "OPEN",
-  "title": "Track automatic fix passes explicitly",
-  "updatedAt": "2026-08-19T19:04:28Z",
+  "state": "MERGED",
+  "title": "Remove the fixed orchestration fix-pass limit",
+  "updatedAt": "2026-08-22T08:12:05Z",
   "url": "https://github.com/self-evolving/repo/pull/506"
 }
