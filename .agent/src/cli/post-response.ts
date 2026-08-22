@@ -1,12 +1,15 @@
 // CLI: post a response to the correct GitHub surface.
 // Usage: node .agent/dist/cli/post-response.js
 // Env: BODY_FILE, RESPONSE_KIND, TARGET_NUMBER, REVIEW_COMMENT_ID,
-//      DISCUSSION_ID, REPLY_TO_ID, GITHUB_REPOSITORY,
+//      DISCUSSION_ID, REPLY_TO_ID, GITHUB_REPOSITORY, ROUTE,
 //      AGENT_COLLAPSE_OLD_REVIEWS, AGENT_PROGRESS_GITHUB_TOKEN
 
 import { readFileSync } from "node:fs";
 import { upsertPrCommentByMarker } from "../github.js";
-import { tryMergeProgressFinalComment } from "../progress-final-comment.js";
+import {
+  tryMergeProgressFinalComment,
+  tryRepostFinalAndDeleteProgress,
+} from "../progress-final-comment.js";
 import { postResponse } from "../respond.js";
 import {
   collapsePreviousRubricsReviews,
@@ -16,6 +19,7 @@ import { SELF_APPROVAL_STATUS_MARKER } from "../self-approval.js";
 import { SELF_MERGE_STATUS_MARKER } from "../self-merge.js";
 import { formatSessionRestoreNotice } from "../session-bundle.js";
 import { appendRunDisplayFooter } from "../response.js";
+import { appendFinalResponseMarker } from "../self-authored-response.js";
 
 const bodyFile = process.env.BODY_FILE || "";
 const responseKind = process.env.RESPONSE_KIND || "issue_comment";
@@ -26,6 +30,7 @@ const replyToId = process.env.REPLY_TO_ID || undefined;
 const repo = process.env.GITHUB_REPOSITORY || undefined;
 const resumeStatus = process.env.RESUME_STATUS || "";
 const runStatus = process.env.STATUS || "success";
+const route = String(process.env.ROUTE || "").trim().toLowerCase();
 const modelDisplay = process.env.MODEL_DISPLAY || process.env.AGENT_RUN_DISPLAY || "";
 const progressFinalCommentMode = process.env.AGENT_PROGRESS_FINAL_COMMENT_MODE || "";
 const progressCommentId = process.env.AGENT_PROGRESS_COMMENT_ID || process.env.PROGRESS_COMMENT_ID || "";
@@ -51,8 +56,19 @@ const continuityNote = formatSessionRestoreNotice({ resumeStatus, runStatus });
 if (continuityNote) {
   body = `> ${continuityNote}\n\n${body}`;
 }
+if (route === "answer" || progressFinalCommentMode.trim().toLowerCase() === "repost") {
+  body = appendFinalResponseMarker(body, process.env.GITHUB_RUN_ID || "");
+}
 
 const bodyWithFooter = appendRunDisplayFooter(body, modelDisplay);
+const responseTarget = {
+  responseKind,
+  targetNumber,
+  reviewCommentId,
+  discussionNodeId,
+  replyToId,
+  repo,
+};
 
 let posted = false;
 let markerUpsertFailed = false;
@@ -109,7 +125,7 @@ if (
   (responseKind === "issue_comment" || responseKind === "pr_comment") &&
   repo
 ) {
-  posted = tryMergeProgressFinalComment({
+  posted = tryRepostFinalAndDeleteProgress({
     repo,
     commentId: progressCommentId,
     mode: progressFinalCommentMode,
@@ -117,12 +133,22 @@ if (
     footer: modelDisplay,
     includeActivity: false,
     githubToken: progressGithubToken,
+    expectedRunId: process.env.GITHUB_RUN_ID,
+    postFinal: () => postResponse(responseTarget, bodyWithFooter),
   });
+  if (!posted) {
+    posted = tryMergeProgressFinalComment({
+      repo,
+      commentId: progressCommentId,
+      mode: progressFinalCommentMode,
+      finalBody: body,
+      footer: modelDisplay,
+      includeActivity: false,
+      githubToken: progressGithubToken,
+    });
+  }
 }
 
 if (!posted && !markerUpsertFailed) {
-  postResponse(
-    { responseKind, targetNumber, reviewCommentId, discussionNodeId, replyToId, repo },
-    bodyWithFooter,
-  );
+  postResponse(responseTarget, bodyWithFooter);
 }

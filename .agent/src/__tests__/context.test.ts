@@ -5,6 +5,7 @@ import {
   extractEventContext,
   getAuthorAssociation,
   getRequestedBy,
+  shouldSkipSelfAuthoredResponse,
   shouldSkipSender,
   shouldRespondToMention,
 } from "../context.js";
@@ -253,6 +254,27 @@ test("shouldRespondToMention only triggers when an edited comment adds a mention
       "@sepo-agent",
     ),
     true,
+  );
+});
+
+test("shouldSkipSelfAuthoredResponse filters marked user-authored comments", () => {
+  assert.equal(
+    shouldSkipSelfAuthoredResponse("issue_comment", {
+      sender: { type: "User", login: "sepo-machine-user" },
+      comment: {
+        body: "@sepo-agent /implement this\n\n<!-- sepo-final-response:run-456 -->",
+      },
+      issue: { number: 42 },
+    }),
+    true,
+  );
+  assert.equal(
+    shouldSkipSelfAuthoredResponse("issue_comment", {
+      sender: { type: "User", login: "alice" },
+      comment: { body: "@sepo-agent /implement this" },
+      issue: { number: 42 },
+    }),
+    false,
   );
 });
 

@@ -1168,6 +1168,25 @@ test("agent entrypoint skips bot-authored mentions before runner allocation", ()
   }
 });
 
+test("agent entrypoint skips marked Sepo finals from user-like PAT senders", () => {
+  for (const mentionCase of ENTRYPOINT_MENTION_CASES.filter(
+    (candidate) => candidate.object === "comment",
+  )) {
+    const payload = buildEntrypointPayload(
+      mentionCase,
+      "@sepo-agent /implement this\n\n<!-- sepo-final-response:run-456 -->",
+    );
+    assert.equal(
+      evaluateEntrypointJobCondition({
+        eventName: mentionCase.eventName,
+        payload,
+      }),
+      false,
+      `${mentionCase.name} with a final-response marker should skip the router job`,
+    );
+  }
+});
+
 test("agent entrypoint ignores handles outside the active trigger text", () => {
   for (const mentionCase of ENTRYPOINT_MENTION_CASES) {
     const payload = {
@@ -1598,7 +1617,7 @@ test("shared run-agent-task action exists and requires explicit prompt/skill/lan
   assert.match(action, /\.agent\/dist\/run\.js/);
 });
 
-test("progress lifecycle uses the non-recursive workflow token", () => {
+test("progress uses the workflow token while durable results use resolved auth", () => {
   const action = parseYaml(readRepoFile(".github/actions/run-agent-task/action.yml")) as unknown;
   assert.ok(isRecord(action), "run-agent-task action should parse");
   assert.ok(isRecord(action.runs), "run-agent-task action should define runs");
@@ -1627,18 +1646,24 @@ test("progress lifecycle uses the non-recursive workflow token", () => {
       jobId: "implement",
       runStepName: "Run agent",
       stepName: "Post status comment",
+      progressFinalCommentMode: "repost",
+      route: "${{ env.IMPLEMENTATION_ROUTE }}",
     },
     {
       path: ".github/workflows/agent-fix-pr.yml",
       jobId: "fix-pr",
       runStepName: "Run agent",
       stepName: "Post status comment",
+      progressFinalCommentMode: "repost",
+      route: "fix-pr",
     },
     {
       path: ".github/workflows/agent-router.yml",
       jobId: "answer",
       runStepName: "Run answer agent",
       stepName: "Post answer",
+      progressFinalCommentMode: "repost",
+      route: "answer",
     },
   ];
 
@@ -1669,12 +1694,24 @@ test("progress lifecycle uses the non-recursive workflow token", () => {
     assert.equal(runStep.with.github_token, "${{ github.token }}");
     assert.ok(step, `${finalizer.path} should define ${finalizer.stepName}`);
     assert.ok(isRecord(step.env), `${finalizer.stepName} should define env`);
+    assert.equal(
+      step.env.AGENT_PROGRESS_FINAL_COMMENT_MODE,
+      finalizer.progressFinalCommentMode,
+    );
+    assert.equal(step.env.ROUTE, finalizer.route);
     assert.equal(step.env.AGENT_PROGRESS_GITHUB_TOKEN, "${{ github.token }}");
     assert.equal(step.env.GH_TOKEN, "${{ steps.auth.outputs.token }}");
   }
 
+  const entrypoint = readRepoFile(".github/workflows/agent-entrypoint.yml");
+  const extractContext = readRepoFile(".agent/src/cli/extract-context.ts");
+  assert.match(entrypoint, /!contains\(github\.event\.comment\.body, '<!-- sepo-final-response:run-'\)/);
+  assert.match(extractContext, /shouldSkipSelfAuthoredResponse/);
+
   const lifecycleDocs = readRepoFile(".agent/docs/architecture/request-lifecycle.md");
-  assert.match(lifecycleDocs, /cannot prevent Actions-history churn on its own/);
+  assert.match(lifecycleDocs, /posts a new durable result with the resolved GitHub identity/);
+  assert.match(lifecycleDocs, /deletes the verified temporary progress comment with the job token/);
+  assert.match(lifecycleDocs, /cannot produce a progress-trigger loop/);
 });
 
 test("shared run-agent-task exposes an optional secondary GitHub token", () => {

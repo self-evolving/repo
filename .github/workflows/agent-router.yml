@@ -591,7 +591,7 @@ jobs:
         env:
           BODY_FILE: ${{ steps.answer.outputs.response_file }}
           AGENT_PROGRESS_COMMENT_ID: ${{ steps.answer.outputs.progress_comment_id }}
-          AGENT_PROGRESS_FINAL_COMMENT_MODE: merge
+          AGENT_PROGRESS_FINAL_COMMENT_MODE: repost
           AGENT_PROGRESS_GITHUB_TOKEN: ${{ github.token }}
           MODEL_DISPLAY: ${{ steps.answer.outputs.model_display }}
           DISCUSSION_ID: ${{ needs.portal.outputs.discussion_node_id }}
@@ -601,6 +601,7 @@ jobs:
           RESPONSE_KIND: ${{ needs.portal.outputs.response_kind }}
           RESUME_STATUS: ${{ steps.answer.outputs.resume_status }}
           REVIEW_COMMENT_ID: ${{ needs.portal.outputs.review_comment_id }}
+          ROUTE: answer
           STATUS: ${{ steps.answer.outcome == 'success' && 'success' || steps.answer.outcome == 'cancelled' && 'cancelled' || 'failed' }}
           TARGET_NUMBER: ${{ needs.portal.outputs.target_number }}
         run: node .agent/dist/cli/post-response.js

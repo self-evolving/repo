@@ -1,4 +1,5 @@
 import { compactSessionLog } from "./acpx-adapter.js";
+import { normalizeRunMarkerId } from "./run-marker.js";
 
 export type ProgressStatus = "running" | "finalized" | "cancelled";
 export type ProgressOutcome = "success" | "failure" | "finished";
@@ -132,7 +133,7 @@ export function buildProgressViewModel(
 
   return {
     status: options.status ?? "running",
-    runId: normalizeRunId(options.runId),
+    runId: normalizeRunMarkerId(options.runId),
     route: cleanSingleLine(options.route ?? ""),
     elapsedMs: Math.max(0, Math.floor(options.elapsedMs ?? 0)),
     stepCount: normalizeStepCount(options.totalStepCount, stepCount),
@@ -219,7 +220,7 @@ export function renderCancelled(model: ProgressViewModel, byLogin: string): stri
 }
 
 export function progressMarker(runId: string): string {
-  return `<!-- sepo-progress:run-${normalizeRunId(runId)} -->`;
+  return `<!-- sepo-progress:run-${normalizeRunMarkerId(runId)} -->`;
 }
 
 function toolEventsFromNdjson(ndjsonTail: string): ToolEvent[] {
@@ -475,11 +476,6 @@ function truncate(value: string, maxChars: number): string {
     return value;
   }
   return `${value.slice(0, Math.max(0, maxChars - 1)).trimEnd()}…`;
-}
-
-function normalizeRunId(runId: string): string {
-  const normalized = cleanSingleLine(runId).replace(/[^A-Za-z0-9._-]/g, "-");
-  return normalized || "unknown";
 }
 
 function normalizeStepCount(value: number | undefined, fallback: number): number {

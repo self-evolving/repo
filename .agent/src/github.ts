@@ -88,6 +88,19 @@ export function fetchIssueCommentBody(
   ], undefined, token);
 }
 
+export function deleteIssueComment(
+  repo: string,
+  commentId: string | number,
+  token?: string,
+): void {
+  gh([
+    "api",
+    "--method",
+    "DELETE",
+    `repos/${repo}/issues/comments/${commentId}`,
+  ], undefined, token);
+}
+
 export function createIssueComment(repo: string, issueNumber: number, body: string): string {
   return gh([
     "api",

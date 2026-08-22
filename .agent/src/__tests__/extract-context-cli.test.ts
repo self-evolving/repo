@@ -1220,6 +1220,36 @@ test("extract-context keeps known associations available for later policy checks
   }
 });
 
+test("extract-context rejects PAT-authored Sepo finals before mention or follow-up routing", () => {
+  for (const body of [
+    "@sepo-agent /implement this suggestion\n\n<!-- sepo-final-response:run-456 -->",
+    "Final status without a mention.\n\n<!-- sepo-final-response:run-456 -->",
+  ]) {
+    const outputs = runExtractContextCli({
+      eventName: "issue_comment",
+      payload: {
+        action: "created",
+        sender: { login: "sepo-machine-user", type: "User" },
+        comment: {
+          id: 300,
+          node_id: "IC_300",
+          html_url: "https://github.com/self-evolving/repo/issues/300#issuecomment-300",
+          body,
+          author_association: "MEMBER",
+          user: { login: "sepo-machine-user" },
+        },
+        issue: {
+          number: 300,
+          labels: [{ name: "agent" }],
+          html_url: "https://github.com/self-evolving/repo/issues/300",
+        },
+      },
+    });
+
+    assert.equal(outputs.get("should_respond"), "false");
+  }
+});
+
 test("extract-context leaves explicit mentions unchanged without an agent label", () => {
   const outputs = runExtractContextCli({
     eventName: "issue_comment",

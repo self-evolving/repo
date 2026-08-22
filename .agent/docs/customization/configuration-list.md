@@ -85,7 +85,7 @@ The bundled workflows still keep native YAML escape hatches: an inline `route_pr
 }
 ```
 
-`enabled` starts the progress comment and allows authorized 👎 cancellation. `report-only` starts the progress comment but ignores cancellation reactions. `disabled` preserves the normal run without a progress comment. Malformed policy disables progress for that run instead of failing the workflow. Orchestrated chains default to `disabled` progress mode and rely on handoff or status comments; set `orchestration_mode` to `report-only` to opt into non-cancellable progress comments for orchestrated runs. `enabled` is not accepted for `orchestration_mode` because cancellable chained-run semantics are not defined.
+`enabled` starts a temporary progress comment and allows authorized 👎 cancellation. `report-only` starts the temporary comment but ignores cancellation reactions. `disabled` preserves the normal run without progress. For `/answer`, `/implement`, and `/fix-pr`, progress mode does not change final identity: the durable result uses resolved GitHub auth, and any temporary workflow-authored comment is deleted after the final post succeeds. Malformed policy disables progress for that run instead of failing the workflow. Orchestrated chains default to `disabled` progress mode and rely on handoff or status comments; set `orchestration_mode` to `report-only` to opt into non-cancellable progress comments for orchestrated runs. `enabled` is not accepted for `orchestration_mode` because cancellable chained-run semantics are not defined.
 
 ## Repository secrets
 

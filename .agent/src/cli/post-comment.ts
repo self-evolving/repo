@@ -3,13 +3,16 @@
 // Env: COMMENT_TARGET (issue or pr), TARGET_NUMBER, ROUTE, STATUS,
 //      RESPONSE_FILE (optional), BRANCH, PR_URL, REQUESTED_BY,
 //      APPROVAL_COMMENT_URL, CANCELLED_BY, AGENT_COLLAPSE_OLD_REVIEWS,
-//      AGENT_PROGRESS_GITHUB_TOKEN (workflow token for progress PATCH and fix-pr cleanup)
+//      AGENT_PROGRESS_GITHUB_TOKEN (workflow token for progress fallback/deletion and fix-pr cleanup)
 // Outputs: status
 
 import { readFileSync } from "node:fs";
 import { fetchPrMeta, postIssueComment, postPrComment } from "../github.js";
 import { createGhGraphqlClient } from "../github-graphql.js";
-import { tryMergeProgressFinalComment } from "../progress-final-comment.js";
+import {
+  tryMergeProgressFinalComment,
+  tryRepostFinalAndDeleteProgress,
+} from "../progress-final-comment.js";
 import {
   collapsePreviousFixPrComments,
   collapsePreviousReviewSummaries,
@@ -27,6 +30,7 @@ import {
 } from "../response.js";
 import { setOutput } from "../output.js";
 import { formatSessionRestoreNotice } from "../session-bundle.js";
+import { appendFinalResponseMarker } from "../self-authored-response.js";
 
 const target = process.env.COMMENT_TARGET || "issue"; // "issue" or "pr"
 const targetNumber = Number(process.env.TARGET_NUMBER || process.env.ISSUE_NUMBER || process.env.PR_NUMBER);
@@ -117,6 +121,9 @@ const continuityNote = formatSessionRestoreNotice({ resumeStatus, runStatus: sta
 if (continuityNote) {
   body = `> ${continuityNote}\n\n${body}`;
 }
+if (route === "implement" || route === "fix-pr") {
+  body = appendFinalResponseMarker(body, process.env.GITHUB_RUN_ID || "");
+}
 
 const bodyWithFooter = appendRunDisplayFooter(body, modelDisplay);
 
@@ -163,29 +170,39 @@ if (target === "pr") {
       console.log(`Collapsed ${collapsed} previous fix-pr status comment(s).`);
     }
   }
-  const merged = tryMergeProgressFinalComment({
-    repo,
-    commentId: progressCommentId,
-    mode: progressFinalCommentMode,
-    finalBody: body,
-    footer: modelDisplay,
-    githubToken: progressGithubToken,
-  });
-  if (!merged) {
+}
+
+const postFinal = () => {
+  if (target === "pr") {
     postPrComment(targetNumber, bodyWithFooter);
-  }
-} else {
-  const merged = tryMergeProgressFinalComment({
-    repo,
-    commentId: progressCommentId,
-    mode: progressFinalCommentMode,
-    finalBody: body,
-    footer: modelDisplay,
-    githubToken: progressGithubToken,
-  });
-  if (!merged) {
+  } else {
     postIssueComment(targetNumber, bodyWithFooter);
   }
+};
+let posted = tryRepostFinalAndDeleteProgress({
+  repo,
+  commentId: progressCommentId,
+  mode: progressFinalCommentMode,
+  finalBody: body,
+  footer: modelDisplay,
+  includeActivity: false,
+  githubToken: progressGithubToken,
+  expectedRunId: process.env.GITHUB_RUN_ID,
+  postFinal,
+});
+if (!posted) {
+  posted = tryMergeProgressFinalComment({
+    repo,
+    commentId: progressCommentId,
+    mode: progressFinalCommentMode,
+    finalBody: body,
+    footer: modelDisplay,
+    includeActivity: false,
+    githubToken: progressGithubToken,
+  });
+}
+if (!posted) {
+  postFinal();
 }
 
 setOutput("comment_posted", "true");

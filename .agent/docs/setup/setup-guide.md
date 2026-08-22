@@ -109,16 +109,17 @@ replacement token.
 
 ## Progress comments and cancellation
 
-No extra setup is required for the default live progress control. Implementation
-and PR-fix workflows already have the comment and Actions permissions needed to
-post one progress comment, update it during the run, merge the final status into
-that comment, and honor an authorized 👎 reaction as a cancellation request.
-Answer runs on issue and pull request surfaces use report-only progress by
-default and replace the progress content with the final answer in the same
-comment. Implementation and PR-fix statuses retain a collapsed activity log;
-answers do not. Orchestrated chains
-use handoff or status comments by default, and can opt into non-cancellable
-progress comments with `AGENT_PROGRESS_POLICY.orchestration_mode`.
+No extra setup is required for the default live progress control. Answer,
+implementation, and PR-fix workflows have the comment and Actions permissions
+needed to create and update a temporary progress comment. At completion they
+post the durable result with resolved GitHub auth, then delete the verified
+temporary comment with the workflow token. Final posting happens first; if it
+fails, the workflow merges the result into the temporary comment as a fallback.
+Disabling progress for a route keeps the direct final post and leaves no
+temporary comment to delete. `enabled` progress honors an authorized 👎 reaction
+as a cancellation request, while `report-only` does not. Orchestrated chains use
+handoff or status comments by default and can opt into non-cancellable progress
+comments with `AGENT_PROGRESS_POLICY.orchestration_mode`.
 
 Set `AGENT_PROGRESS_POLICY` only when you want to change that default. Use
 `report-only` for progress without cancellation, or `disabled` to turn progress

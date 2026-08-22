@@ -3,6 +3,7 @@
 // and response targets without branching on every event type again.
 
 import { hasLiveMention } from "./mentions.js";
+import { hasFinalResponseMarker } from "./self-authored-response.js";
 
 export const DEFAULT_TRUSTED_ASSOCIATIONS = new Set([
   "OWNER",
@@ -248,6 +249,21 @@ export function extractEventContext(
   }
 
   throw new Error(`Unsupported event for agent mention: ${eventName}`);
+}
+
+/**
+ * Filters deterministic Sepo final responses even when PAT auth makes the
+ * webhook sender look like a normal user.
+ */
+export function shouldSkipSelfAuthoredResponse(
+  eventName: string,
+  payload: Payload,
+): boolean {
+  try {
+    return hasFinalResponseMarker(extractEventContext(eventName, payload).body);
+  } catch {
+    return false;
+  }
 }
 
 /**

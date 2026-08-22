@@ -111,7 +111,7 @@ exit 1
   }
 });
 
-test("post-response CLI replaces answer progress without retaining activity", () => {
+test("post-response CLI posts the final answer with resolved auth before deleting temporary progress", () => {
   const tempDir = mkdtempSync(join(tmpdir(), "agent-post-response-"));
 
   try {
@@ -124,6 +124,126 @@ test("post-response CLI replaces answer progress without retaining activity", ()
       `#!/usr/bin/env bash
 printf '%s\\n' "$*" >> "$FAKE_GH_LOG"
 printf '%s\\n' "$GH_TOKEN" >> "$FAKE_GH_TOKEN_LOG"
+if [ "$1" = "issue" ] && [ "$2" = "comment" ]; then
+  exit 0
+fi
+if [ "$1" = "api" ] && [ "$2" = "repos/self-evolving/repo/issues/comments/999" ]; then
+  printf '### Sepo finished — answer · 3s · 1 step\\n\\n<details>\\n<summary>Activity</summary>\\n\\n- 💬 Message "Checking."\\n</details>\\n\\n<!-- sepo-progress:run-456 -->\\n'
+  exit 0
+fi
+if [ "$1" = "api" ] && [ "$2" = "--method" ] && [ "$3" = "DELETE" ] && [ "$4" = "repos/self-evolving/repo/issues/comments/999" ]; then
+  exit 0
+fi
+printf 'unexpected gh args: %s\\n' "$*" >&2
+exit 1
+`,
+    );
+
+    const result = spawnSync("node", [".agent/dist/cli/post-response.js"], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        PATH: `${tempDir}:${process.env.PATH || ""}`,
+        AGENT_PROGRESS_COMMENT_ID: "999",
+        AGENT_PROGRESS_FINAL_COMMENT_MODE: "repost",
+        AGENT_PROGRESS_GITHUB_TOKEN: "workflow-token",
+        BODY_FILE: bodyPath,
+        MODEL_DISPLAY: "`codex` | `gpt-5.6-sol[max]`",
+        RESPONSE_KIND: "issue_comment",
+        TARGET_NUMBER: "321",
+        GITHUB_REPOSITORY: "self-evolving/repo",
+        GITHUB_RUN_ID: "456",
+        FAKE_GH_LOG: logPath,
+        FAKE_GH_TOKEN_LOG: tokenLogPath,
+        GH_TOKEN: "resolved-app-token",
+      },
+      encoding: "utf8",
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /Deleted temporary progress comment 999/);
+    const log = readFileSync(logPath, "utf8");
+    assert.match(log, /^issue comment 321 --body Answer body\./m);
+    assert.match(log, /`codex` \| `gpt-5\.6-sol\[max\]`/);
+    assert.match(log, /<!-- sepo-final-response:run-456 -->/);
+    assert.match(log, /^api repos\/self-evolving\/repo\/issues\/comments\/999 --jq \.body$/m);
+    assert.match(log, /^api --method DELETE repos\/self-evolving\/repo\/issues\/comments\/999$/m);
+    assert.doesNotMatch(log, /^api --method PATCH /m);
+    assert.doesNotMatch(log, /<summary>Sepo activity<\/summary>/);
+    assert.doesNotMatch(log, /Checking\./);
+    assert.deepEqual(
+      readFileSync(tokenLogPath, "utf8").trim().split(/\r?\n/),
+      ["resolved-app-token", "workflow-token", "workflow-token"],
+    );
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("post-response CLI posts directly when answer progress is disabled", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-post-response-"));
+
+  try {
+    const logPath = join(tempDir, "gh.log");
+    const bodyPath = join(tempDir, "body.md");
+    writeFileSync(bodyPath, "Direct answer.\n", "utf8");
+    writeFakeGh(
+      tempDir,
+      `#!/usr/bin/env bash
+printf '%s\\n' "$*" >> "$FAKE_GH_LOG"
+if [ "$1" = "issue" ] && [ "$2" = "comment" ]; then
+  exit 0
+fi
+printf 'unexpected gh args: %s\\n' "$*" >&2
+exit 1
+`,
+    );
+
+    const result = spawnSync("node", [".agent/dist/cli/post-response.js"], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        PATH: `${tempDir}:${process.env.PATH || ""}`,
+        AGENT_PROGRESS_FINAL_COMMENT_MODE: "repost",
+        AGENT_PROGRESS_GITHUB_TOKEN: "workflow-token",
+        BODY_FILE: bodyPath,
+        RESPONSE_KIND: "issue_comment",
+        TARGET_NUMBER: "321",
+        GITHUB_REPOSITORY: "self-evolving/repo",
+        GITHUB_RUN_ID: "456",
+        FAKE_GH_LOG: logPath,
+        GH_TOKEN: "resolved-app-token",
+      },
+      encoding: "utf8",
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+    const log = readFileSync(logPath, "utf8");
+    assert.match(log, /^issue comment 321 --body Direct answer\./m);
+    assert.match(log, /<!-- sepo-final-response:run-456 -->/);
+    assert.doesNotMatch(log, /^api /m);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("post-response CLI finalizes temporary progress when the resolved-auth answer post fails", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-post-response-"));
+
+  try {
+    const logPath = join(tempDir, "gh.log");
+    const tokenLogPath = join(tempDir, "gh-token.log");
+    const bodyPath = join(tempDir, "body.md");
+    writeFileSync(bodyPath, "Fallback answer.\n", "utf8");
+    writeFakeGh(
+      tempDir,
+      `#!/usr/bin/env bash
+printf '%s\\n' "$*" >> "$FAKE_GH_LOG"
+printf '%s\\n' "$GH_TOKEN" >> "$FAKE_GH_TOKEN_LOG"
+if [ "$1" = "issue" ] && [ "$2" = "comment" ]; then
+  printf 'resolved auth unavailable\\n' >&2
+  exit 1
+fi
 if [ "$1" = "api" ] && [ "$2" = "repos/self-evolving/repo/issues/comments/999" ]; then
   printf '### Sepo finished — answer · 3s · 1 step\\n\\n<details>\\n<summary>Activity</summary>\\n\\n- 💬 Message "Checking."\\n</details>\\n\\n<!-- sepo-progress:run-456 -->\\n'
   exit 0
@@ -131,8 +251,73 @@ fi
 if [ "$1" = "api" ] && [ "$2" = "--method" ] && [ "$3" = "PATCH" ] && [ "$4" = "repos/self-evolving/repo/issues/comments/999" ]; then
   exit 0
 fi
+printf 'unexpected gh args: %s\\n' "$*" >&2
+exit 1
+`,
+    );
+
+    const result = spawnSync("node", [".agent/dist/cli/post-response.js"], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        PATH: `${tempDir}:${process.env.PATH || ""}`,
+        AGENT_PROGRESS_COMMENT_ID: "999",
+        AGENT_PROGRESS_FINAL_COMMENT_MODE: "repost",
+        AGENT_PROGRESS_GITHUB_TOKEN: "workflow-token",
+        BODY_FILE: bodyPath,
+        MODEL_DISPLAY: "`codex` | `gpt-5.6-sol[max]`",
+        RESPONSE_KIND: "issue_comment",
+        TARGET_NUMBER: "321",
+        GITHUB_REPOSITORY: "self-evolving/repo",
+        GITHUB_RUN_ID: "456",
+        FAKE_GH_LOG: logPath,
+        FAKE_GH_TOKEN_LOG: tokenLogPath,
+        GH_TOKEN: "resolved-app-token",
+      },
+      encoding: "utf8",
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stderr, /Failed to post final response with resolved auth/);
+    const log = readFileSync(logPath, "utf8");
+    assert.match(log, /^issue comment 321 --body Fallback answer\./m);
+    assert.match(log, /^api repos\/self-evolving\/repo\/issues\/comments\/999 --jq \.body$/m);
+    assert.match(log, /^api --method PATCH repos\/self-evolving\/repo\/issues\/comments\/999 /m);
+    assert.match(log, /Fallback answer\./);
+    assert.match(log, /<!-- sepo-final-response:run-456 -->/);
+    assert.match(log, /<!-- sepo-progress:run-456 -->/);
+    assert.doesNotMatch(log, /<summary>Sepo activity<\/summary>/);
+    assert.doesNotMatch(log, /^api --method DELETE /m);
+    assert.deepEqual(
+      readFileSync(tokenLogPath, "utf8").trim().split(/\r?\n/),
+      ["resolved-app-token", "workflow-token", "workflow-token"],
+    );
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("post-response CLI fails when both durable posting and progress fallback fail", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-post-response-"));
+
+  try {
+    const logPath = join(tempDir, "gh.log");
+    const bodyPath = join(tempDir, "body.md");
+    writeFileSync(bodyPath, "Unavailable answer.\n", "utf8");
+    writeFakeGh(
+      tempDir,
+      `#!/usr/bin/env bash
+printf '%s\\n' "$*" >> "$FAKE_GH_LOG"
 if [ "$1" = "issue" ] && [ "$2" = "comment" ]; then
-  printf 'unexpected fallback post\\n' >&2
+  printf 'resolved auth unavailable\\n' >&2
+  exit 1
+fi
+if [ "$1" = "api" ] && [ "$2" = "repos/self-evolving/repo/issues/comments/999" ]; then
+  printf '<!-- sepo-progress:run-456 -->\\n'
+  exit 0
+fi
+if [ "$1" = "api" ] && [ "$2" = "--method" ] && [ "$3" = "PATCH" ]; then
+  printf 'progress patch unavailable\\n' >&2
   exit 1
 fi
 printf 'unexpected gh args: %s\\n' "$*" >&2
@@ -146,34 +331,85 @@ exit 1
         ...process.env,
         PATH: `${tempDir}:${process.env.PATH || ""}`,
         AGENT_PROGRESS_COMMENT_ID: "999",
-        AGENT_PROGRESS_FINAL_COMMENT_MODE: "merge",
+        AGENT_PROGRESS_FINAL_COMMENT_MODE: "repost",
         AGENT_PROGRESS_GITHUB_TOKEN: "workflow-token",
         BODY_FILE: bodyPath,
-        MODEL_DISPLAY: "`codex` | `gpt-5.6-sol[max]`",
         RESPONSE_KIND: "issue_comment",
         TARGET_NUMBER: "321",
         GITHUB_REPOSITORY: "self-evolving/repo",
+        GITHUB_RUN_ID: "456",
         FAKE_GH_LOG: logPath,
-        FAKE_GH_TOKEN_LOG: tokenLogPath,
+        GH_TOKEN: "resolved-app-token",
+      },
+      encoding: "utf8",
+    });
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Failed to post final response with resolved auth/);
+    assert.match(result.stderr, /Failed to merge final response into progress comment 999/);
+    const log = readFileSync(logPath, "utf8");
+    assert.match(log, /^issue comment 321 --body Unavailable answer\./m);
+    assert.match(log, /^api --method PATCH repos\/self-evolving\/repo\/issues\/comments\/999 /m);
+    assert.doesNotMatch(log, /^api --method DELETE /m);
+  } finally {
+    rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test("post-response CLI does not delete a temporary comment from another run", () => {
+  const tempDir = mkdtempSync(join(tmpdir(), "agent-post-response-"));
+
+  try {
+    const logPath = join(tempDir, "gh.log");
+    const bodyPath = join(tempDir, "body.md");
+    writeFileSync(bodyPath, "Answer body.\n", "utf8");
+    writeFakeGh(
+      tempDir,
+      `#!/usr/bin/env bash
+printf '%s\\n' "$*" >> "$FAKE_GH_LOG"
+if [ "$1" = "issue" ] && [ "$2" = "comment" ]; then
+  exit 0
+fi
+if [ "$1" = "api" ] && [ "$2" = "repos/self-evolving/repo/issues/comments/999" ]; then
+  printf '<!-- sepo-progress:run-older -->\\n'
+  exit 0
+fi
+if [ "$1" = "api" ] && [ "$2" = "--method" ] && [ "$3" = "DELETE" ]; then
+  printf 'unexpected delete\\n' >&2
+  exit 1
+fi
+printf 'unexpected gh args: %s\\n' "$*" >&2
+exit 1
+`,
+    );
+
+    const result = spawnSync("node", [".agent/dist/cli/post-response.js"], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        PATH: `${tempDir}:${process.env.PATH || ""}`,
+        AGENT_PROGRESS_COMMENT_ID: "999",
+        AGENT_PROGRESS_FINAL_COMMENT_MODE: "repost",
+        AGENT_PROGRESS_GITHUB_TOKEN: "workflow-token",
+        BODY_FILE: bodyPath,
+        RESPONSE_KIND: "issue_comment",
+        TARGET_NUMBER: "321",
+        GITHUB_REPOSITORY: "self-evolving/repo",
+        GITHUB_RUN_ID: "456",
+        FAKE_GH_LOG: logPath,
         GH_TOKEN: "resolved-app-token",
       },
       encoding: "utf8",
     });
 
     assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stderr, /progress marker did not match run 456/);
     const log = readFileSync(logPath, "utf8");
+    assert.match(log, /^issue comment 321 --body Answer body\./m);
+    assert.match(log, /<!-- sepo-final-response:run-456 -->/);
     assert.match(log, /^api repos\/self-evolving\/repo\/issues\/comments\/999 --jq \.body$/m);
-    assert.match(log, /^api --method PATCH repos\/self-evolving\/repo\/issues\/comments\/999 /m);
-    assert.match(log, /Answer body\./);
-    assert.doesNotMatch(log, /<summary>Sepo activity<\/summary>/);
-    assert.doesNotMatch(log, /Checking\./);
-    assert.match(log, /<!-- sepo-progress:run-456 -->/);
-    assert.match(log, /`codex` \| `gpt-5\.6-sol\[max\]`/);
-    assert.doesNotMatch(log, /^issue comment /m);
-    assert.deepEqual(
-      readFileSync(tokenLogPath, "utf8").trim().split(/\r?\n/),
-      ["workflow-token", "workflow-token"],
-    );
+    assert.doesNotMatch(log, /^api --method DELETE /m);
+    assert.doesNotMatch(log, /^api --method PATCH /m);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
   }
