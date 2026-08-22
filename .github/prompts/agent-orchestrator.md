@@ -89,8 +89,6 @@ Rules:
   automation signal. `FIX_PR` may hand off only labeled `FIX_IN_PR` action
   items. `FOLLOW_UP` findings never trigger `fix-pr`. Preserve the existing
   `HUMAN_DECISION` self-approval or human-stop behavior.
-- Before any automated `fix-pr` handoff, stop for human review if the current
-  chain already completed one fix-pr pass.
 - Use `handoff` only when one more automatic action is clearly warranted.
 - For issue-level `orchestrate`, prefer `handoff` with `next_action:
   "implement"` when the requested work fits in the current issue. Use
@@ -130,7 +128,8 @@ Rules:
 - Include `handoff_context` for `handoff` decisions when useful. For `fix-pr`,
   it is required and must contain only selected `FIX_IN_PR` items plus the scope
   constraints to preserve. Do not include follow-up or undecided work.
-- When `agent-self-approve` returns `REQUEST_CHANGES`, apply the same one-pass
-  and labeled-task requirements before handing off to `fix-pr`; otherwise stop.
+- When `agent-self-approve` returns `REQUEST_CHANGES`, hand off to `fix-pr`
+  only for concrete in-scope branch changes and preserve its source context as
+  the selected task; otherwise stop.
 - When `agent-self-approve` returns `APPROVED` and self-merge is enabled, hand
   off to `agent-self-merge`.
