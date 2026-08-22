@@ -22,6 +22,7 @@ import {
   extractEventContext,
   getAuthorAssociation,
   getRequestedBy,
+  shouldSkipSelfAuthoredResponse,
   shouldSkipSender,
   shouldRespondToMention,
 } from "../context.js";
@@ -137,8 +138,11 @@ if (!eventPath || !eventName) {
 } else {
   const payload = JSON.parse(readFileSync(eventPath, "utf8"));
 
-  // Gate 1: skip bot-authored events
-  if (shouldSkipSender(payload)) {
+  // Gate 1: skip Sepo final responses and bot-authored events.
+  if (shouldSkipSelfAuthoredResponse(eventName, payload)) {
+    setOutput("should_respond", "false");
+    console.log("Skipping self-authored Sepo final response");
+  } else if (shouldSkipSender(payload)) {
     setOutput("should_respond", "false");
     console.log("Skipping bot-authored event");
   } else {
