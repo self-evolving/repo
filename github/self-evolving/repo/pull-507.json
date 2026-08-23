@@ -46,8 +46,8 @@
       "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 100 | PASS | 7 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Extends the central [GitHub comment helpers](https://github.com/self-evolving/repo/blob/28f930f04c0db4d379444391e89a0385e743f312/.agent/src/github.ts#L88-L106) and existing [progress finalization module](https://github.com/self-evolving/repo/blob/28f930f04c0db4d379444391e89a0385e743f312/.agent/src/progress-final-comment.ts#L60-L120), keeping workflow glue minimal. |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The [lifecycle documentation](https://github.com/self-evolving/repo/blob/28f930f04c0db4d379444391e89a0385e743f312/.agent/docs/architecture/request-lifecycle.md#L29-L31), [entry documentation](https://github.com/self-evolving/repo/blob/28f930f04c0db4d379444391e89a0385e743f312/.agent/docs/index.md#L69-L71), and setup guide all describe the new identity, cleanup, and fallback behavior. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The design explicitly follows GitHub’s documented non-recursive `GITHUB_TOKEN` behavior and preserves the token split introduced by the preceding progress-comment work. |\n| coding_workflow / generic | Leave release notes to release preparation | pass | 8/8 | The [current PR files](https://github.com/self-evolving/repo/pull/507/files) do not modify `.agent/CHANGELOG.md` or other release notes. |\n| coding_workflow / generic | Make surgical changes | pass | 8/8 | The diff is confined to answer finalization, one reusable deletion helper, focused workflow wiring, tests, and the directly affected documentation. Implement and fix-PR behavior remains unchanged. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Cleanup verifies the temporary comment’s [current-run marker before deletion](https://github.com/self-evolving/repo/blob/28f930f04c0db4d379444391e89a0385e743f312/.agent/src/progress-final-comment.ts#L90-L120); if final posting fails, the existing progress comment is reused rather than creating another fallback artifact. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Final posting occurs before deletion, resolved-auth failure falls back to PATCHing the progress comment, and failure of both paths sets a nonzero exit status. Focused tests cover successful reposting, disabled progress, fallback, and mismatched-run cleanup protection ([tests](https://github.com/self-evolving/repo/blob/28f930f04c0db4d379444391e89a0385e743f312/.agent/src/__tests__/post-response-cli.test.ts#L114-L348)). |\n\n## Notes\n\n- Token and permission invariants are explicitly regression-tested: progress and deletion use the workflow token, while final answers use resolved authentication ([workflow test](https://github.com/self-evolving/repo/blob/28f930f04c0db4d379444391e89a0385e743f312/.agent/src/__tests__/envelope.test.ts#L1601-L1686)).\n- The current GitHub [check passes](https://github.com/self-evolving/repo/actions/runs/32529876775/job/96919608342), and an independent `npm --prefix .agent run test:ci` passed at head `28f930f`.\n- No rubric-specific follow-up needed.\n\n## Findings\n\n- **INFO:** No blocking or warning-level rubric finding at the reviewed head.\n\n## Final Rubric Verdict\n\nPASS\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-6`",
       "createdAt": "2026-08-21T22:32:47Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/507#issuecomment-5376085043",
       "viewerDidAuthor": true
@@ -61,8 +61,8 @@
       "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: 28f930f04c0db4d379444391e89a0385e743f312 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #507 restores the Sepo App identity for completed `/answer` responses while keeping temporary progress comments on the non-recursive job token. It posts the answer before deleting the verified progress comment and falls back to merging when posting fails. `/implement` and `/fix-pr` behavior remains unchanged. The implementation and tests are sound for App/OIDC authentication, but unconditional reposting introduces a regression for supported PAT deployments.\n\n## Review\n\nThe core design is well-scoped and tested, but PAT-authored answers can re-enter Sepo’s routing as trusted user events. Because PAT authentication is a documented runtime path, this requires a bounded in-PR fix before shipping.\n\n| Issue | Severity | Disposition | Description |\n| -- | -- | -- | -- |\n| PAT-backed answers can retrigger or authorize Sepo | BLOCKING | FIX_IN_PR | Unconditional `repost` makes PAT-backed answers User-authored events that bypass bot filters. They can allocate implicit-follow-up runs or turn live command suggestions into authorized routes. |\n| Normalize the cleanup run-ID comparison | INFO | FOLLOW_UP | The marker contains a normalized run ID while cleanup compares it with the raw expected value. Current wiring always supplies numeric `github.run_id`, so this is not a present defect. |\n\n## Progress\n\n- Head `28f930f` remains current, the hosted check passes, and an independent reviewer reported `npm --prefix .agent run test:ci` passing.\n- Repost-before-delete ordering, merge fallback, token separation, and cross-run deletion protection have focused coverage.\n- The rubric review passed all seven applicable dimensions, including surgical scope and release-note policy.\n- Best-effort deletion may leave a temporary progress comment beside the final answer after an API failure; this is an acceptable documented degradation.\n- Posted one non-duplicate [inline comment](https://github.com/self-evolving/repo/pull/507#discussion_r3834158065) on the unconditional repost selection.\n\n## Issue Details\n\n<details>\n<summary>PAT-backed answers can retrigger or authorize Sepo</summary>\n\n**Cause:** [The answer workflow selects `repost` for every resolved authentication mode](https://github.com/self-evolving/repo/blob/28f930f04c0db4d379444391e89a0385e743f312/.github/workflows/agent-router.yml#L594), while the resolver also supports PAT and machine-user credentials. PAT-created events can trigger workflows, and these User-authored comments bypass Sepo’s Bot-only entrypoint and sender guards. On `agent`-labeled targets they enter implicit follow-up processing; a live suggested command can instead be parsed as an explicit, trusted request. [GitHub documents the PAT/App versus `GITHUB_TOKEN` trigger distinction](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow#triggering-a-workflow-from-a-workflow).\n\n**Candidate solutions:**\n\n- Select `repost` only for `github_app` and `oidc_broker`; retain `merge` for `pat` and `github_token`.\n- Alternatively, add an equivalent fail-closed identity guard.\n- Cover the authentication-mode matrix in workflow tests and align the lifecycle documentation.\n\n**Comments:** One reviewer classified this as `WARNING/HUMAN_DECISION` because this repository currently uses App/OIDC; another classified it as `BLOCKING/FIX_IN_PR`. The synthesis adopts the blocking disposition because Sepo explicitly supports PAT-based downstream installations and this PR directly changes their answer behavior.\n\n</details>\n\n<details>\n<summary>Normalize the cleanup run-ID comparison</summary>\n\n**Cause:** The progress marker stores `normalizeRunId(runId)`, while cleanup compares the captured value with raw `GITHUB_RUN_ID`. Both are currently the same numeric `github.run_id`, so cleanup remains correct.\n\n**Candidate solutions:**\n\n- Normalize the expected value with the same helper.\n- Alternatively, document and test the numeric run-ID invariant.\n\n**Comments:** This is follow-up hardening only and does not affect the verdict or required fix.\n\n</details>\n\n## Recommended Next Step\n\n`FIX_PR`: Apply one bounded auth-mode gate for answer finalization and add matching PAT-mode regression coverage and documentation.\n\n## Final Verdict\n\n`NEEDS_REWORK`\n\n## Action Items\n\n- [ ] FIX_IN_PR: Repost answers only for App/OIDC authentication, preserve merge finalization for PAT/job-token modes, and test and document the auth-mode behavior.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-2`",
       "createdAt": "2026-08-21T22:40:26Z",
       "includesCreatedEdit": false,
-      "isMinimized": false,
-      "minimizedReason": "",
+      "isMinimized": true,
+      "minimizedReason": "outdated",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/507#issuecomment-5376135008",
       "viewerDidAuthor": true
@@ -103,6 +103,64 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/repo/pull/507#issuecomment-5376996020",
       "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABQNy-4g",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review",
+      "createdAt": "2026-08-22T23:35:59Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/repo/pull/507#issuecomment-5383175906",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABQN15YA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## Rubrics Review\n\n| Total Score | Verdict | Rubrics Scored |\n| -- | -- | -- |\n| 92 | PARTIAL | 9 |\n\n| Dimension | Rubric | Result | Score | Evidence |\n| -- | -- | -- | -- | -- |\n| coding_workflow / generic | Validate delegated route authorization | partial | 5/8 | Final markers are rejected both [before runner allocation](https://github.com/self-evolving/repo/blob/dfda1113eb7a2cec6b49babff8781f7ffed38c1d/.github/workflows/agent-entrypoint.yml#L56-L59) and during [context extraction](https://github.com/self-evolving/repo/blob/dfda1113eb7a2cec6b49babff8781f7ffed38c1d/.agent/src/cli/extract-context.ts#L141-L147). However, the shared implementation workflow selects `repost` for every route while `post-comment` marks only `implement` and `fix-pr`. |\n| coding_workflow / generic | Reuse existing code | pass | 8/8 | Repost, fallback, verification, and deletion are centralized in the existing [progress finalization module](https://github.com/self-evolving/repo/blob/dfda1113eb7a2cec6b49babff8781f7ffed38c1d/.agent/src/progress-final-comment.ts#L96-L166), with marker handling isolated in a small [shared helper](https://github.com/self-evolving/repo/blob/dfda1113eb7a2cec6b49babff8781f7ffed38c1d/.agent/src/self-authored-response.ts#L1-L20). |\n| coding_workflow / generic | Keep docs in sync | pass | 7/7 | The [lifecycle documentation](https://github.com/self-evolving/repo/blob/dfda1113eb7a2cec6b49babff8781f7ffed38c1d/.agent/docs/architecture/request-lifecycle.md#L29-L31) and [setup guide](https://github.com/self-evolving/repo/blob/dfda1113eb7a2cec6b49babff8781f7ffed38c1d/.agent/docs/setup/setup-guide.md#L110-L128) cover token identity, ordering, cleanup, fallback, and policy behavior. |\n| coding_workflow / generic | Read docs and linked context first | pass | 6/6 | The design and docs follow GitHub’s documented behavior that ordinary events emitted with `GITHUB_TOKEN` do not create another workflow run, while App and PAT events can. [GitHub documentation](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow#triggering-a-workflow-from-a-workflow) |\n| coding_workflow / generic | Leave release notes to release preparation | pass | 8/8 | The [PR file set](https://github.com/self-evolving/repo/pull/507/files) does not modify `.agent/CHANGELOG.md` or other release notes. |\n| coding_workflow / generic | Make surgical changes | partial | 6/8 | Most changes are focused implementation, tests, and documentation. The unconditional [`repost` setting](https://github.com/self-evolving/repo/blob/dfda1113eb7a2cec6b49babff8781f7ffed38c1d/.github/workflows/agent-implement.yml#L326-L344), however, also changes `add-rubrics` and arbitrary reusable `implementation_route` values beyond the three documented routes. |\n| coding_workflow / generic | Make user-facing automation idempotent | pass | 7/7 | Marker insertion [replaces existing markers](https://github.com/self-evolving/repo/blob/dfda1113eb7a2cec6b49babff8781f7ffed38c1d/.agent/src/self-authored-response.ts#L15-L19), cleanup verifies the current run before deletion, and failed durable posting reuses the temporary comment. |\n| coding_workflow / generic | Surface stateful failures | pass | 7/7 | Durable-post failures are logged and fall back to the temporary comment; failure of both paths is terminal. Focused coverage verifies the [double-failure path](https://github.com/self-evolving/repo/blob/dfda1113eb7a2cec6b49babff8781f7ffed38c1d/.agent/src/__tests__/post-response-cli.test.ts#L300-L353) and cross-run deletion protection. |\n| communication / generic | Keep status comments compact | pass | 6/6 | Finalization consistently uses `includeActivity: false`, and tests confirm the durable result excludes progress activity while retaining the substantive response. [Focused test](https://github.com/self-evolving/repo/blob/dfda1113eb7a2cec6b49babff8781f7ffed38c1d/.agent/src/__tests__/post-response-cli.test.ts#L163-L173) |\n\n## Notes\n\n- At current head `dfda111`, the hosted [check passes](https://github.com/self-evolving/repo/actions/runs/32562781823/job/97006847244), and an independent `npm --prefix .agent run test:ci` also passed.\n- The default `/answer`, `/implement`, and `/fix-pr` paths address the prior PAT re-entry and run-ID findings with focused regression coverage.\n- Smallest follow-up: make `post-comment` append the final marker whenever its mode is `repost`, matching `post-response`, and add one `add-rubrics` or custom-route regression test.\n\n## Findings\n\n- **WARNING:** The authorization guard is incomplete for reusable implementation routes. [`agent-implement.yml` enables `repost` unconditionally](https://github.com/self-evolving/repo/blob/dfda1113eb7a2cec6b49babff8781f7ffed38c1d/.github/workflows/agent-implement.yml#L326-L341), but [`post-comment.ts` marks only `implement` and `fix-pr`](https://github.com/self-evolving/repo/blob/dfda1113eb7a2cec6b49babff8781f7ffed38c1d/.agent/src/cli/post-comment.ts#L120-L126). If progress is enabled for `add-rubrics` or another custom implementation route and resolved auth is a PAT, the resulting User-authored durable comment lacks the marker and can re-enter mention or implicit-follow-up routing. This is outside the default progress policy but remains a supported configuration path.\n\n## Final Rubric Verdict\n\nPARTIAL\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-6`",
+      "createdAt": "2026-08-22T23:49:55Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/507#issuecomment-5383223648",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOSOhEMM8AAAABQN3Rzw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: dfda1113eb7a2cec6b49babff8781f7ffed38c1d -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\n## Summary of PR/Issue\n\nPR #507 makes live progress temporary for `/answer`, `/implement`, and `/fix-pr`. Durable results are posted with resolved GitHub authentication before the verified workflow-authored progress comment is deleted, with merge fallback preserving availability. It also adds deterministic final-response markers to prevent PAT-authored results from re-entering routing and normalizes run IDs consistently. Documentation and focused tests cover the intended three routes.\n\n## Review\n\nThe primary design is sound, and the prior blocking PAT issue is fixed. One bounded gap remains for other routes sharing the implementation workflow, while the informational findings can remain follow-ups.\n\n| Issue | Severity | Disposition | Description |\n| -- | -- | -- | -- |\n| Shared implementation routes can repost unmarked PAT results | WARNING | FIX_IN_PR | The shared workflow enables `repost` for every implementation route, but `post-comment.ts` marks only `implement` and `fix-pr`; supported progress overrides can therefore produce unmarked PAT-authored results for `create-action`, `add-rubrics`, or custom routes. |\n| Marker substring filtering can silently skip user comments | INFO | FOLLOW_UP | Both routing guards recognize the sentinel anywhere in the body, so a user request containing copied raw marked content is discarded without feedback. |\n| Other resolved-auth routes remain outside the marker contract | INFO | FOLLOW_UP | Some routes that already post with resolved authentication remain unmarked; this behavior predates the PR and is outside its three-route scope. |\n\n## Progress\n\n- The prior `/answer` PAT re-entry concern is addressed by entrypoint and `extract-context` marker guards; its existing inline thread was already resolved.\n- The cleanup run-ID normalization gap is fixed.\n- Review artifacts report the hosted check and independent `npm --prefix .agent run test:ci` passing at head `dfda111`.\n- Removal of collapsed progress activity from final statuses is intentional; richer final-progress presentation remains separate policy work.\n- Posted one non-duplicate [inline comment](https://github.com/self-evolving/repo/pull/507#discussion_r3837304404) for the shared-route gap. No replies, minimizations, or thread resolutions were performed.\n\n## Issue Details\n\n<details>\n<summary>Shared implementation routes can repost unmarked PAT results</summary>\n\n**Cause:** [The shared workflow unconditionally selects `repost`](https://github.com/self-evolving/repo/blob/dfda1113eb7a2cec6b49babff8781f7ffed38c1d/.github/workflows/agent-implement.yml#L337), while [`post-comment.ts` limits marker insertion](https://github.com/self-evolving/repo/blob/dfda1113eb7a2cec6b49babff8781f7ffed38c1d/.agent/src/cli/post-comment.ts#L121-L126) to `implement` and `fix-pr`. With progress enabled for another shared route, PAT auth can create an unmarked User-authored event that re-enters routing.\n\n**Candidate solutions:**\n\n- Prefer appending the marker whenever finalization mode is `repost`, matching `post-response.ts`, and add `add-rubrics` or custom-route regression coverage.\n- Alternatively, retain `merge` for shared routes other than `implement`.\n\n**Comments:** Codex and the rubric reviewer identified this gap; Claude judged the PR mergeable after validating only the intended default routes. The current source supports a warning rather than a blocker because the regression requires a supported but non-default progress configuration.\n\n</details>\n\n<details>\n<summary>Marker substring filtering can silently skip user comments</summary>\n\n**Cause:** The entrypoint `contains` expression and `hasFinalResponseMarker` accept the sentinel anywhere in a comment, including copied raw response content.\n\n**Candidate solutions:**\n\n- Evaluate a stricter canonical-position check without weakening the PAT guard.\n- Otherwise document the marker as reserved input.\n\n**Comments:** Claude raised this independently. The behavior is fail-closed and has no authorization or data-loss impact, so it should not delay this PR.\n\n</details>\n\n<details>\n<summary>Other resolved-auth routes remain outside the marker contract</summary>\n\n**Cause:** The new marker contract targets the three routes changed here; other existing resolved-auth comment paths were not audited or modified.\n\n**Candidate solutions:**\n\n- Follow up with a route-by-route audit and mark only outputs whose resulting events can re-enter the agent router.\n\n**Comments:** This is pre-existing behavior and should not expand the current fix.\n\n</details>\n\n## Recommended Next Step\n\n`FIX_PR`: Apply one bounded marker-condition change for every repost-mode shared implementation result and add focused shared-route regression coverage.\n\n## Final Verdict\n\n`MINOR_ISSUES`\n\n## Action Items\n\n- [ ] FIX_IN_PR: Mark every repost-mode result from the shared implementation workflow and add PAT/shared-route regression coverage.\n\n---\n`codex` | `gpt-5.6-sol[max]` | `Macmini-runner-1`",
+      "createdAt": "2026-08-22T23:56:33Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/repo/pull/507#issuecomment-5383246287",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-08-21T21:44:03Z",
@@ -294,10 +352,25 @@
       "commit": {
         "oid": "9997d68b29d7f2de17219694701e85c561438b9d"
       }
+    },
+    {
+      "id": "PRR_kwDOSOhEMM8AAAABKhnWuw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "",
+      "submittedAt": "2026-08-22T23:54:46Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "dfda1113eb7a2cec6b49babff8781f7ffed38c1d"
+      }
     }
   ],
   "state": "OPEN",
   "title": "Unify Sepo progress and durable result identity",
-  "updatedAt": "2026-08-22T08:37:36Z",
+  "updatedAt": "2026-08-22T23:56:33Z",
   "url": "https://github.com/self-evolving/repo/pull/507"
 }
