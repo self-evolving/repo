@@ -207,6 +207,9 @@ jobs:
           AUTOMATION_MAX_ROUNDS: ${{ inputs.automation_max_rounds }}
           AUTOMATION_MODE: ${{ inputs.automation_mode }}
           AGENT_COLLAPSE_OLD_REVIEWS: ${{ vars.AGENT_COLLAPSE_OLD_REVIEWS }}
+          AGENT_HANDLE: ${{ vars.AGENT_HANDLE || '@sepo-agent' }}
+          AGENT_PROGRESS_COMMENT_ID: ${{ steps.planner.outputs.progress_comment_id }}
+          AGENT_PROGRESS_FINAL_COMMENT_MODE: merge
           BASE_BRANCH: ${{ inputs.base_branch }}
           BASE_PR: ${{ inputs.base_pr }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
@@ -229,4 +232,5 @@ jobs:
           TARGET_KIND: ${{ inputs.target_kind || (inputs.source_action == 'implement' && 'issue' || 'pull_request') }}
           TARGET_NUMBER: ${{ inputs.target_number }}
           PLANNER_RESPONSE_FILE: ${{ steps.planner.outputs.response_file }}
+          MODEL_DISPLAY: ${{ steps.planner.outputs.model_display }}
         run: node .agent/dist/cli/orchestrate-handoff.js
