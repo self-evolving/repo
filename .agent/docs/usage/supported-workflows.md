@@ -74,6 +74,11 @@ memory and rubrics read-only so automated control-flow planning can use steering
 context without mutating those state branches. Orchestration stops when target
 state indicates no safe next action, a route fails, a duplicate handoff marker
 is found, the planner stops or blocks, or the max-round budget is exhausted.
+Terminal PR stops reuse the current run's progress comment with the job-scoped
+token when available, or update one trusted `sepo-agent-orchestrate-stop`
+marker comment otherwise. The final note includes the planner summary and
+outcome metadata and mentions the original requester only when it is a human
+GitHub login.
 
 When a child issue reaches a terminal stop, the handoff dispatcher resolves the
 trusted child metadata from the issue body or an agent-authored child issue
@@ -122,6 +127,12 @@ HTML markers for robust matching, with heading/text fallbacks for older
 comments. Rubrics reviews match the `## Rubrics Review` heading, and
 orchestrator handoffs match their hidden handoff marker. This keeps the latest
 generated status prominent while leaving older generated comments expandable.
+Successful terminal PR orchestration with a substantive cumulative summary
+also best-effort minimizes older matching conversation comments under both the
+resolved agent and job-token identities, while leaving the current final note,
+pending handoffs, formal reviews, and human comments visible. Summary-less,
+blocked, clarification, failed, malformed-planner, and other non-success
+outcomes never trigger this terminal cleanup.
 Set `AGENT_COLLAPSE_OLD_REVIEWS=false` to skip this cleanup and leave prior
 generated comments visible.
 
