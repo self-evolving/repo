@@ -143,6 +143,93 @@ jobs:
       skill: ${{ steps.dispatch.outputs.skill }}
       base_pr: ${{ steps.dispatch.outputs.base_pr }}
     steps:
+      # Best-effort early acknowledgement before checkout and runtime setup.
+      # Uses only jq + curl on raw payload fields, so it needs no repository
+      # files. The sed/grep pair approximates the boundary-aware live-mention
+      # check in .agent/src/mentions.ts (fenced code, inline code, and quoted
+      # lines are ignored); extract-context remains the authoritative
+      # validator. Covers surfaces with REST reaction endpoints; discussions
+      # and PR review bodies are GraphQL-only and keep the post-setup path,
+      # as do edited events, which need new-mention validation first.
+      - name: Fast acknowledgement
+        id: fast_ack
+        if: >-
+          inputs.trigger_kind == 'mention' &&
+          github.event.sender.type != 'Bot' &&
+          github.event.action != 'edited'
+        continue-on-error: true
+        timeout-minutes: 1
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AGENT_HANDLE: ${{ inputs.agent_handle }}
+        run: |
+          set -euo pipefail
+          reacted=false
+          id=""
+          endpoint=""
+          text=""
+          case "${GITHUB_EVENT_NAME}" in
+            issues)
+              text="$(jq -r '(.issue.title // "") + "\n\n" + (.issue.body // "")' "${GITHUB_EVENT_PATH}")"
+              id="$(jq -r '.issue.number // empty' "${GITHUB_EVENT_PATH}")"
+              endpoint="repos/${GITHUB_REPOSITORY}/issues/${id}/reactions"
+              ;;
+            pull_request)
+              text="$(jq -r '(.pull_request.title // "") + "\n\n" + (.pull_request.body // "")' "${GITHUB_EVENT_PATH}")"
+              id="$(jq -r '.pull_request.number // empty' "${GITHUB_EVENT_PATH}")"
+              endpoint="repos/${GITHUB_REPOSITORY}/issues/${id}/reactions"
+              ;;
+            issue_comment)
+              text="$(jq -r '.comment.body // ""' "${GITHUB_EVENT_PATH}")"
+              id="$(jq -r '.comment.id // empty' "${GITHUB_EVENT_PATH}")"
+              endpoint="repos/${GITHUB_REPOSITORY}/issues/comments/${id}/reactions"
+              ;;
+            pull_request_review_comment)
+              text="$(jq -r '.comment.body // ""' "${GITHUB_EVENT_PATH}")"
+              id="$(jq -r '.comment.id // empty' "${GITHUB_EVENT_PATH}")"
+              endpoint="repos/${GITHUB_REPOSITORY}/pulls/comments/${id}/reactions"
+              ;;
+          esac
+          if [ -n "${id}" ]; then
+            # Fence handling is deliberately more conservative than
+            # .agent/src/mentions.ts: any line containing a fence marker is
+            # dropped, and odd marker counts toggle fenced state, so
+            # list-nested fences cannot leak a false acknowledgement. Missed
+            # fast acks fall back to the post-setup reaction path.
+            live="$(printf '%s\n' "${text}" \
+              | awk '{
+                  bt = gsub(/```+/, ""); td = gsub(/~~~+/, "")
+                  drop = (bt > 0 || td > 0 || inbt || intd)
+                  if (inbt) { if (bt % 2 == 1) { inbt = 0; if (td % 2 == 1) intd = 1 } }
+                  else if (intd) { if (td % 2 == 1) { intd = 0; if (bt % 2 == 1) inbt = 1 } }
+                  else if (bt % 2 == 1) inbt = 1
+                  else if (td % 2 == 1) intd = 1
+                  if (drop) next
+                  print
+                }' \
+              | sed -e 's/`[^`]*`//g' \
+                    -e '/^[[:space:]]*>/d')"
+            # Boundary-aware handle match, mirroring .agent/src/mentions.ts:
+            # a leading line start, whitespace, or "(", and a trailing
+            # terminator or end of line, so a handle with a trailing suffix
+            # does not match.
+            escaped="$(printf '%s' "${AGENT_HANDLE}" | sed 's/[][\.|$()*+?^{}]/\\&/g')"
+            if grep -qE "(^|[[:space:](])${escaped}([][:space:].,;:!?)}]|$)" <<< "${live}"; then
+              if response="$(curl -fsS --max-time 10 \
+                -X POST \
+                -H "Authorization: Bearer ${GH_TOKEN}" \
+                -H "Accept: application/vnd.github+json" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                -d '{"content":"eyes"}' \
+                "${GITHUB_API_URL:-https://api.github.com}/${endpoint}" 2>&1)"; then
+                reacted=true
+              else
+                echo "Fast acknowledgement request failed: $(printf '%s' "${response}" | head -c 200)"
+              fi
+            fi
+          fi
+          echo "reacted=${reacted}" >> "${GITHUB_OUTPUT}"
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
@@ -224,7 +311,8 @@ jobs:
       - name: React with eyes
         if: >-
           steps.context.outputs.should_respond == 'true' &&
-          steps.context.outputs.implicit_followup != 'true'
+          steps.context.outputs.implicit_followup != 'true' &&
+          steps.fast_ack.outputs.reacted != 'true'
         env:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           REACTION_SUBJECT_ID: ${{ steps.context.outputs.reaction_subject_id }}
@@ -451,7 +539,8 @@ jobs:
         if: >-
           steps.context.outputs.should_respond == 'true' &&
           steps.context.outputs.implicit_followup == 'true' &&
-          steps.dispatch.outputs.route == 'answer'
+          steps.dispatch.outputs.route == 'answer' &&
+          steps.fast_ack.outputs.reacted != 'true'
         env:
           GH_TOKEN: ${{ steps.auth.outputs.token }}
           REACTION_SUBJECT_ID: ${{ steps.context.outputs.reaction_subject_id }}
@@ -625,6 +714,14 @@ jobs:
       vars.AGENT_ENABLED != 'false' &&
       needs.portal.outputs.should_respond == 'true' &&
       needs.portal.outputs.route == 'skill'
+    # Skills run with write-capable credentials, so per-target serialization
+    # must live here now that entrypoint concurrency keys on the triggering
+    # comment. queue: max keeps overlapping requests instead of replacing the
+    # single pending run.
+    concurrency:
+      group: agent-skill-${{ github.repository }}-${{ needs.portal.outputs.target_kind }}-${{ needs.portal.outputs.target_number }}
+      cancel-in-progress: false
+      queue: max
     runs-on: ${{ fromJson(inputs.runs_on || vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
     steps:
       - uses: actions/checkout@v4
@@ -797,6 +894,15 @@ jobs:
       vars.AGENT_ENABLED != 'false' &&
       needs.portal.outputs.should_respond == 'true' &&
       needs.portal.outputs.route == 'install'
+    # Install publishes the fixed agent/install-agent-infra branch of an
+    # external repository that is only resolved during the run, so no group
+    # expression can key on the real contended resource. Serialize all
+    # install runs repo-wide without dropping overlapping requests; installs
+    # are rare enough that global FIFO is the safe trade.
+    concurrency:
+      group: agent-install-${{ github.repository }}
+      cancel-in-progress: false
+      queue: max
     runs-on: ${{ fromJson(inputs.runs_on || vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
     env:
       AGENT_INSTALL_PAT_CONFIGURED: ${{ secrets.AGENT_INSTALL_PAT != '' && 'true' || 'false' }}

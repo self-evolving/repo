@@ -107,10 +107,19 @@ permissions:
 concurrency:
   group: agent-fix-pr-${{ inputs.pr_number }}
   cancel-in-progress: false
+  queue: max
 
 jobs:
   fix-pr:
     if: vars.AGENT_ENABLED != 'false'
+    # Belt-and-braces alongside the workflow-level group above: a job-level
+    # group applies unambiguously on the workflow_call path. The group name
+    # differs from the workflow-level one; sharing it would deadlock
+    # standalone workflow_dispatch runs against themselves.
+    concurrency:
+      group: agent-fix-pr-job-${{ inputs.pr_number }}
+      cancel-in-progress: false
+      queue: max
     runs-on: ${{ fromJson(inputs.runs_on || vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
     env:
       MODEL_REASONING_EFFORT: xhigh
