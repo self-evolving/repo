@@ -1,0 +1,75 @@
+name: Agent / Release / Publish
+
+on:
+  pull_request_target:
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Optional Sepo version to publish, for example 0.3.1"
+        required: false
+        default: ""
+      target_sha:
+        description: "Optional default-branch commit SHA to tag; defaults to the checked-out HEAD"
+        required: false
+        default: ""
+      dry_run:
+        description: "Validate without creating the tag or GitHub Release"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: read
+  id-token: write # required for GitHub Actions OIDC broker exchange
+
+concurrency:
+  group: agent-release-publish-${{ github.repository }}-${{ github.event.pull_request.number || inputs.version || inputs.target_sha || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: >-
+      vars.AGENT_ENABLED != 'false' &&
+      github.repository == 'self-evolving/repo' &&
+      (
+        github.event_name == 'workflow_dispatch' ||
+        (
+          github.event.pull_request.merged == true &&
+          github.event.pull_request.base.ref == github.event.repository.default_branch
+        )
+      )
+    runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.merge_commit_sha || github.event.repository.default_branch }}
+          token: ${{ github.token }}
+
+      - name: Resolve GitHub auth
+        id: auth
+        uses: ./.github/actions/resolve-github-auth
+        with:
+          app_id: ${{ secrets.AGENT_APP_ID }}
+          app_private_key: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
+          pat: ${{ secrets.AGENT_PAT }}
+          fallback_token: ${{ github.token }}
+
+      - name: Setup agent runtime
+        uses: ./.github/actions/setup-agent-runtime
+        with:
+          install_codex: "false"
+          install_claude: "false"
+
+      - name: Publish release
+        env:
+          DRY_RUN: ${{ inputs.dry_run && 'true' || 'false' }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number || '' }}
+          TARGET_SHA: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.merge_commit_sha || inputs.target_sha || '' }}
+          VERSION: ${{ inputs.version || '' }}
+        run: node .agent/dist/cli/publish-release.js
