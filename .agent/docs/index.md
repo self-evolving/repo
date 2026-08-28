@@ -118,6 +118,7 @@ Understanding the system:
 Using Sepo:
 
 - [Using Sepo overview](usage/index.md)
+- [Export local session traces](usage/local-session-traces.md)
 - [Internal actions](usage/internal-actions.md)
 - [Agent actions](usage/agent-actions.md)
 

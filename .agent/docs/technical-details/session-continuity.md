@@ -4,6 +4,8 @@ title: "Session continuity"
 
 Persistent session continuity can optionally use GitHub Actions artifacts to carry local agent session files across runs. This is useful when the next run lands on a fresh machine and local `HOME` state is not sticky.
 
+Restorable session bundles are different from [sanitized local session traces](../usage/local-session-traces.md). A trace contains only allowlisted user/assistant text for inspect-only sharing; it never restores provider state. Session bundles can contain raw provider files and must not be uploaded as user-supplied traces.
+
 ## Session policies
 
 The shared `run-agent-task` action accepts `session_policy`:

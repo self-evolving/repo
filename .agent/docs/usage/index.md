@@ -8,6 +8,7 @@ The docs use three terms consistently:
 
 - **Workflows** are GitHub workflow files in `.github/workflows/`. They define triggers, jobs, permissions, and dispatch boundaries. See [Supported workflows](supported-workflows.md).
 - **Agent actions** are route-level behaviors such as `answer`, `implement`, `fix-pr`, and `review`. They are selected by mention, label, approval, or workflow dispatch, and are implemented through workflow wiring plus prompts. See [Agent actions](agent-actions.md).
+- **Local session traces** are versioned, sanitized exports of user/assistant text for inspect-only sharing. See [Export local session traces](local-session-traces.md).
 - **Internal actions** are shared composite GitHub Actions in `.github/actions/`. They scaffold the runtime, resolve GitHub auth, and run agent tasks for workflows. See [Internal actions](internal-actions.md).
 
 ## Documentation model
@@ -18,6 +19,7 @@ Until that renderer exists:
 
 - [Supported workflows](supported-workflows.md) is the canonical place for `.github/workflows/*` trigger and route details.
 - [Agent actions](agent-actions.md) is the canonical place for route behavior, prompt consumption, session policy, and generated-doc metadata conventions.
+- [Export local session traces](local-session-traces.md) defines the local sanitized-trace contract and export CLI.
 - [Internal actions](internal-actions.md) is the canonical place for `.github/actions/*` details.
 
 Avoid duplicating action details in setup or architecture pages. Those pages should explain user-facing behavior and link here for workflow and action details.
